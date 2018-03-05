@@ -5,11 +5,12 @@
 #include "stdafx.h"
 #pragma hdrstop
 
+#pragma warning(push)
 #pragma warning(disable : 4995)
 #include <direct.h>
 #include <fcntl.h>
 #include <sys\stat.h>
-#pragma warning(default : 4995)
+#pragma warning(pop)
 
 #include "FS_internal.h"
 #include "stream_reader.h"
@@ -759,7 +760,7 @@ void CLocatorAPI::_initialize(u32 flags, LPCSTR target_folder, LPCSTR fs_name)
             FS_Path* P = new FS_Path((p_it != pathes.end()) ? p_it->second->m_Path : root, lp_add, lp_def, lp_capt, fl);
             bNoRecurse = !(fl & FS_Path::flRecurse);
             Recurse(P->m_Path);
-            I = pathes.insert(mk_pair(xr_strdup(id), P));
+            I = pathes.insert(std::make_pair(xr_strdup(id), P));
 #ifndef DEBUG
             m_Flags.set(flCacheFiles, FALSE);
 #endif // DEBUG
@@ -1548,7 +1549,7 @@ FS_Path* CLocatorAPI::append_path(LPCSTR path_alias, LPCSTR root, LPCSTR add, BO
     FS_Path* P = new FS_Path(root, add, LPCSTR(0), LPCSTR(0), 0);
     bNoRecurse = !recursive;
     Recurse(P->m_Path);
-    pathes.insert(mk_pair(xr_strdup(path_alias), P));
+    pathes.insert(std::make_pair(xr_strdup(path_alias), P));
     return P;
 }
 
