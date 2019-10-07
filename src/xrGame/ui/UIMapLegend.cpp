@@ -5,20 +5,20 @@
 //	Description : UI Map Legend Wnd (PDA : Task) class impl
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIMapLegend.h"
 
-#include "xrUIXmlParser.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 #include "UIXmlInit.h"
 #include "UIHelper.h"
 
-#include "UIFrameWindow.h"
-#include "UIScrollView.h"
-#include "UIStatic.h"
-#include "UI3tButton.h"
-#include "UICheckButton.h"
-#include "UIFrameLineWnd.h"
-#include "UIHint.h"
+#include "xrUICore/Windows/UIFrameWindow.h"
+#include "xrUICore/ScrollView/UIScrollView.h"
+#include "xrUICore/Static/UIStatic.h"
+#include "xrUICore/Buttons/UI3tButton.h"
+#include "xrUICore/Buttons/UICheckButton.h"
+#include "xrUICore/Windows/UIFrameLineWnd.h"
+#include "xrUICore/Hint/UIHint.h"
 
 #include "UIInventoryUtilities.h"
 #include "string_table.h"
@@ -30,8 +30,8 @@ void UIMapLegend::init_from_xml(CUIXml& xml, LPCSTR path)
 {
     CUIXmlInit::InitWindow(xml, path, 0, this);
 
-    XML_NODE* stored_root = xml.GetLocalRoot();
-    XML_NODE* tmpl_root = xml.NavigateToNode(path, 0);
+    XML_NODE stored_root = xml.GetLocalRoot();
+    XML_NODE tmpl_root = xml.NavigateToNode(path, 0);
     xml.SetLocalRoot(tmpl_root);
 
     m_background = UIHelper::CreateFrameWindow(xml, "background_frame", this);
@@ -45,7 +45,7 @@ void UIMapLegend::init_from_xml(CUIXml& xml, LPCSTR path)
     UIMapLegendItem* list_item = NULL;
 
     int cn = xml.GetNodesNum("legend_list", 0, "item");
-    XML_NODE* root2 = xml.NavigateToNode("legend_list", 0);
+    XML_NODE root2 = xml.NavigateToNode("legend_list", 0);
     xml.SetLocalRoot(root2);
 
     for (int i = 0; i < cn; ++i)
@@ -81,7 +81,7 @@ void UIMapLegendItem::init_from_xml(CUIXml& xml, int index)
 {
     CUIXmlInit::InitWindow(xml, "item", index, this);
 
-    XML_NODE* root3 = xml.NavigateToNode("item", index);
+    XML_NODE root3 = xml.NavigateToNode("item", index);
     xml.SetLocalRoot(root3);
 
     m_image[0] = UIHelper::CreateStatic(xml, "image", this);

@@ -65,8 +65,7 @@ void GenerateStrips(const u16* in_indices, const s32 in_numIndices, xr_vector<Pr
     // put data in format that the stripifier likes
     WordVec tempIndices;
     tempIndices.resize(in_numIndices);
-    int i;
-    for (i = 0; i < in_numIndices; i++)
+    for (int i = 0; i < in_numIndices; i++)
         tempIndices[i] = in_indices[i];
     NvStripInfoVec tempStrips;
     NvFaceInfoVec tempFaces;
@@ -124,7 +123,7 @@ void GenerateStrips(const u16* in_indices, const s32 in_numIndices, xr_vector<Pr
         stripifier.CreateStrips(tempStrips, stripIndices, bStitchStrips, numSeparateStrips);
 
         // if we're stitching strips together, we better get back only one strip from CreateStrips()
-        assert((bStitchStrips && (numSeparateStrips == 1)) || !bStitchStrips);
+        R_ASSERT((bStitchStrips && (numSeparateStrips == 1)) || !bStitchStrips);
 
         // convert to output format
         int numGroups = u16(numSeparateStrips); // for the strips

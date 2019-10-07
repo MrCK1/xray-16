@@ -1,10 +1,10 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "PHContactBodyEffector.h"
 #include "ExtendedGeom.h"
 #include "tri-colliderknoopc/dTriList.h"
 #include "PhysicsCommon.h"
 #include "xrEngine/GameMtlLib.h"
-#include "mathutilsode.h"
+#include "MathUtilsOde.h"
 void CPHContactBodyEffector::Init(dBodyID body, const dContact& contact, SGameMtl* material)
 {
     CPHBaseBodyEffector::Init(body);

@@ -30,13 +30,13 @@ typedef CActionPlanner<CScriptGameObject, false, CActionBase<CScriptGameObject>,
 
 namespace MonsterSpace
 {
-enum EMovementDirection;
-};
+enum EMovementDirection : u32;
+}
 
 namespace StalkerSpace
 {
-enum EBodyAction;
-};
+enum EBodyAction : u32;
+}
 
 namespace smart_cover
 {
@@ -46,10 +46,10 @@ class loophole;
 namespace transitions
 {
 class action;
-};
-};
+}
+}
 
-enum ECriticalWoundType;
+enum ECriticalWoundType : u32;
 
 class CALifeSimulator;
 class CCharacterPhysicsSupport;
@@ -75,8 +75,8 @@ class CRestrictedObject;
 
 class CAI_Stalker : public CCustomMonster, public CObjectHandler, public CAI_PhraseDialogManager, public CStepManager
 {
-private:
-    typedef CCustomMonster inherited;
+protected:
+    using inherited = CCustomMonster;
 
 public:
     using inherited::useful;
@@ -193,14 +193,14 @@ public:
     virtual void feel_touch_new(IGameObject* O);
     virtual void feel_touch_delete(IGameObject* O);
     void on_ownership_reject(IGameObject* O, bool just_before_destroy);
-    virtual void renderable_Render();
+    void renderable_Render(IRenderable* root) override;
     virtual void Exec_Look(float dt);
     virtual void Hit(SHit* pHDS);
     virtual void PHHit(SHit& H);
     virtual bool feel_vision_isRelevant(IGameObject* who);
     virtual float Radius() const;
 #ifdef DEBUG
-    virtual void OnHUDDraw(CCustomHUD* hud);
+    void OnHUDDraw(CCustomHUD* hud, IRenderable* root) override;
     virtual void OnRender();
     void debug_text();
     bool m_dbg_hud_draw;
@@ -321,8 +321,8 @@ private:
     bool m_can_select_weapon;
 
 public:
-    bool can_select_weapon() { return m_can_select_weapon; };
-    void can_select_weapon(bool can) { m_can_select_weapon = can; };
+    bool can_select_weapon() { return m_can_select_weapon; }
+    void can_select_weapon(bool can) { m_can_select_weapon = can; }
     bool can_take(CInventoryItem const* item);
 
 protected:
@@ -383,6 +383,7 @@ public:
     IC bool group_behaviour() const;
     virtual void update_range_fov(float& new_range, float& new_fov, float start_range, float start_fov);
     void __stdcall update_object_handler();
+    bool mt_object_handler_update_allowed() const;
     bool zoom_state() const;
     void react_on_grenades();
     void react_on_member_death();

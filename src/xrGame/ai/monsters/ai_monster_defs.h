@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Include/xrRender/KinematicsAnimated.h"
-#include "xrEngine/cameramanager.h"
+#include "xrEngine/CameraManager.h"
 
 typedef u32 TTime;
 
@@ -262,6 +262,15 @@ enum EPState
     PS_STAND_UPPER
 };
 
+enum EHitSide
+{
+    eSideFront = u32(0),
+    eSideBack,
+    eSideLeft,
+    eSideRight,
+    eSideCount
+};
+
 typedef shared_str anim_string;
 #define DEFAULT_ANIM eAnimStandIdle
 
@@ -269,6 +278,9 @@ typedef shared_str anim_string;
 struct SAnimItem
 {
     anim_string target_name; // "stand_idle_"
+    anim_string target_name2; // "stand_idle_"
+    bool target_may_not_exist;
+
     int spec_id; // (-1) - any,  (0 - ...) - идентификатор 3
     u8 count; // количество анимаций : "idle_0", "idle_1", "idle_2"
 
@@ -282,6 +294,7 @@ struct SAnimItem
         anim_string back;
         anim_string left;
         anim_string right;
+        std::bitset<eSideCount> may_not_exist;
     } fxs;
 };
 
@@ -371,15 +384,20 @@ struct SAAParam
     float dist;
 };
 
-DEFINE_VECTOR(SAAParam, AA_VECTOR, AA_VECTOR_IT);
+using AA_VECTOR = xr_vector<SAAParam>;
 
 struct SCurrentAnimationInfo
 {
-    shared_str name;
-
     u8 index;
-
     TTime time_started;
+    float speed_change_vel;
+
+private:
+    EMotionAnim motion;
+
+public:
+    shared_str name;
+    CBlend* blend;
 
     struct
     {
@@ -392,21 +410,18 @@ struct SCurrentAnimationInfo
         {
             target = v;
             VERIFY2(_abs(v) < 1000, "_set_target(). monster speed is too big");
+            
         }
         IC float _get_current() { return current; }
         IC float _get_target() { return target; }
+
     private:
         float current;
         float target;
     } speed;
 
-    float speed_change_vel;
-    CBlend* blend;
-
     void set_motion(EMotionAnim new_motion);
     EMotionAnim get_motion() const { return motion; }
-private:
-    EMotionAnim motion;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -417,25 +432,17 @@ struct t_fx_index
     s8 back;
 };
 
-enum EHitSide
-{
-    eSideFront = u32(0),
-    eSideBack,
-    eSideLeft,
-    eSideRight
-};
+using ANIM_ITEM_VECTOR = xr_vector<SAnimItem*>;
+using TRANSITION_ANIM_VECTOR = xr_vector<STransition>;
+using MOTION_ITEM_MAP = xr_map<EAction, SMotionItem>;
+using SEQ_VECTOR = xr_vector<EMotionAnim>;
+using ATTACK_ANIM = xr_vector<SAttackAnimation>;
+using REPLACED_ANIM = xr_vector<SReplacedAnim>;
 
-DEFINE_VECTOR(SAnimItem*, ANIM_ITEM_VECTOR, ANIM_ITEM_VECTOR_IT);
-DEFINE_VECTOR(STransition, TRANSITION_ANIM_VECTOR, TRANSITION_ANIM_VECTOR_IT);
-DEFINE_MAP(EAction, SMotionItem, MOTION_ITEM_MAP, MOTION_ITEM_MAP_IT);
-DEFINE_VECTOR(EMotionAnim, SEQ_VECTOR, SEQ_VECTOR_IT);
-DEFINE_VECTOR(SAttackAnimation, ATTACK_ANIM, ATTACK_ANIM_IT);
-DEFINE_VECTOR(SReplacedAnim, REPLACED_ANIM, REPLACED_ANIM_IT);
+using FX_MAP_U16 = xr_map<u16, t_fx_index>;
+using FX_MAP_STRING = xr_map<shared_str, t_fx_index>;
 
-DEFINE_MAP(u16, t_fx_index, FX_MAP_U16, FX_MAP_U16_IT);
-DEFINE_MAP(shared_str, t_fx_index, FX_MAP_STRING, FX_MAP_STRING_IT);
-
-DEFINE_VECTOR(SEQ_VECTOR, VELOCITY_CHAIN_VEC, VELOCITY_CHAIN_VEC_IT);
+using VELOCITY_CHAIN_VEC = xr_vector<SEQ_VECTOR>;
 
 struct SVelocity
 {
@@ -507,7 +514,8 @@ struct SMonsterEnemy
 
 class CEntityAlive;
 
-DEFINE_MAP(const CEntityAlive*, SMonsterEnemy, ENEMIES_MAP, ENEMIES_MAP_IT);
+using ENEMIES_MAP = xr_map<const CEntityAlive *, SMonsterEnemy>;
+using ENEMIES_MAP_IT = ENEMIES_MAP::iterator;
 
 struct SMonsterCorpse
 {
@@ -516,7 +524,8 @@ struct SMonsterCorpse
     TTime time;
 };
 
-DEFINE_MAP(const CEntityAlive*, SMonsterCorpse, CORPSE_MAP, CORPSE_MAP_IT);
+using CORPSE_MAP = xr_map<const CEntityAlive *, SMonsterCorpse>;
+using CORPSE_MAP_IT = CORPSE_MAP::iterator;
 
 struct SMonsterHit
 {
@@ -528,7 +537,7 @@ struct SMonsterHit
     bool operator==(const IGameObject* obj) { return (object == obj); }
 };
 
-DEFINE_VECTOR(SMonsterHit, MONSTER_HIT_VECTOR, MONSTER_HIT_VECTOR_IT);
+using MONSTER_HIT_VECTOR = xr_vector<SMonsterHit>;
 
 enum EDangerType
 {
@@ -539,4 +548,4 @@ enum EDangerType
     eNone
 };
 
-DEFINE_MAP(MotionID, shared_str, ANIM_TO_MOTION_MAP, ANIM_TO_MOTION_MAP_IT);
+using ANIM_TO_MOTION_MAP = xr_map<MotionID, shared_str>;

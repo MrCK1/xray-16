@@ -1,14 +1,14 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #include "PHWorld.h"
 #include "tri-colliderknoopc/dTriList.h"
 #include "PhysicsCommon.h"
 
 #include "ExtendedGeom.h"
-#include "draymotions.h"
+#include "dRayMotions.h"
 #include "PHCollideValidator.h"
 #include "xrEngine/GameMtlLib.h"
-#include "xrEngine/Device.h"
+#include "xrEngine/device.h"
 #include "xrEngine/GameFont.h"
 #include "xrEngine/PerformanceAlert.hpp"
 
@@ -18,13 +18,13 @@
 #endif
 
 #include "xrServerEntities/PHSynchronize.h"
-#include "xrServerEntities/phnetstate.h"
-#include "geometrybits.h"
+#include "xrServerEntities/PHNetState.h"
+#include "GeometryBits.h"
 #include "console_vars.h"
 #include "xrEngine/device.h"
 #include "xrEngine/defines.h"
 #include "xrCDB/xr_area.h"
-#include "xrCore/fs_internal.h"
+#include "xrCore/FS_internal.h"
 #ifdef DEBUG
 //				void DBG_ObjAfterPhDataUpdate	( CPHObject *obj );
 //				void DBG_ObjBeforePhDataUpdate	( CPHObject *obj );
@@ -78,7 +78,7 @@ CObjectSpace* __stdcall mesh_create_object_space(
     os->Create(verts, tris, H, build_callback);
     return os;
 }
-void __stdcall set_mtl_lib(CGameMtlLibrary* l) { GlobalEnv.PGMLib = l; }
+void __stdcall set_mtl_lib(CGameMtlLibrary* l) { GEnv.PGMLib = l; }
 void __stdcall destroy_object_space(CObjectSpace*& os) { xr_delete(os); }
 void CPHMesh::Create(dSpaceID space, dWorldID world)
 {
@@ -239,7 +239,7 @@ void CPHWorld::OnFrame()
 {
     stats.FrameStart();
 // Msg									("------------- physics: %d / %d",u32(Device.dwFrame),u32(m_steps_num));
-//просчитать полет пуль
+//calculate the flight of bullets
 /*
 Device.Statistic->TEST0.Begin		();
 Level().BulletManager().Update		();

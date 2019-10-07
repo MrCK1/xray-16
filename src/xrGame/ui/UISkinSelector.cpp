@@ -1,11 +1,10 @@
 #include "StdAfx.h"
-#include <dinput.h>
 #include "UISkinSelector.h"
 #include "UIXmlInit.h"
-#include "UIAnimatedStatic.h"
-#include "UI3tButton.h"
+#include "xrUICore/Static/UIAnimatedStatic.h"
+#include "xrUICore/Buttons/UI3tButton.h"
 #include "UIStatix.h"
-#include "UICursor.h"
+#include "xrUICore/Cursor/UICursor.h"
 #include "UIGameCustom.h"
 #include "game_cl_deathmatch.h"
 #include "xr_level_controller.h"
@@ -99,7 +98,7 @@ void CUISkinSelectorWnd::UpdateSkins()
         string16 buf;
         if (m_firstSkin + i < 10)
         {
-            itoa((m_firstSkin + 1 + i) % 10, buf, 10);
+            xr_itoa((m_firstSkin + 1 + i) % 10, buf, 10);
             xr_strcat(buf, sizeof(buf), " ");
             m_pImage[i]->TextItemControl()->SetText(buf);
         }
@@ -120,7 +119,7 @@ void CUISkinSelectorWnd::Init(const char* strSectionName)
     m_strSection = strSectionName;
 
     CUIXml xml_doc;
-    xml_doc.Load(CONFIG_PATH, UI_PATH, "skin_selector.xml");
+    xml_doc.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "skin_selector.xml");
 
     CUIXmlInit::InitWindow(xml_doc, "skin_selector", 0, this);
     CUIXmlInit::InitStatic(xml_doc, "skin_selector:caption", 0, m_pCaption);
@@ -234,7 +233,7 @@ bool CUISkinSelectorWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
     if (WINDOW_KEY_PRESSED != keyboard_action)
     {
-        if (dik == DIK_TAB)
+        if (dik == SDL_SCANCODE_TAB)
         {
             ShowChildren(true);
             game_cl_mp* game = smart_cast<game_cl_mp*>(&Game());
@@ -245,7 +244,7 @@ bool CUISkinSelectorWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
         return false;
     }
 
-    if (dik == DIK_TAB)
+    if (dik == SDL_SCANCODE_TAB)
     {
         ShowChildren(false);
         game_cl_mp* game = smart_cast<game_cl_mp*>(&Game());
@@ -258,9 +257,9 @@ bool CUISkinSelectorWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
     if (right_border > 9)
         right_border = 9;
 
-    if (dik >= DIK_1 && dik < (int)right_border + DIK_1)
+    if (dik >= SDL_SCANCODE_1 && dik < (int)right_border + SDL_SCANCODE_1)
     {
-        int NewIndex = dik - DIK_1;
+        int NewIndex = dik - SDL_SCANCODE_1;
         //		Msg("Selected %d", NewIndex);
         //		for (u32 i=0; i<m_skinsEnabled.size(); i++)
         //			Msg("Enabled - %d", m_skinsEnabled[i]);
@@ -277,12 +276,12 @@ bool CUISkinSelectorWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 
     switch (dik)
     {
-    case DIK_ESCAPE: OnBtnCancel(); return true;
-    case DIK_SPACE: // do autoselect
+    case SDL_SCANCODE_ESCAPE: OnBtnCancel(); return true;
+    case SDL_SCANCODE_SPACE: // do autoselect
         m_iActiveIndex = -1;
-    case DIK_RETURN: OnBtnOK(); return true;
-    case DIK_LEFT: OnKeyLeft(); return true;
-    case DIK_RIGHT: OnKeyRight(); return true;
+    case SDL_SCANCODE_RETURN: OnBtnOK(); return true;
+    case SDL_SCANCODE_LEFT: OnKeyLeft(); return true;
+    case SDL_SCANCODE_RIGHT: OnKeyRight(); return true;
     }
 
     return false;

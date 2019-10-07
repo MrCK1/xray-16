@@ -6,13 +6,74 @@
 //	Description : Script token list class
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "script_token_list.h"
+#include <algorithm>
 
-CScriptTokenList::~CScriptTokenList()
+CScriptTokenList::CScriptTokenList()
 {
-    iterator I = tokens().begin();
-    iterator E = tokens().end();
-    for (; I != E; ++I)
-        xr_free((*I).name);
+    clear();
+}
+
+CScriptTokenList::~CScriptTokenList() noexcept
+{
+    for (xr_token& token : m_token_list)
+        xr_free(token.name);
+}
+
+void CScriptTokenList::add(pcstr name, int id)
+{
+    VERIFY(token(name) == m_token_list.end() && token(id) == m_token_list.end());
+
+    xr_token& back = m_token_list.back();
+    VERIFY(back.name == nullptr && back.id == -1);
+    back.name = xr_strdup(name);
+    back.id = id;
+
+    m_token_list.emplace_back(nullptr, -1);
+}
+
+void CScriptTokenList::remove(pcstr name)
+{
+    iterator I = token(name);
+    const bool tokenFound = I != m_token_list.end();
+    if (tokenFound)
+    {
+        xr_delete((*I).name);
+        m_token_list.erase(I);
+    }
+    else
+    {
+        Msg("! token with name [%s] not found while deleting it from CScriptTokenList", name);
+    }
+}
+
+void CScriptTokenList::clear()
+{
+    m_token_list.clear();
+    m_token_list.emplace_back(nullptr, -1);
+}
+
+int CScriptTokenList::id(pcstr name)
+{
+    iterator I = token(name);
+    VERIFY(I != m_token_list.end());
+    return (*I).id;
+}
+
+pcstr CScriptTokenList::name(int id)
+{
+    iterator I = token(id);
+    VERIFY(I != m_token_list.end());
+    return (*I).name;
+}
+
+CScriptTokenList::iterator CScriptTokenList::token(pcstr name)
+{
+    return std::find_if(m_token_list.begin(), m_token_list.end(), CTokenPredicateName(name));
+}
+
+CScriptTokenList::iterator CScriptTokenList::token(int id)
+{
+    return std::find_if(m_token_list.begin(), m_token_list.end(), CTokenPredicateID(id));
 }

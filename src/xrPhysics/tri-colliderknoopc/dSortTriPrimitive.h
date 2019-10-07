@@ -1,5 +1,5 @@
-#ifndef D_SORT_TRI_PRIMITIVE_H
-#define D_SORT_TRI_PRIMITIVE_H
+#pragma once
+
 #include "dTriCollideK.h"
 #include "dTriColliderCommon.h"
 #include "dTriColliderMath.h"
@@ -12,6 +12,7 @@
 #ifdef DEBUG
 #include "xrPhysics/debug_output.h"
 #endif
+
 
 IC bool negative_tri_set_ignored_by_positive_tri(
     const Triangle& neg_tri, const Triangle& pos_tri, const Fvector* V_array)
@@ -95,18 +96,15 @@ IC int dcTriListCollider::dSortTriPrimitiveCollide(
         // VERIFY( g_pGameLevel );
         XRC.box_query(inl_ph_world().ObjectSpace().GetStaticModel(), cast_fv(p), aabb);
 
-        CDB::RESULT* R_begin = XRC.r_begin();
-        CDB::RESULT* R_end = XRC.r_end();
 #ifdef DEBUG
-
         debug_output().dbg_total_saved_tries() -= data->cashed_tries.size();
         debug_output().dbg_new_queries_per_step()++;
 #endif
-        data->cashed_tries.clear_not_free();
-        for (CDB::RESULT* Res = R_begin; Res != R_end; ++Res)
-        {
-            data->cashed_tries.push_back(Res->id);
-        }
+        data->cashed_tries.clear();
+
+        for (auto &Res : *XRC.r_get())
+            data->cashed_tries.push_back(Res.id);
+
 #ifdef DEBUG
         debug_output().dbg_total_saved_tries() += data->cashed_tries.size();
 #endif
@@ -193,23 +191,23 @@ IC int dcTriListCollider::dSortTriPrimitiveCollide(
         debug_output().dbg_saved_tries_for_active_objects()++;
 #endif
         // if(ignored_tries[I-B])continue;
-        CDB::TRI* T = T_array + *I;
-        const Point vertices[3] = {Point((dReal*)&V_array[T->verts[0]]), Point((dReal*)&V_array[T->verts[1]]),
-            Point((dReal*)&V_array[T->verts[2]])};
+		CDB::TRI* Tr = T_array + *I;
+		const Point vertices[3] = {Point((dReal*)&V_array[Tr->verts[0]]), Point((dReal*)&V_array[Tr->verts[1]]),
+			Point((dReal*)&V_array[Tr->verts[2]])};
         if (!aabb_tri_aabb(Point(p), Point((float*)&AABB), vertices))
             continue;
 #ifdef DEBUG
         if (debug_output().ph_dbg_draw_mask().test(phDBgDrawIntersectedTries))
-            debug_output().DBG_DrawTri(T, V_array, color_xrgb(0, 255, 0));
+			debug_output().DBG_DrawTri(Tr, V_array, color_xrgb(0, 255, 0));
         debug_output().dbg_tries_num()++;
 #endif
         Triangle tri;
-        CalculateTri(T, p, tri, vertices);
+		CalculateTri(Tr, p, tri, vertices);
         if (tri.dist < 0.f)
         {
 #ifdef DEBUG
             if (debug_output().ph_dbg_draw_mask().test(phDBgDrawNegativeTries))
-                debug_output().DBG_DrawTri(T, V_array, color_xrgb(0, 0, 255));
+                debug_output().DBG_DrawTri(Tr, V_array, color_xrgb(0, 0, 255));
 #endif
             float last_pos_dist = dDOT(last_pos, tri.norm) - tri.pos;
             if ((!(last_pos_dist < 0.f)) || b_pushing)
@@ -217,9 +215,9 @@ IC int dcTriListCollider::dSortTriPrimitiveCollide(
                 {
 #ifdef DEBUG
                     if (debug_output().ph_dbg_draw_mask().test(phDBgDrawTriesChangesSign))
-                        debug_output().DBG_DrawTri(T, V_array, color_xrgb(0, 255, 0));
+						debug_output().DBG_DrawTri(Tr, V_array, color_xrgb(0, 255, 0));
 #endif
-                    SGameMtl* material = GMLibrary().GetMaterialByIdx(T->material);
+					SGameMtl* material = GMLibrary().GetMaterialByIdx(Tr->material);
                     VERIFY(material);
                     bool b_passable = !!material->Flags.test(SGameMtl::flPassable);
                     bool contain_pos =
@@ -306,7 +304,7 @@ IC int dcTriListCollider::dSortTriPrimitiveCollide(
         {
 #ifdef DEBUG
             if (debug_output().ph_dbg_draw_mask().test(phDBgDrawPositiveTries))
-                debug_output().DBG_DrawTri(T, V_array, color_xrgb(255, 0, 0));
+				debug_output().DBG_DrawTri(Tr, V_array, color_xrgb(255, 0, 0));
 #endif
             if (ret > flags - 10)
                 continue;
@@ -316,10 +314,10 @@ IC int dcTriListCollider::dSortTriPrimitiveCollide(
             if (no_last_pos)
                 pos_tries.push_back(tri);
         }
-    }
+	}
 
     // if(intersect) ret=0;
-    xr_vector<Triangle>::iterator i;
+    //xr_vector<Triangle>::iterator i;
 
     if (intersect)
     {
@@ -327,17 +325,19 @@ IC int dcTriListCollider::dSortTriPrimitiveCollide(
         {
             bool include = true;
             if (no_last_pos)
-                for (i = pos_tries.begin(); pos_tries.end() != i; ++i)
+            {
+                for (auto& it : pos_tries)
                 {
                     VERIFY(neg_tri.T);
-                    if (TriContainPoint((dReal*)&V_array[i->T->verts[0]], (dReal*)&V_array[i->T->verts[1]],
-                            (dReal*)&V_array[i->T->verts[2]], i->norm, i->side0, i->side1, p))
-                        if (negative_tri_set_ignored_by_positive_tri(neg_tri, *i, V_array))
+                    if (TriContainPoint((dReal*)&V_array[it.T->verts[0]], (dReal*)&V_array[it.T->verts[1]],
+                        (dReal*)&V_array[it.T->verts[2]], it.norm, it.side0, it.side1, p))
+                        if (negative_tri_set_ignored_by_positive_tri(neg_tri, it, V_array))
                         {
                             include = false;
                             break;
                         }
-                };
+                }
+            }
 
             if (include)
             {
@@ -379,17 +379,17 @@ IC int dcTriListCollider::dSortTriPrimitiveCollide(
     {
         bool include = true;
         if (no_last_pos)
-            for (i = pos_tries.begin(); pos_tries.end() != i; ++i)
+        {
+            for (auto& it : pos_tries)
             {
                 VERIFY(b_neg_tri.T && b_neg_tri.dist != -dInfinity);
-                if (negative_tri_set_ignored_by_positive_tri(b_neg_tri, *i, V_array)
-
-                        )
+                if (negative_tri_set_ignored_by_positive_tri(b_neg_tri, it, V_array))
                 {
                     include = false;
                     break;
                 }
-            };
+            }
+        }
 
         if (include)
         {
@@ -409,4 +409,3 @@ IC int dcTriListCollider::dSortTriPrimitiveCollide(
         dVectorSet(last_pos, p);
     return ret;
 }
-#endif

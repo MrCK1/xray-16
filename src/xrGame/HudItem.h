@@ -8,7 +8,7 @@ class CMotionDef;
 
 #include "actor_defs.h"
 #include "inventory_space.h"
-#include "hudsound.h"
+#include "HudSound.h"
 
 struct attachable_hud_item;
 class motion_marks;
@@ -48,7 +48,7 @@ public:
     IC u32 CurrStateTime() const { return Device.dwTimeGlobal - m_dw_curr_state_time; }
     IC void ResetSubStateTime() { m_dw_curr_substate_time = Device.dwTimeGlobal; }
     virtual void SwitchState(u32 S) = 0;
-    virtual void OnStateSwitch(u32 S) = 0;
+    virtual void OnStateSwitch(u32 S, u32 oldState) = 0;
 };
 
 class CHudItem : public CHUDState
@@ -67,17 +67,15 @@ protected:
         fl_inertion_allow = (1 << 3),
     };
 
-    struct
-    {
-        const CMotionDef* m_current_motion_def;
-        shared_str m_current_motion;
-        u32 m_dwMotionCurrTm;
-        u32 m_dwMotionStartTm;
-        u32 m_dwMotionEndTm;
-        u32 m_startedMotionState;
-        u8 m_started_rnd_anim_idx;
-        bool m_bStopAtEndAnimIsRunning;
-    };
+    // Motion data
+    const CMotionDef* m_current_motion_def;
+    shared_str m_current_motion;
+    u32 m_dwMotionCurrTm;
+    u32 m_dwMotionStartTm;
+    u32 m_dwMotionEndTm;
+    u32 m_startedMotionState;
+    u8 m_started_rnd_anim_idx;
+    bool m_bStopAtEndAnimIsRunning;
 
 public:
     virtual void Load(LPCSTR section);
@@ -91,7 +89,7 @@ public:
     virtual void OnH_A_Independent();
 
     virtual void PlaySound(LPCSTR alias, const Fvector& position);
-
+    virtual void PlaySound(pcstr alias, const Fvector& position, u8 index); //Alundaio: Play at index
     virtual bool Action(u16 cmd, u32 flags) { return false; }
     void OnMovementChanged(ACTOR_DEFS::EMoveCommand cmd);
 
@@ -110,7 +108,7 @@ public:
     bool IsHiding() const { return GetState() == eHiding; }
     bool IsShowing() const { return GetState() == eShowing; }
     virtual void SwitchState(u32 S);
-    virtual void OnStateSwitch(u32 S);
+    virtual void OnStateSwitch(u32 S, u32 oldState);
 
     virtual void OnAnimationEnd(u32 state);
     virtual void OnMotionMark(u32 state, const motion_marks&){};
@@ -123,13 +121,14 @@ public:
     virtual void PlayAnimIdleSprint();
 
     virtual void UpdateCL();
-    virtual void renderable_Render();
+    virtual void renderable_Render(IRenderable* root);
 
     virtual void UpdateHudAdditonal(Fmatrix&);
 
     virtual void UpdateXForm() = 0;
 
     u32 PlayHUDMotion(const shared_str& M, BOOL bMixIn, CHudItem* W, u32 state);
+    u32 PlayHUDMotion(const shared_str& M, const shared_str& M2, BOOL bMixIn, CHudItem* W, u32 state);
     u32 PlayHUDMotion_noCB(const shared_str& M, BOOL bMixIn);
     void StopCurrentAnimWithoutCallback();
 
@@ -140,6 +139,8 @@ public:
     virtual void on_b_hud_detach();
     IC BOOL HudInertionEnabled() const { return m_huditem_flags.test(fl_inertion_enable); }
     IC BOOL HudInertionAllowed() const { return m_huditem_flags.test(fl_inertion_allow); }
+    virtual float GetInertionFactor() { return 1.f; }; //--#SM+#--
+    virtual float GetInertionPowerFactor() { return 1.f; }; //--#SM+#--
     virtual void render_hud_mode(){};
     virtual bool need_renderable() { return true; };
     virtual void render_item_3d_ui() {}
@@ -176,8 +177,10 @@ public:
         return (*m_item);
     }
     IC u32 animation_slot() { return m_animation_slot; }
-    virtual void on_renderable_Render() = 0;
+    virtual void on_renderable_Render(IRenderable* root) = 0;
     virtual void debug_draw_firedeps(){};
 
     virtual CHudItem* cast_hud_item() { return this; }
+    void PlayAnimIdleMovingCrouch(); //AVO: new crouch idle animation
+    bool isHUDAnimationExist(pcstr anim_name);
 };

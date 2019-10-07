@@ -9,7 +9,7 @@ template <class T>
 void transfer(const char* name, xr_vector<T>& dest, IReader& F, u32 chunk)
 {
     IReader* O = F.open_chunk(chunk);
-    u32 count = O ? (O->length() / sizeof(T)) : 0;
+    size_t count = O ? (O->length() / sizeof(T)) : 0;
     Logger.clMsg("* %16s: %d", name, count);
     if (count)
     {
@@ -59,7 +59,7 @@ void global_claculation_data::xrLoad()
     {
         IReader* fs = FS.r_open("$level$", "build.lights");
         IReader* F;
-        u32 cnt;
+        size_t cnt;
         R_Light* L;
 
         // rgb
@@ -111,25 +111,22 @@ void global_claculation_data::xrLoad()
         {
             Surface_Init();
             F = fs->open_chunk(EB_Textures);
-            u32 tex_count = F->length() / sizeof(b_texture);
-            for (u32 t = 0; t < tex_count; t++)
+            const size_t tex_count = F->length() / sizeof(b_texture);
+            for (size_t t = 0; t < tex_count; t++)
             {
                 Logger.Progress(float(t) / float(tex_count));
 
-                b_texture TEX;
-                F->r(&TEX, sizeof(TEX));
-#ifdef DEBUG
-                dbg_textures.push_back(TEX);
-#endif
+                b_BuildTexture BT(F);
 
-                b_BuildTexture BT;
-                CopyMemory(&BT, &TEX, sizeof(TEX));
+#ifdef DEBUG
+                dbg_textures.push_back(static_cast<b_texture>(BT));
+#endif
 
                 // load thumbnail
                 LPSTR N = BT.name;
                 if (strchr(N, '.'))
                     *(strchr(N, '.')) = 0;
-                strlwr(N);
+                xr_strlwr(N);
 
                 if (0 == xr_strcmp(N, "level_lods"))
                 {
@@ -138,7 +135,7 @@ void global_claculation_data::xrLoad()
                     BT.dwHeight = 1024;
                     BT.bHasAlpha = TRUE;
                     BT.pSurface = 0;
-                    BT.THM.SetHasSurface(FALSE);
+                    BT.THM.SetHasSurface(false);
                 }
                 else
                 {
@@ -170,7 +167,7 @@ void global_claculation_data::xrLoad()
                     BT.dwHeight = BT.THM.height;
                     BT.bHasAlpha = BT.THM.HasAlphaChannel();
                     BT.pSurface = 0;
-                    BT.THM.SetHasSurface(FALSE);
+                    BT.THM.SetHasSurface(false);
                     if (!bLOD)
                     {
                         if (BT.bHasAlpha || BT.THM.flags.test(STextureParams::flImplicitLighted))
@@ -178,7 +175,7 @@ void global_claculation_data::xrLoad()
                             Logger.clMsg("- loading: %s", N);
                             u32 w = 0, h = 0;
                             BT.pSurface = Surface_Load(N, w, h);
-                            BT.THM.SetHasSurface(TRUE);
+                            BT.THM.SetHasSurface(true);
                             R_ASSERT2(BT.pSurface, "Can't load surface");
                             if ((w != BT.dwWidth) || (h != BT.dwHeight))
                                 Msg("! THM doesn't correspond to the texture: %dx%d -> %dx%d", BT.dwWidth, BT.dwHeight,

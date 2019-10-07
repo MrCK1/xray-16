@@ -1,13 +1,16 @@
 #include "stdafx.h"
 #include "Text_Console.h"
 
+#if defined(WINDOWS)
 LRESULT CALLBACK TextConsole_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
     {
     case WM_PAINT:
     {
-        // return 0;
+        CTextConsole* pTextConsole = (CTextConsole*)Console;
+        pTextConsole->OnPaint();
+        return 0;
     }
     break;
     case WM_ERASEBKGND:
@@ -51,3 +54,4 @@ LRESULT CALLBACK TextConsole_LogWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
     }
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
+#endif

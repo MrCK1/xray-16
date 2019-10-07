@@ -1,10 +1,10 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "Actor.h"
 #include "xrEngine/CameraBase.h"
 #ifdef DEBUG
 #include "PHDebug.h"
 #endif
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
 #include "Car.h"
 
@@ -20,8 +20,8 @@
 #include "EffectorShot.h"
 
 #include "PHMovementControl.h"
-#include "xrPhysics/ielevatorstate.h"
-#include "xrPhysics/actorcameracollision.h"
+#include "xrPhysics/IElevatorState.h"
+#include "xrPhysics/ActorCameraCollision.h"
 #include "IKLimbsController.h"
 #include "GamePersistent.h"
 
@@ -73,7 +73,7 @@ void CActor::camUpdateLadder(float dt)
     }
     else
     {
-        cam_yaw += delta * _min(dt * 10.f, 1.f);
+        cam_yaw += delta * std::min(dt * 10.f, 1.f);
     }
 
     IElevatorState* es = character_physics_support()->movement()->ElevatorState();
@@ -83,7 +83,7 @@ void CActor::camUpdateLadder(float dt)
         const float ldown_pitch = cameras[eacFirstEye]->lim_pitch.y;
         float delta = angle_difference_signed(ldown_pitch, cam_pitch);
         if (delta > 0.f)
-            cam_pitch += delta * _min(dt * 10.f, 1.f);
+            cam_pitch += delta * std::min(dt * 10.f, 1.f);
     }
 }
 
@@ -123,11 +123,9 @@ ICF void calc_gl_point(Fvector& pt, const Fmatrix& xform, float radius, float an
 }
 ICF BOOL test_point(const Fvector& pt, xrXRC& xrc, const Fmatrix33& mat, const Fvector& ext)
 {
-    CDB::RESULT* it = xrc.r_begin();
-    CDB::RESULT* end = xrc.r_end();
-    for (; it != end; it++)
+    for (auto &it : *xrc.r_get())
     {
-        CDB::RESULT& O = *it;
+        CDB::RESULT& O = it;
         if (GMLib.GetMaterialByIdx(O.material)->Flags.is(SGameMtl::flPassable))
             continue;
         if (CDB::TestBBoxTri(mat, pt, ext, O.verts, FALSE))
@@ -275,15 +273,11 @@ void CActor::cam_Lookout(const Fmatrix& xform, float camera_height)
         r_torso.roll = 0.f;
     }
 }
-#ifdef DEBUG
+
 BOOL ik_cam_shift = true;
 float ik_cam_shift_tolerance = 0.2f;
 float ik_cam_shift_speed = 0.01f;
-#else
-static const BOOL ik_cam_shift = true;
-static const float ik_cam_shift_tolerance = 0.2f;
-static const float ik_cam_shift_speed = 0.01f;
-#endif
+float ik_cam_shift_interpolation = 4.f;
 
 void CActor::cam_Update(float dt, float fFOV)
 {
@@ -313,7 +307,18 @@ void CActor::cam_Update(float dt, float fFOV)
     else
         current_ik_cam_shift = 0;
 
-    Fvector point = {0, CameraHeight() + current_ik_cam_shift, 0};
+    // Alex ADD: smooth crouch fix
+    const float targetHeight = CameraHeight();
+    if (CurrentHeight < 0.0f)
+        CurrentHeight = targetHeight;
+    else if (!fsimilar(CurrentHeight, targetHeight))
+    {
+        const float dti = ik_cam_shift_interpolation * dt;
+        CurrentHeight = (CurrentHeight * (1.0f - dti)) + (targetHeight * dti);
+    }
+
+    Fvector point = { 0, CurrentHeight + current_ik_cam_shift, 0 };
+
     Fvector dangle = {0, 0, 0};
     Fmatrix xform;
     xform.setXYZ(0, r_torso.yaw, 0);
@@ -390,9 +395,10 @@ void CActor::cam_Update(float dt, float fFOV)
     if (Level().CurrentEntity() == this)
     {
         Level().Cameras().UpdateFromCamera(C);
-        if (eacFirstEye == cam_active && !Level().Cameras().GetCamEffector(cefDemo))
+        const bool allow = !Level().Cameras().GetCamEffector(cefDemo) && !Level().Cameras().GetCamEffector(cefAnsel);
+        if (eacFirstEye == cam_active && allow)
         {
-            Cameras().ApplyDevice(_viewport_near);
+            Cameras().ApplyDevice();
         }
     }
 }

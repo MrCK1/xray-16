@@ -1,9 +1,9 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "poltergeist.h"
 #include "PhysicsShellHolder.h"
 #include "Level.h"
 #include "Actor.h"
-#include "xrPhysics/icolisiondamageinfo.h"
+#include "xrPhysics/IColisiondamageInfo.h"
 CPolterTele::CPolterTele(CPoltergeist* polter) : inherited(polter), m_pmt_object_collision_damage(0.5f) {}
 CPolterTele::~CPolterTele() {}
 void CPolterTele::load(LPCSTR section)
@@ -25,8 +25,8 @@ void CPolterTele::load(LPCSTR section)
         READ_IF_EXISTS(pSettings, r_u32, section, "Tele_Delay_Between_Objects_Raise_Time", 500);
     m_pmt_fly_velocity = READ_IF_EXISTS(pSettings, r_float, section, "Tele_Fly_Velocity", 30.f);
     m_pmt_object_collision_damage = READ_IF_EXISTS(pSettings, r_float, section, "Tele_Collision_Damage", 0.5f);
-    ::Sound->create(m_sound_tele_hold, pSettings->r_string(section, "sound_tele_hold"), st_Effect, SOUND_TYPE_WORLD);
-    ::Sound->create(m_sound_tele_throw, pSettings->r_string(section, "sound_tele_throw"), st_Effect, SOUND_TYPE_WORLD);
+    GEnv.Sound->create(m_sound_tele_hold, pSettings->r_string(section, "sound_tele_hold"), st_Effect, SOUND_TYPE_WORLD);
+    GEnv.Sound->create(m_sound_tele_throw, pSettings->r_string(section, "sound_tele_throw"), st_Effect, SOUND_TYPE_WORLD);
 
     m_state = eWait;
     m_time = 0;
@@ -38,6 +38,9 @@ void CPolterTele::update_schedule()
 {
     inherited::update_schedule();
 
+    if (!m_object->g_Alive() || m_object->get_actor_ignore())
+        return;
+
     Fvector const actor_pos = Actor()->Position();
     float const dist2actor = actor_pos.distance_to(m_object->Position());
 
@@ -45,9 +48,6 @@ void CPolterTele::update_schedule()
         return;
 
     if (m_object->get_current_detection_level() < m_object->get_detection_success_level())
-        return;
-
-    if (m_object->get_actor_ignore())
         return;
 
     switch (m_state)
@@ -182,7 +182,7 @@ bool CPolterTele::trace_object(IGameObject* obj, const Fvector& target)
 
 void CPolterTele::tele_find_objects(xr_vector<IGameObject*>& objects, const Fvector& pos)
 {
-    m_nearest.clear_not_free();
+    m_nearest.clear();
     Level().ObjectSpace.GetNearest(m_nearest, pos, m_pmt_radius, NULL);
 
     for (u32 i = 0; i < m_nearest.size(); i++)
@@ -294,6 +294,7 @@ void CPolterTele::tele_fire_objects()
         if ((tele_object.get_state() == TS_Raise) || (tele_object.get_state() == TS_Keep))
         {
             Fvector enemy_pos;
+            // XXX: Allow headshooting not only for actor, but another enemies
             enemy_pos = get_head_position(Actor());
             CPhysicsShellHolder* hobj = tele_object.get_object();
 

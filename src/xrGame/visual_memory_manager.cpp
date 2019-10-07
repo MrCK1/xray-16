@@ -9,6 +9,7 @@
 #include "pch_script.h"
 #include "visual_memory_manager.h"
 #include "ai/stalker/ai_stalker.h"
+#include "ai/stalker/ai_stalker_impl.h"
 #include "memory_space_impl.h"
 #include "Include/xrRender/Kinematics.h"
 #include "xrAICore/Navigation/ai_object_location.h"
@@ -19,9 +20,9 @@
 #include "agent_member_manager.h"
 #include "ai_space.h"
 #include "xrEngine/profiler.h"
-#include "actor.h"
-#include "xrEngine/camerabase.h"
-#include "gamepersistent.h"
+#include "Actor.h"
+#include "xrEngine/CameraBase.h"
+#include "GamePersistent.h"
 #include "actor_memory.h"
 #include "client_spawn_manager.h"
 #include "client_spawn_manager.h"
@@ -29,7 +30,7 @@
 #include "ai/monsters/basemonster/base_monster.h"
 
 #ifndef MASTER_GOLD
-#include "actor.h"
+#include "Actor.h"
 #include "ai_debug.h"
 #endif // MASTER_GOLD
 
@@ -139,7 +140,9 @@ void CVisualMemoryManager::reinit()
 
 void CVisualMemoryManager::reload(LPCSTR section)
 {
-    //	m_max_object_count			= READ_IF_EXISTS(pSettings,r_s32,section,"DynamicObjectsCount",1);
+    const s32 maxObjectCount = pSettings->read_if_exists<s32>(section, "DynamicObjectsCount", -1);
+    if (maxObjectCount > -1)
+        m_max_object_count = std::max<u32>(maxObjectCount, m_max_object_count);
 
     if (m_stalker)
     {
@@ -148,8 +151,8 @@ void CVisualMemoryManager::reload(LPCSTR section)
     }
     else if (m_object)
     {
-        m_free.Load(pSettings->r_string(section, "vision_free_section"), !!m_client);
-        m_danger.Load(pSettings->r_string(section, "vision_danger_section"), !!m_client);
+        m_free.Load(READ_IF_EXISTS(pSettings, r_string, section, "vision_free_section", section), !!m_client);
+        m_danger.Load(READ_IF_EXISTS(pSettings, r_string, section, "vision_free_section", section), !!m_client);
     }
     else
     {
@@ -157,7 +160,7 @@ void CVisualMemoryManager::reload(LPCSTR section)
     }
 }
 
-IC const CVisionParameters& CVisualMemoryManager::current_state() const
+const CVisionParameters& CVisualMemoryManager::current_state() const
 {
     if (m_stalker)
     {
@@ -619,7 +622,7 @@ CVisibleObject* CVisualMemoryManager::visible_object(const CGameObject* game_obj
     return (&*I);
 }
 
-IC squad_mask_type CVisualMemoryManager::mask() const
+squad_mask_type CVisualMemoryManager::mask() const
 {
     if (!m_stalker)
         return (squad_mask_type(-1));
@@ -705,13 +708,18 @@ void CVisualMemoryManager::update(float time_delta)
 	}
 #endif
 
-    if (m_object && g_actor && m_object->is_relation_enemy(Actor()))
+    if (m_object && g_actor)
     {
-        xr_vector<CNotYetVisibleObject>::iterator I = std::find_if(
-            m_not_yet_visible_objects.begin(), m_not_yet_visible_objects.end(), CNotYetVisibleObjectPredicate(Actor()));
-        if (I != m_not_yet_visible_objects.end())
+        if (m_object->is_relation_enemy(Actor()))
         {
-            SetActorVisibility(m_object->ID(), clampr((*I).m_value / visibility_threshold(), 0.f, 1.f));
+            xr_vector<CNotYetVisibleObject>::iterator I = std::find_if(m_not_yet_visible_objects.begin(),
+                m_not_yet_visible_objects.end(), CNotYetVisibleObjectPredicate(Actor()));
+            if (I != m_not_yet_visible_objects.end())
+            {
+                SetActorVisibility(m_object->ID(), clampr((*I).m_value / visibility_threshold(), 0.f, 1.f));
+            }
+            else
+                SetActorVisibility(m_object->ID(), 0.f);
         }
         else
             SetActorVisibility(m_object->ID(), 0.f);
@@ -771,7 +779,7 @@ void CVisualMemoryManager::save(NET_Packet& packet) const
         packet.w_float((*I).m_object_params.m_orientation.pitch);
         packet.w_float((*I).m_object_params.m_orientation.roll);
 #endif // USE_ORIENTATION
-        // self params
+       // self params
         packet.w_u32((*I).m_self_params.m_level_vertex_id);
         packet.w_vec3((*I).m_self_params.m_position);
 #ifdef USE_ORIENTATION
@@ -833,17 +841,17 @@ void CVisualMemoryManager::load(IReader& packet)
 #ifdef USE_LEVEL_TIME
         VERIFY(Device.dwTimeGlobal >= object.m_level_time);
         object.m_level_time = packet.r_u32();
-        object.m_level_time += Device.dwTimeGlobal;
+        object.m_level_time = Device.dwTimeGlobal - object.m_level_time;
 #endif // USE_LEVEL_TIME
 #ifdef USE_LAST_LEVEL_TIME
         VERIFY(Device.dwTimeGlobal >= object.m_last_level_time);
         object.m_last_level_time = packet.r_u32();
-        object.m_last_level_time += Device.dwTimeGlobal;
+        object.m_last_level_time = Device.dwTimeGlobal - object.m_last_level_time;
 #endif // USE_LAST_LEVEL_TIME
 #ifdef USE_FIRST_LEVEL_TIME
         VERIFY(Device.dwTimeGlobal >= (*I).m_first_level_time);
         object.m_first_level_time = packet.r_u32();
-        object.m_first_level_time += Device.dwTimeGlobal;
+        object.m_first_level_time = Device.dwTimeGlobal - object.m_first_level_time;
 #endif // USE_FIRST_LEVEL_TIME
         object.m_visible.assign(packet.r_u64());
 
@@ -858,7 +866,7 @@ void CVisualMemoryManager::load(IReader& packet)
         const CClientSpawnManager::CSpawnCallback* spawn_callback =
             Level().client_spawn_manager().callback(delayed_object.m_object_id, m_object->ID());
         if (!spawn_callback || !spawn_callback->m_object_callback)
-            if (!g_dedicated_server)
+            if (!GEnv.isDedicatedServer)
                 Level().client_spawn_manager().add(delayed_object.m_object_id, m_object->ID(), callback);
 #ifdef DEBUG
             else

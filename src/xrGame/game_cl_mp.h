@@ -1,7 +1,7 @@
 #pragma once
 
 #include "game_cl_base.h"
-#include "ui_defs.h"
+#include "xrUICore/ui_defs.h"
 #include "Spectator.h"
 #include "file_transfer.h"
 #include "screenshot_manager.h"
@@ -53,7 +53,7 @@ struct cl_TeamStruct
     float Indicator_r2;
 };
 
-DEF_DEQUE(CL_TEAM_DATA_LIST, cl_TeamStruct);
+using CL_TEAM_DATA_LIST = xr_deque<cl_TeamStruct>;
 
 struct cl_Message_Sound
 {
@@ -61,19 +61,19 @@ struct cl_Message_Sound
     ref_sound mSound_Radio;
 };
 
-DEF_VECTOR(TEAMSOUND, cl_Message_Sound);
+using TEAMSOUND = xr_vector<cl_Message_Sound>;
 
 struct cl_Menu_Message
 {
     shared_str pMessage;
-    DEF_VECTOR(SOUND_VARIANTS, TEAMSOUND);
+    using SOUND_VARIANTS = xr_vector<TEAMSOUND>;
     SOUND_VARIANTS aVariants;
 };
 
 struct cl_MessageMenu
 {
     CUISpeechMenu* m_pSpeechMenu;
-    DEF_VECTOR(MENUMESSAGES, cl_Menu_Message);
+    using MENUMESSAGES = xr_vector<cl_Menu_Message>;
     MENUMESSAGES m_aMessages;
 
     bool operator==(CUISpeechMenu* pMenu) { return pMenu == m_pSpeechMenu; }
@@ -125,13 +125,13 @@ class game_cl_mp : public game_cl_GameState
 protected:
     CL_TEAM_DATA_LIST TeamList;
 
-    DEF_VECTOR(SNDMESSAGES, SND_Message*);
+    using SNDMESSAGES = xr_vector<SND_Message*>;
     SNDMESSAGES m_pSndMessages;
     bool m_bJustRestarted;
-    DEF_VECTOR(SNDMESSAGESINPLAY, SND_Message*);
+    using SNDMESSAGESINPLAY = xr_vector<SND_Message*>;
     SNDMESSAGESINPLAY m_pSndMessagesInPlay;
 
-    DEF_VECTOR(BONUSES, Bonus_Struct);
+    using BONUSES = xr_vector<Bonus_Struct>;
     BONUSES m_pBonusList;
 
     bool m_bVotingActive;
@@ -192,6 +192,7 @@ public:
 
     void xr_stdcall OnBuySpawn(CUIWindow* pWnd, void* p);
     virtual void TranslateGameMessage(u32 msg, NET_Packet& P);
+    virtual void CommonMessageOut(pcstr msg);
 
     virtual bool OnKeyboardPress(int key);
 
@@ -248,11 +249,11 @@ public:
     virtual s16 ModifyTeam(s16 Team) { return Team; };
     virtual bool Is_Spectator_TeamCamera_Allowed() { return m_bSpectator_TeamCamera && !Level().IsDemoPlay(); };
     virtual bool Is_Spectator_Camera_Allowed(CSpectator::EActorCameras Camera);
-    virtual bool Is_Rewarding_Allowed() const = 0;
+    virtual bool Is_Rewarding_Allowed() const { return false; }
 
     void SendPlayerStarted();
     virtual void OnConnected();
-    virtual LPCSTR GetGameScore(string32& score_dest) = 0;
+    virtual LPCSTR GetGameScore(string32& score_dest) { return score_dest; }
 
     screenshot_manager ss_manager;
     mp_anticheat::configs_dumper cd_manager;
@@ -294,7 +295,7 @@ public:
         u32 m_max_size;
         game_cl_mp* m_owner;
         CMemoryWriter m_writer;
-        fr_callback_binder() : m_frnode(NULL), m_active(false){};
+        fr_callback_binder() : m_frnode(NULL), m_active(false){}
         void __stdcall receiving_file_callback(
             file_transfer::receiving_status_t status, u32 bytes_received, u32 data_size);
         void __stdcall receiving_serverinfo_callback(
@@ -316,8 +317,8 @@ private:
     bool m_ready_to_open_buy_menu;
 
 public:
-    bool is_buy_menu_ready() const { return m_ready_to_open_buy_menu; };
-    void set_buy_menu_not_ready() { m_ready_to_open_buy_menu = false; };
+    bool is_buy_menu_ready() const { return m_ready_to_open_buy_menu; }
+    void set_buy_menu_not_ready() { m_ready_to_open_buy_menu = false; }
     void decompress_and_save_screenshot(LPCSTR file_name, u8* data, u32 data_size, u32 file_size);
     void decompress_and_process_config(LPCSTR file_name, u8* data, u32 data_size, u32 file_size);
 
@@ -328,8 +329,8 @@ public:
 
     void __stdcall sending_screenshot_callback(file_transfer::sending_status_t status, u32 bytes_sent, u32 data_size);
     //-------------------------------------------------------------------------------------------------
-    static void generate_file_name(string_path& file_name, LPCSTR file_suffix, SYSTEMTIME const& date_time);
-    static LPCSTR make_file_name(LPCSTR session_id, string_path& dest);
+    static xr_string generate_file_name(const xr_string& base_name, const time_t* date_time = nullptr);
+    static xr_string sanitize_filename(const xr_string& base_name);
 //-------------------------------------------------------------------------------------------------
 #include "game_cl_mp_messages_menu.h"
 };

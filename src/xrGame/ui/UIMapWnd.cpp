@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIMapWnd.h"
 #include "UIMap.h"
 #include "UIXmlInit.h"
@@ -7,21 +7,23 @@
 #include "UIInventoryUtilities.h"
 #include "map_spot.h"
 #include "map_location.h"
-#include "UIFixedScrollBar.h"
-#include "UIFrameWindow.h"
-#include "UIFrameLineWnd.h"
-#include "UITabControl.h"
-#include "UI3tButton.h"
+#include "xrUICore/ScrollBar/UIFixedScrollBar.h"
+#include "xrUICore/Windows/UIFrameWindow.h"
+#include "xrUICore/Windows/UIFrameLineWnd.h"
+#include "xrUICore/TabControl/UITabControl.h"
+#include "xrUICore/Buttons/UI3tButton.h"
 #include "UIMapWndActions.h"
 #include "UIMapWndActionsSpace.h"
-#include "UIHint.h"
+#include "xrUICore/Hint/UIHint.h"
 #include "map_hint.h"
-#include "uicursor.h"
+#include "xrUICore/Cursor/UICursor.h"
 #include "xrEngine/xr_input.h" //remove me !!!
+#include "UIHelper.h"
 
 CUIMapWnd* g_map_wnd = NULL; // quick temporary solution -(
 CUIMapWnd* GetMapWnd() { return g_map_wnd; }
-CUIMapWnd::CUIMapWnd()
+CUIMapWnd::CUIMapWnd(UIHint* hint)
+    : m_ActionPlanner(nullptr)
 {
     m_tgtMap = NULL;
     m_GlobalMap = NULL;
@@ -36,10 +38,10 @@ CUIMapWnd::CUIMapWnd()
     //	m_dbg_info				= NULL;
     #endif // DEBUG /**/
 
-    //	UIMainMapHeader			= NULL;
+    m_UIMainMapHeader = nullptr;
     m_scroll_mode = false;
     m_nav_timing = Device.dwTimeGlobal;
-    hint_wnd = NULL;
+    hint_wnd = hint;
     g_map_wnd = this;
 }
 
@@ -56,33 +58,44 @@ CUIMapWnd::~CUIMapWnd()
     g_map_wnd = NULL;
 }
 
-void CUIMapWnd::Init(LPCSTR xml_name, LPCSTR start_from)
+bool CUIMapWnd::Init(cpcstr xml_name, cpcstr start_from, bool critical /*= true*/)
 {
     CUIXml uiXml;
-    uiXml.Load(CONFIG_PATH, UI_PATH, xml_name);
+    if (!uiXml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, xml_name, critical))
+        return false;
 
     string512 pth;
-    CUIXmlInit xml_init;
     strconcat(sizeof(pth), pth, start_from, ":main_wnd");
-    xml_init.InitWindow(uiXml, pth, 0, this);
+    CUIXmlInit::InitWindow(uiXml, pth, 0, this);
 
     m_map_move_step = uiXml.ReadAttribFlt(start_from, 0, "map_move_step", 10.0f);
 
-    m_UILevelFrame = new CUIWindow();
-    m_UILevelFrame->SetAutoDelete(true);
-    strconcat(sizeof(pth), pth, start_from, ":level_frame");
-    xml_init.InitWindow(uiXml, pth, 0, m_UILevelFrame);
-    //	m_UIMainFrame->AttachChild		(m_UILevelFrame);
-    AttachChild(m_UILevelFrame);
-
-    m_UIMainFrame = new CUIFrameWindow();
-    m_UIMainFrame->SetAutoDelete(true);
-    AttachChild(m_UIMainFrame);
     strconcat(sizeof(pth), pth, start_from, ":main_map_frame");
-    xml_init.InitFrameWindow(uiXml, pth, 0, m_UIMainFrame);
+    m_UIMainFrame = UIHelper::CreateFrameWindow(uiXml, pth, this, false);
+    if (!m_UIMainFrame)
+    {
+        strconcat(sizeof(pth), pth, start_from, ":main_wnd:main_map_frame");
+        m_UIMainFrame = UIHelper::CreateFrameWindow(uiXml, pth, this, false);
+    }
 
-    m_scroll_mode = (uiXml.ReadAttribInt(start_from, 0, "scroll_enable", 0) == 1) ? true : false;
-    if (m_scroll_mode)
+    strconcat(sizeof(pth), pth, start_from, ":level_frame");
+    m_UILevelFrame = UIHelper::CreateNormalWindow(uiXml, pth, this, false);
+    if (!m_UILevelFrame)
+    {
+        strconcat(sizeof(pth), pth, start_from, ":main_wnd:main_map_frame:level_frame");
+        m_UILevelFrame = UIHelper::CreateNormalWindow(uiXml, pth, m_UIMainFrame);
+    }
+
+    strconcat(sizeof(pth), pth, start_from, "main_map_header");
+    m_UIMainMapHeader = UIHelper::CreateFrameLine(uiXml, pth, this, false);
+    if (!m_UIMainMapHeader)
+    {
+        strconcat(sizeof(pth), pth, start_from, ":main_wnd:map_header_frame_line");
+        m_UIMainMapHeader = UIHelper::CreateFrameLine(uiXml, pth, m_UIMainFrame, false);
+    }
+
+    m_scroll_mode = uiXml.ReadAttribInt(start_from, 0, "scroll_enable", 0) == 1;
+    if (m_scroll_mode || ShadowOfChernobylMode)
     {
         float dx, dy, sx, sy;
         strconcat(sizeof(pth), pth, start_from, ":main_map_frame");
@@ -94,20 +107,38 @@ void CUIMapWnd::Init(LPCSTR xml_name, LPCSTR start_from)
         CUIWindow* rect_parent = m_UIMainFrame; // m_UILevelFrame;
         Frect r = rect_parent->GetWndRect();
 
-        m_UIMainScrollH = new CUIFixedScrollBar();
-        m_UIMainScrollH->SetAutoDelete(true);
-        m_UIMainScrollH->InitScrollBar(Fvector2().set(r.left + dx, r.bottom - sy), true);
+        auto tempScroll = new CUIFixedScrollBar();
+        if (tempScroll->InitScrollBar(Fvector2().set(r.left + dx, r.bottom - sy), true))
+            m_UIMainScrollH = tempScroll;
+        else
+        {
+            Msg("! Failed to init m_UIMainScrollH as FixedScrollBar, trying to initialize it as ScrollBar");
+            xr_delete(tempScroll);
+            m_UIMainScrollH = new CUIScrollBar();
+            m_UIMainScrollH->InitScrollBar(Fvector2().set(r.left + dx, r.bottom - sy), r.right - r.left - dx * 2 - sx, true, "pda");
+        }
+
         m_UIMainScrollH->SetStepSize(_max(1, (int)(m_UILevelFrame->GetWidth() * 0.1f)));
         m_UIMainScrollH->SetPageSize((int)m_UILevelFrame->GetWidth()); // iFloor
+        m_UIMainScrollH->SetAutoDelete(true);
         AttachChild(m_UIMainScrollH);
         Register(m_UIMainScrollH);
         AddCallback(m_UIMainScrollH, SCROLLBAR_HSCROLL, CUIWndCallback::void_function(this, &CUIMapWnd::OnScrollH));
 
-        m_UIMainScrollV = new CUIFixedScrollBar();
-        m_UIMainScrollV->SetAutoDelete(true);
-        m_UIMainScrollV->InitScrollBar(Fvector2().set(r.right - sx, r.top + dy), false);
+        tempScroll = new CUIFixedScrollBar();
+        if (tempScroll->InitScrollBar(Fvector2().set(r.right - sx, r.top + dy), false))
+            m_UIMainScrollV = tempScroll;
+        else
+        {
+            Msg("! Failed to init m_UIMainScrollV as FixedScrollBar, trying to initialize it as ScrollBar");
+            xr_delete(tempScroll);
+            m_UIMainScrollV = new CUIScrollBar();
+            m_UIMainScrollV->InitScrollBar(Fvector2().set(r.right - sx, r.top + dy), r.bottom - r.top - dy * 2, false, "pda");
+        }
+
         m_UIMainScrollV->SetStepSize(_max(1, (int)(m_UILevelFrame->GetHeight() * 0.1f)));
         m_UIMainScrollV->SetPageSize((int)m_UILevelFrame->GetHeight());
+        m_UIMainScrollV->SetAutoDelete(true);
         AttachChild(m_UIMainScrollV);
         Register(m_UIMainScrollV);
         AddCallback(m_UIMainScrollV, SCROLLBAR_VSCROLL, CUIWndCallback::void_function(this, &CUIMapWnd::OnScrollV));
@@ -141,8 +172,8 @@ void CUIMapWnd::Init(LPCSTR xml_name, LPCSTR start_from)
     if (pGameIni->section_exist(sect_name.c_str()))
     {
         CInifile::Sect& S = pGameIni->r_section(sect_name.c_str());
-        CInifile::SectCIt it = S.Data.begin(), end = S.Data.end();
-        for (; it != end; it++)
+        auto it = S.Data.cbegin(), end = S.Data.cend();
+        for (; it != end; ++it)
         {
             shared_str map_name = it->first;
             xr_strlwr(map_name);
@@ -152,7 +183,7 @@ void CUIMapWnd::Init(LPCSTR xml_name, LPCSTR start_from)
 
             l = new CUILevelMap(this);
             R_ASSERT2(pGameIni->section_exist(map_name), map_name.c_str());
-            l->Initialize(map_name, "hud\\default");
+            l->Initialize(map_name, "hud" DELIMITER "default");
 
             l->OptimalFit(m_UILevelFrame->GetWndRect());
         }
@@ -188,6 +219,8 @@ void CUIMapWnd::Init(LPCSTR xml_name, LPCSTR start_from)
     m_ActionPlanner = new CMapActionPlanner();
     m_ActionPlanner->setup(this);
     m_view_actor = true;
+
+    return true;
 }
 
 void CUIMapWnd::Show(bool status)
@@ -364,21 +397,21 @@ bool CUIMapWnd::OnKeyboardHold(int dik)
 {
     switch (dik)
     {
-    case DIK_UP:
-    case DIK_DOWN:
-    case DIK_LEFT:
-    case DIK_RIGHT:
+    case SDL_SCANCODE_UP:
+    case SDL_SCANCODE_DOWN:
+    case SDL_SCANCODE_LEFT:
+    case SDL_SCANCODE_RIGHT:
     {
         Fvector2 pos_delta;
         pos_delta.set(0.0f, 0.0f);
 
-        if (dik == DIK_UP)
+        if (dik == SDL_SCANCODE_UP)
             pos_delta.y += m_map_move_step;
-        if (dik == DIK_DOWN)
+        if (dik == SDL_SCANCODE_DOWN)
             pos_delta.y -= m_map_move_step;
-        if (dik == DIK_LEFT)
+        if (dik == SDL_SCANCODE_LEFT)
             pos_delta.x += m_map_move_step;
-        if (dik == DIK_RIGHT)
+        if (dik == SDL_SCANCODE_RIGHT)
             pos_delta.x -= m_map_move_step;
         MoveMap(pos_delta);
         return true;
@@ -392,7 +425,7 @@ bool CUIMapWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
     switch (dik)
     {
-    case DIK_NUMPADMINUS:
+    case SDL_SCANCODE_KP_MINUS:
     {
         // SetZoom(GetZoom()/1.5f);
         UpdateZoom(false);
@@ -400,7 +433,7 @@ bool CUIMapWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
         return true;
     }
     break;
-    case DIK_NUMPADPLUS:
+    case SDL_SCANCODE_KP_PLUS:
     {
         // SetZoom(GetZoom()*1.5f);
         UpdateZoom(true);
@@ -494,14 +527,14 @@ void CUIMapWnd::SendMessage(CUIWindow* pWnd, s16 msg, void* pData)
 CUICustomMap* CUIMapWnd::GetMapByIdx(u16 idx)
 {
     VERIFY(idx != u16(-1));
-    GameMapsPairIt it = m_GameMaps.begin();
+    auto it = m_GameMaps.begin();
     std::advance(it, idx);
     return it->second;
 }
 
 u16 CUIMapWnd::GetIdxByName(const shared_str& map_name)
 {
-    GameMapsPairIt it = m_GameMaps.find(map_name);
+    auto it = m_GameMaps.find(map_name);
     if (it == m_GameMaps.end())
     {
         Msg("~ Level Map '%s' not registered", map_name.c_str());

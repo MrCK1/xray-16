@@ -58,7 +58,7 @@ void CRenderTarget::u_calc_tc_duality_ss(Fvector2& r0, Fvector2& r1, Fvector2& l
     l1.set(p1.x, p1.y);
 }
 
-BOOL CRenderTarget::u_need_PP()
+bool CRenderTarget::u_need_PP()
 {
     bool _blur = (param_blur > 0.001f);
     bool _gray = (param_gray > 0.001f);
@@ -100,7 +100,8 @@ struct TL_2c3uv
     u32 color0;
     u32 color1;
     Fvector2 uv[3];
-    IC void set(float x, float y, u32 c0, u32 c1, float u0, float v0, float u1, float v1, float u2, float v2)
+
+    void set(float x, float y, u32 c0, u32 c1, float u0, float v0, float u1, float v1, float u2, float v2)
     {
         p.set(x, y, EPS_S, 1.f);
         color0 = c0;
@@ -167,8 +168,8 @@ void CRenderTarget::phase_pp()
     // Actual rendering
     static shared_str s_brightness = "c_brightness";
     static shared_str s_colormap = "c_colormap";
-    RCache.set_c(s_brightness, p_brightness.x, p_brightness.y, p_brightness.z, 0);
-    RCache.set_c(s_colormap, param_color_map_influence, param_color_map_interpolate, 0, 0);
+    RCache.set_c(s_brightness, p_brightness.x, p_brightness.y, p_brightness.z, 0.f);
+    RCache.set_c(s_colormap, param_color_map_influence, param_color_map_interpolate, 0.f, 0.f);
     RCache.set_Geometry(g_postprocess);
     RCache.Render(D3DPT_TRIANGLELIST, Offset, 0, 4, 0, 2);
 }

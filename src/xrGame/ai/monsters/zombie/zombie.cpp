@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "zombie.h"
 #include "zombie_state_manager.h"
 #include "xrEngine/profiler.h"
@@ -8,10 +8,6 @@
 
 #include "ai/monsters/control_animation_base.h"
 #include "ai/monsters/control_movement_base.h"
-
-#ifdef _DEBUG
-#include <dinput.h>
-#endif
 
 CZombie::CZombie()
 {
@@ -229,10 +225,10 @@ void CZombie::debug_on_key(int key)
 {
     switch (key)
     {
-    case DIK_MINUS: { fake_death_fall_down();
+    case SDL_SCANCODE_MINUS: { fake_death_fall_down();
     }
     break;
-    case DIK_EQUALS: { fake_death_stand_up();
+    case SDL_SCANCODE_EQUALS: { fake_death_stand_up();
     }
     break;
     }

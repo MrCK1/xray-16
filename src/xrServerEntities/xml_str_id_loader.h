@@ -1,14 +1,12 @@
 #pragma once
 
 #ifdef XRGAME_EXPORTS
-#include "ui/xrUIXmlParser.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 #else // XRGAME_EXPORTS
-#include "xrUIXmlParser.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 #include "Common/object_broker.h"
 #endif // XRGAME_EXPORTS
 
-// T_ID    - уникальный текстовый идентификатор (аттрибут id в XML файле)
-// T_INDEX - уникальный числовой индекс
 // T_INIT -  класс где определена статическая InitXmlIdToIndex
 //          функция инициализации file_str и tag_name
 
@@ -51,7 +49,7 @@ public:
     static const ITEM_DATA* GetById(const shared_str& str_id, bool no_assert = false);
     static const ITEM_DATA* GetByIndex(int index, bool no_assert = false);
 
-    static const int IdToIndex(const shared_str& str_id, int default_index = T_INDEX(-1), bool no_assert = false)
+    static const int IdToIndex(const shared_str& str_id, int default_index = -1, bool no_assert = false)
     {
         const ITEM_DATA* item = GetById(str_id, no_assert);
         return item ? item->index : default_index;
@@ -68,7 +66,7 @@ public:
 };
 
 TEMPLATE_SPECIALIZATION
-typename T_VECTOR* CSXML_IdToIndex::m_pItemDataVector = NULL;
+T_VECTOR* CSXML_IdToIndex::m_pItemDataVector = NULL;
 
 TEMPLATE_SPECIALIZATION
 LPCSTR CSXML_IdToIndex::file_str = NULL;
@@ -80,11 +78,11 @@ CSXML_IdToIndex::CXML_IdToIndex() {}
 TEMPLATE_SPECIALIZATION
 CSXML_IdToIndex::~CXML_IdToIndex() {}
 TEMPLATE_SPECIALIZATION
-const typename ITEM_DATA* CSXML_IdToIndex::GetById(const shared_str& str_id, bool no_assert)
+const ITEM_DATA* CSXML_IdToIndex::GetById(const shared_str& str_id, bool no_assert)
 {
     T_INIT::InitXmlIdToIndex();
     T_VECTOR::iterator it;
-    for (it = m_pItemDataVector->begin(); m_pItemDataVector->end() != it; it++)
+    for (it = m_pItemDataVector->begin(); m_pItemDataVector->end() != it; ++it)
     {
         if ((*it).id == str_id)
             break;
@@ -93,7 +91,7 @@ const typename ITEM_DATA* CSXML_IdToIndex::GetById(const shared_str& str_id, boo
     if (it == m_pItemDataVector->end())
     {
         int i = 0;
-        for (it = m_pItemDataVector->begin(); m_pItemDataVector->end() != it; it++, i++)
+        for (it = m_pItemDataVector->begin(); m_pItemDataVector->end() != it; ++it, i++)
             Msg("[%d]=[%s]", i, *(*it).id);
 
         R_ASSERT3(no_assert, "item not found, id", *str_id);
@@ -104,7 +102,7 @@ const typename ITEM_DATA* CSXML_IdToIndex::GetById(const shared_str& str_id, boo
 }
 
 TEMPLATE_SPECIALIZATION
-const typename ITEM_DATA* CSXML_IdToIndex::GetByIndex(int index, bool no_assert)
+const ITEM_DATA* CSXML_IdToIndex::GetByIndex(int index, bool no_assert)
 {
     if ((size_t)index >= m_pItemDataVector->size())
     {
@@ -124,7 +122,7 @@ void CSXML_IdToIndex::DeleteIdToIndexData()
 }
 
 TEMPLATE_SPECIALIZATION
-typename void CSXML_IdToIndex::InitInternal()
+void CSXML_IdToIndex::InitInternal()
 {
     VERIFY(!m_pItemDataVector);
     T_INIT::InitXmlIdToIndex();
@@ -160,7 +158,7 @@ typename void CSXML_IdToIndex::InitInternal()
 
             //проверетить ID на уникальность
             T_VECTOR::iterator t_it = m_pItemDataVector->begin();
-            for (; m_pItemDataVector->end() != t_it; t_it++)
+            for (; m_pItemDataVector->end() != t_it; ++t_it)
             {
                 if (shared_str((*t_it).id) == shared_str(item_name))
                     break;

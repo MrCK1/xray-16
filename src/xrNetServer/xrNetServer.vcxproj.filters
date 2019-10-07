@@ -23,4 +23,10 @@
     <ClInclude Include="NET_Shared.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\OpenXRay.natvis" />
+  </ItemGroup>
 </Project>

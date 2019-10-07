@@ -25,6 +25,7 @@
 #include "sound_player.h"
 #include "Inventory.h"
 #include "object_handler_planner.h"
+#include "object_handler_planner_impl.h"
 #include "stalker_movement_manager_smart_cover.h"
 #include "movement_manager_space.h"
 #include "patrol_path_manager.h"
@@ -41,21 +42,23 @@
 #include "agent_corpse_manager.h"
 #include "agent_location_manager.h"
 #include "cover_point.h"
-#include "xrEngine/camerabase.h"
+#include "xrEngine/CameraBase.h"
 #include "mt_config.h"
-#include "weaponmagazined.h"
+#include "WeaponMagazined.h"
 #include "object_handler_space.h"
 #include "debug_renderer.h"
 #include "CharacterPhysicsSupport.h"
 #include "smart_cover_animation_selector.h"
 #include "animation_movement_controller.h"
-#include "phdebug.h"
+#include "PHDebug.h"
 #include "game_object_space.h"
 #include "aimers_weapon.h"
 #include "aimers_bone.h"
 #include "smart_cover_planner_target_selector.h"
-#include "ui_base.h"
+#include "xrUICore/ui_base.h"
 #include "doors_actor.h"
+#include "xrEngine/GameFont.h"
+#include "object_handler_planner_impl.h"
 
 CActor* g_debug_actor = 0;
 
@@ -133,7 +136,7 @@ void restore_actor()
     CHudItem* pHudItem = smart_cast<CHudItem*>(g_debug_actor->inventory().ActiveItem());
     if (pHudItem)
     {
-        pHudItem->OnStateSwitch(pHudItem->GetState());
+        pHudItem->OnStateSwitch(pHudItem->GetState(), pHudItem->GetState());
     }
 }
 
@@ -160,13 +163,12 @@ void draw_planner(const planner_type& brain, LPCSTR start_indent, LPCSTR indent,
         DBG_OutText("%s%s%s%s", start_indent, indent, indent, _brain.action2string(brain.solution()[i]));
     // current
     DBG_OutText("%s%scurrent world state", start_indent, indent);
-    planner_type::EVALUATORS::const_iterator I = brain.evaluators().begin();
-    planner_type::EVALUATORS::const_iterator E = brain.evaluators().end();
+    auto I = brain.evaluators().begin();
+    auto E = brain.evaluators().end();
     for (; I != E; ++I)
     {
-        xr_vector<planner_type::COperatorCondition>::const_iterator J =
-            std::lower_bound(brain.current_state().conditions().begin(), brain.current_state().conditions().end(),
-                planner_type::CWorldProperty((*I).first, false));
+        const auto J = std::lower_bound(brain.current_state().conditions().cbegin(), brain.current_state().conditions().cend(),
+            typename planner_type::CWorldProperty((*I).first, false));
         char temp = '?';
         if ((J != brain.current_state().conditions().end()) && ((*J).condition() == (*I).first))
         {
@@ -180,9 +182,8 @@ void draw_planner(const planner_type& brain, LPCSTR start_indent, LPCSTR indent,
     I = brain.evaluators().begin();
     for (; I != E; ++I)
     {
-        xr_vector<planner_type::COperatorCondition>::const_iterator J =
-            std::lower_bound(brain.target_state().conditions().begin(), brain.target_state().conditions().end(),
-                planner_type::CWorldProperty((*I).first, false));
+        const auto J = std::lower_bound(brain.target_state().conditions().cbegin(), brain.target_state().conditions().cend(),
+            typename planner_type::CWorldProperty((*I).first, false));
         char temp = '?';
         if ((J != brain.target_state().conditions().end()) && ((*J).condition() == (*I).first))
         {
@@ -357,7 +358,7 @@ void CAI_Stalker::debug_text()
 
         float fuzzy = 0.f;
         xr_vector<feel_visible_Item>::iterator I = feel_visible.begin(), E = feel_visible.end();
-        for (; I != E; I++)
+        for (; I != E; ++I)
             if (I->O->ID() == memory().enemy().selected()->ID())
             {
                 fuzzy = I->fuzzy;
@@ -950,9 +951,9 @@ void CAI_Stalker::debug_text()
     }
 }
 
-void CAI_Stalker::OnHUDDraw(CCustomHUD* hud)
+void CAI_Stalker::OnHUDDraw(CCustomHUD* hud, IRenderable* root)
 {
-    inherited::OnHUDDraw(hud);
+    inherited::OnHUDDraw(hud, root);
     m_dbg_hud_draw = true;
 }
 
@@ -1275,9 +1276,9 @@ static void fill_bones(CAI_Stalker& self, Fmatrix const& transform, IKinematicsA
     for (u16 i = 0; i < MAX_PARTS; ++i)
     {
 #if 0
-		CBlend* const blend				= kinematics_animated->LL_PlayCycle(i, animation, 0, 0, 0, 1);
-		if (blend)
-			blend->timeCurrent			= 0.f;//blend->timeTotal - (SAMPLE_SPF + EPS);
+        CBlend* const blend				= kinematics_animated->LL_PlayCycle(i, animation, 0, 0, 0, 1);
+        if (blend)
+            blend->timeCurrent			= 0.f;//blend->timeTotal - (SAMPLE_SPF + EPS);
 #else // #if 0
         u32 const blend_count = kinematics_animated->LL_PartBlendsCount(i);
         for (u32 j = 0; j < blend_count; ++j)
@@ -1299,7 +1300,7 @@ static void fill_bones(CAI_Stalker& self, Fmatrix const& transform, IKinematicsA
         start_transform = controller->start_transform();
 
     u32 buffer_size = u32(bone_count) * sizeof(Fmatrix);
-    Fmatrix* buffer = (Fmatrix*)_alloca(buffer_size);
+    Fmatrix* buffer = (Fmatrix*)xr_alloca(buffer_size);
     buffer_vector<Fmatrix> bones(buffer, bone_count);
     for (u16 i = 0; i < bone_count; ++i)
     {
@@ -1392,11 +1393,11 @@ static void draw_animation_bones(
     self.animation().remove_bone_callbacks();
 
 #if 0
-	Fmatrix								player_head;
-	IKinematics* actor_kinematics		= smart_cast<IKinematics*>(Actor()->Visual());
-	actor_kinematics->Bone_GetAnimPos	(player_head, actor_kinematics->LL_BoneID("bip01_head"), 1, false);
-	player_head.mulA_43					(Actor()->XFORM());
-	Fvector								target = player_head.c;
+    Fmatrix								player_head;
+    IKinematics* actor_kinematics		= smart_cast<IKinematics*>(Actor()->Visual());
+    actor_kinematics->Bone_GetAnimPos	(player_head, actor_kinematics->LL_BoneID("bip01_head"), 1, false);
+    player_head.mulA_43					(Actor()->XFORM());
+    Fvector								target = player_head.c;
 #else // #if 0
     Fvector target = self.sight().aiming_position();
 #endif // #if 0
@@ -1598,18 +1599,18 @@ Fvector g_debug_position_3 = Fvector().set(0.f, 0.f, 0.f);
 void CAI_Stalker::OnRender()
 {
 #if 0
-	IKinematicsAnimated*		kinematics = smart_cast<IKinematicsAnimated*>(Visual());
-	VERIFY						(kinematics);
+    IKinematicsAnimated*		kinematics = smart_cast<IKinematicsAnimated*>(Visual());
+    VERIFY						(kinematics);
 //	draw_animation_bones		(*this, XFORM(), kinematics, "loophole_2_no_look_idle_0");
 
-	Fmatrix						m_start_transform;
-	animation_movement_controller const*	controller = animation_movement();
-	if (!controller)
-		m_start_transform		= XFORM();
-	else
-		m_start_transform		= controller->start_transform();
+    Fmatrix						m_start_transform;
+    animation_movement_controller const*	controller = animation_movement();
+    if (!controller)
+        m_start_transform		= XFORM();
+    else
+        m_start_transform		= controller->start_transform();
 
-	draw_animation_bones		(*this, m_start_transform, kinematics, "loophole_3_attack_idle_0");
+    draw_animation_bones		(*this, m_start_transform, kinematics, "loophole_3_attack_idle_0");
 //	draw_animation_bones		(*this, XFORM(), kinematics, "loophole_3_attack_in_0");
 #else // #if 0
     if (inventory().ActiveItem())
@@ -1643,27 +1644,27 @@ void CAI_Stalker::OnRender()
     }
 
 #if 0
-	if (inventory().ActiveItem()) {
-		Fvector				position, direction;
-		g_fireParams		(0,position,direction);
+    if (inventory().ActiveItem()) {
+        Fvector				position, direction;
+        g_fireParams		(0,position,direction);
 
-		float				yaw, pitch, safety_fire_angle = 1.f*PI_DIV_8*.125f;
-		direction.getHP		(yaw,pitch);
+        float				yaw, pitch, safety_fire_angle = 1.f*PI_DIV_8*.125f;
+        direction.getHP		(yaw,pitch);
 
-		Level().debug_renderer().draw_line(Fidentity, position, Fvector().mad(position, direction, 20.f), color_xrgb(0,255,0));
+        Level().debug_renderer().draw_line(Fidentity, position, Fvector().mad(position, direction, 20.f), color_xrgb(0,255,0));
 
-		direction.setHP		(yaw - safety_fire_angle,pitch);
-		Level().debug_renderer().draw_line(Fidentity, position, Fvector().mad(position, direction, 20.f), color_xrgb(0,255,0));
+        direction.setHP		(yaw - safety_fire_angle,pitch);
+        Level().debug_renderer().draw_line(Fidentity, position, Fvector().mad(position, direction, 20.f), color_xrgb(0,255,0));
 
-		direction.setHP		(yaw + safety_fire_angle,pitch);
-		Level().debug_renderer().draw_line(Fidentity, position, Fvector().mad(position, direction, 20.f), color_xrgb(0,255,0));
+        direction.setHP		(yaw + safety_fire_angle,pitch);
+        Level().debug_renderer().draw_line(Fidentity, position, Fvector().mad(position, direction, 20.f), color_xrgb(0,255,0));
 
-		direction.setHP		(yaw,pitch - safety_fire_angle);
-		Level().debug_renderer().draw_line(Fidentity, position, Fvector().mad(position, direction, 20.f), color_xrgb(0,255,0));
+        direction.setHP		(yaw,pitch - safety_fire_angle);
+        Level().debug_renderer().draw_line(Fidentity, position, Fvector().mad(position, direction, 20.f), color_xrgb(0,255,0));
 
-		direction.setHP		(yaw,pitch + safety_fire_angle);
-		Level().debug_renderer().draw_line(Fidentity, position, Fvector().mad(position, direction, 20.f), color_xrgb(0,255,0));
-	}
+        direction.setHP		(yaw,pitch + safety_fire_angle);
+        Level().debug_renderer().draw_line(Fidentity, position, Fvector().mad(position, direction, 20.f), color_xrgb(0,255,0));
+    }
 #endif // #if 0
 
     inherited::OnRender();

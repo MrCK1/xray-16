@@ -6,7 +6,7 @@
 //	Description : ALife spawn registry
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "alife_spawn_registry.h"
 #include "Common/object_broker.h"
 #include "game_base.h"
@@ -22,9 +22,9 @@ CALifeSpawnRegistry::CALifeSpawnRegistry(LPCSTR section)
 {
     m_spawn_name = "";
     seed(u32(CPU::QPC() & 0xffffffff));
-    m_game_graph = 0;
-    m_chunk = 0;
-    m_file = 0;
+    m_game_graph = nullptr;
+    m_chunk = nullptr;
+    m_file = nullptr;
 }
 
 CALifeSpawnRegistry::~CALifeSpawnRegistry()
@@ -90,6 +90,7 @@ void CALifeSpawnRegistry::load(LPCSTR spawn_name)
     load(*m_file);
 }
 
+using lua_State = struct lua_State;
 struct dummy
 {
     int count;
@@ -140,11 +141,17 @@ void CALifeSpawnRegistry::load(IReader& file_stream, xrGUID* save_guid)
 
     VERIFY(!m_chunk);
     m_chunk = file_stream.open_chunk(4);
+    if (!m_chunk)
+    {
+        string_path file_name;
+        FS.update_path(file_name, "$game_data$", GRAPH_NAME);
+        m_chunk = FS.r_open(file_name);
+    }
     R_ASSERT2(m_chunk, "Spawn version mismatch - REBUILD SPAWN!");
 
     VERIFY(!m_game_graph);
     m_game_graph = new CGameGraph(*m_chunk);
-    ai().game_graph(m_game_graph);
+    ai().SetGameGraph(m_game_graph);
 
     R_ASSERT2((header().graph_guid() == ai().game_graph().header().guid()) || ignore_save_incompatibility(),
         "Spawn doesn't correspond to the graph : REBUILD SPAWN!");

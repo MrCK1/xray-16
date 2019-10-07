@@ -6,7 +6,7 @@
 //	Description : ALife spawn registry header
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "alife_spawn_registry_header.h"
 #include "alife_space.h"
 #include "Common/LevelStructure.hpp"
@@ -15,7 +15,7 @@ CALifeSpawnHeader::~CALifeSpawnHeader() {}
 void CALifeSpawnHeader::load(IReader& file_stream)
 {
     m_version = file_stream.r_u32();
-    R_ASSERT2(XRAI_CURRENT_VERSION == m_version, "'game.spawn' version mismatch!");
+    ASSERT_XRAI_VERSION_MATCH(XRAI_CURRENT_VERSION, "'game.spawn' version mismatch!");
     file_stream.r(&m_guid, sizeof(m_guid));
     file_stream.r(&m_graph_guid, sizeof(m_graph_guid));
     m_count = file_stream.r_u32();

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ui\xrUIXmlParser.h"
+#include "xrUICore/XML//xrUIXmlParser.h"
 
 class CUIWindow;
 class CUIFrameWindow;
@@ -26,6 +26,7 @@ class CUITrackBar;
 class CUIMapInfo;
 class CUIMMShniaga;
 class CUIScrollView;
+class CUIListWnd;
 class CUIListBox;
 class CUIProgressBar;
 
@@ -33,6 +34,7 @@ class CScriptXmlInit
 {
 public:
     void ParseFile(LPCSTR xml_file);
+    void ParseShTexInfo(pcstr xml_file);
     void InitWindow(LPCSTR path, int index, CUIWindow* pWnd);
     CUIFrameWindow* InitFrame(LPCSTR path, CUIWindow* parent);
     CUIFrameLineWnd* InitFrameLine(LPCSTR path, CUIWindow* parent);
@@ -58,6 +60,7 @@ public:
     CUIMMShniaga* InitMMShniaga(LPCSTR path, CUIWindow* parent);
     CUIWindow* InitKeyBinding(LPCSTR path, CUIWindow* parent);
     CUIScrollView* InitScrollView(LPCSTR path, CUIWindow* parent);
+    CUIListWnd* InitListWnd(pcstr path, CUIWindow* parent);
     CUIListBox* InitListBox(LPCSTR path, CUIWindow* parent);
     CUIProgressBar* InitProgressBar(LPCSTR path, CUIWindow* parent);
 

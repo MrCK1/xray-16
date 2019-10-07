@@ -6,7 +6,7 @@
 //	Description : ALife Simulator storage manager
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "alife_storage_manager.h"
 #include "alife_simulator_header.h"
 #include "alife_time_manager.h"
@@ -15,14 +15,13 @@
 #include "alife_graph_registry.h"
 #include "alife_group_registry.h"
 #include "alife_registry_container.h"
-#include "xrserver.h"
+#include "xrServer.h"
 #include "Level.h"
 #include "xrEngine/x_ray.h"
 #include "saved_game_wrapper.h"
 #include "string_table.h"
 #include "xrEngine/IGame_Persistent.h"
 #include "autosave_manager.h"
-
 XRCORE_API string_path g_bug_report_file;
 
 using namespace ALife;
@@ -32,19 +31,23 @@ extern string_path g_last_saved_game;
 CALifeStorageManager::~CALifeStorageManager() { *g_last_saved_game = 0; }
 void CALifeStorageManager::save(LPCSTR save_name_no_check, bool update_name)
 {
+    pcstr gameSaveExtension = SAVE_EXTENSION;
+    if (ShadowOfChernobylMode || ClearSkyMode)
+        gameSaveExtension = SAVE_EXTENSION_LEGACY;
+
     LPCSTR game_saves_path = FS.get_path("$game_saves$")->m_Path;
 
     string_path save_name;
     strncpy_s(save_name, sizeof(save_name), save_name_no_check,
-        sizeof(save_name) - 5 - xr_strlen(SAVE_EXTENSION) - xr_strlen(game_saves_path));
+        sizeof(save_name) - 5 - xr_strlen(gameSaveExtension) - xr_strlen(game_saves_path));
 
     xr_strcpy(g_last_saved_game, save_name);
 
-    string_path save;
-    xr_strcpy(save, m_save_name);
-    if (save_name)
+    string_path saveBackup;
+    xr_strcpy(saveBackup, m_save_name);
+    if (save_name[0])
     {
-        strconcat(sizeof(m_save_name), m_save_name, save_name, SAVE_EXTENSION);
+        strconcat(sizeof(m_save_name), m_save_name, save_name, gameSaveExtension);
     }
     else
     {
@@ -91,7 +94,7 @@ void CALifeStorageManager::save(LPCSTR save_name_no_check, bool update_name)
 #endif // DEBUG
 
     if (!update_name)
-        xr_strcpy(m_save_name, save);
+        xr_strcpy(m_save_name, saveBackup);
 }
 
 void CALifeStorageManager::load(void* buffer, const u32& buffer_size, LPCSTR file_name)
@@ -105,23 +108,21 @@ void CALifeStorageManager::load(void* buffer, const u32& buffer_size, LPCSTR fil
 
     VERIFY(can_register_objects());
     can_register_objects(false);
-    CALifeObjectRegistry::OBJECT_REGISTRY::iterator B = objects().objects().begin();
-    CALifeObjectRegistry::OBJECT_REGISTRY::iterator E = objects().objects().end();
-    CALifeObjectRegistry::OBJECT_REGISTRY::iterator I;
-    for (I = B; I != E; ++I)
+
+    for (auto& object : objects().objects())
     {
-        ALife::_OBJECT_ID id = (*I).second->ID;
-        (*I).second->ID = server().PerformIDgen(id);
-        VERIFY(id == (*I).second->ID);
-        register_object((*I).second, false);
+        ALife::_OBJECT_ID id = object.second->ID;
+        object.second->ID = server().PerformIDgen(id);
+        VERIFY(id == object.second->ID);
+        register_object(object.second, false);
     }
 
     registry().load(source);
 
     can_register_objects(true);
 
-    for (I = B; I != E; ++I)
-        (*I).second->on_register();
+    for (auto& object : objects().objects())
+        object.second->on_register();
 
     if (!g_pGameLevel)
         return;
@@ -131,25 +132,32 @@ void CALifeStorageManager::load(void* buffer, const u32& buffer_size, LPCSTR fil
 
 bool CALifeStorageManager::load(LPCSTR save_name_no_check)
 {
+    pcstr gameSaveExtension = SAVE_EXTENSION;
+    if (ShadowOfChernobylMode || ClearSkyMode)
+        gameSaveExtension = SAVE_EXTENSION_LEGACY;
+
     LPCSTR game_saves_path = FS.get_path("$game_saves$")->m_Path;
 
     string_path save_name;
     strncpy_s(save_name, sizeof(save_name), save_name_no_check,
-        sizeof(save_name) - 5 - xr_strlen(SAVE_EXTENSION) - xr_strlen(game_saves_path));
+        sizeof(save_name) - 5 - xr_strlen(gameSaveExtension) - xr_strlen(game_saves_path));
 
     CTimer timer;
     timer.Start();
 
-    string_path save;
-    xr_strcpy(save, m_save_name);
-    if (!save_name)
+    string_path saveBackup;
+    xr_strcpy(saveBackup, m_save_name);
+    if (!save_name[0])
     {
         if (!xr_strlen(m_save_name))
-            R_ASSERT2(false, "There is no file name specified!");
+        {
+            Log("There is no file name specified!");
+            return false;
+        }
     }
     else
     {
-        strconcat(sizeof(m_save_name), m_save_name, save_name, SAVE_EXTENSION);
+        strconcat(sizeof(m_save_name), m_save_name, save_name, gameSaveExtension);
     }
     string_path file_name;
     FS.update_path(file_name, "$game_saves$", m_save_name);
@@ -157,29 +165,37 @@ bool CALifeStorageManager::load(LPCSTR save_name_no_check)
     xr_strcpy(g_last_saved_game, save_name);
     xrDebug::SetBugReportFile(file_name);
 
-    IReader* stream;
-    stream = FS.r_open(file_name);
+    IReader* stream = FS.r_open(file_name);
     if (!stream)
     {
-        Msg("* Cannot find saved game %s", file_name);
-        xr_strcpy(m_save_name, save);
-        return (false);
+        Msg("* Cannot open saved game %s", file_name);
+        xr_strcpy(m_save_name, saveBackup);
+        return false;
     }
 
-    CHECK_OR_EXIT(CSavedGameWrapper::valid_saved_game(*stream),
-        make_string("%s\nSaved game version mismatch or saved game is corrupted", file_name));
-    /*
-        string512					temp;
-        strconcat					(sizeof(temp),temp,CStringTable().translate("st_loading_saved_game").c_str(),"
-       \"",save_name,SAVE_EXTENSION,"\"");
-        g_pGamePersistent->LoadTitle(temp);
-    */
+    constexpr pcstr mismatch = "Saved game version mismatch or saved game is corrupted";
+    const bool gameSaveIsValid = CSavedGameWrapper::valid_saved_game(*stream);
+    VERIFY3(gameSaveIsValid, mismatch, file_name);
+
+    if (!gameSaveIsValid)
+    {
+        Msg("! %s [%s]", mismatch, file_name);
+
+        xr_strcpy(m_save_name, saveBackup);
+        return false;
+    }
+
+    string512 temp;
+    strconcat(sizeof(temp), temp, StringTable().translate("st_loading_saved_game").c_str(),
+        " \"", save_name, gameSaveExtension, "\"");
+
+    g_pGamePersistent->SetLoadStageTitle(temp);
     g_pGamePersistent->LoadTitle();
 
     unload();
     reload(m_section);
 
-    u32 source_count = stream->r_u32();
+    const u32 source_count = stream->r_u32();
     void* source_data = xr_malloc(source_count);
     rtc_decompress(source_data, source_count, stream->pointer(), stream->length() - 3 * sizeof(u32));
     FS.r_close(stream);

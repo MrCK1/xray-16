@@ -1,36 +1,35 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "base_monster.h"
 #include "ai_space.h"
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
 #include "CharacterPhysicsSupport.h"
 #include "PHMovementControl.h"
-#include "ai/Monsters/ai_monster_squad_manager.h"
+#include "ai/monsters/ai_monster_squad_manager.h"
 #include "Include/xrRender/KinematicsAnimated.h"
 #include "detail_path_manager.h"
 #include "xrAICore/Navigation/level_graph.h"
-#include "ai/Monsters/corpse_cover.h"
+#include "ai/monsters/corpse_cover.h"
 #include "cover_evaluators.h"
 #include "sound_player.h"
-#include "ai/Monsters/state_manager.h"
-#include "ai/Monsters/controlled_entity.h"
-#include "ai/Monsters/anomaly_detector.h"
-#include "ai/Monsters/monster_cover_manager.h"
-#include "ai/Monsters/monster_home.h"
+#include "ai/monsters/state_manager.h"
+#include "ai/monsters/controlled_entity.h"
+#include "ai/monsters/anomaly_detector.h"
+#include "ai/monsters/monster_cover_manager.h"
+#include "ai/monsters/monster_home.h"
 #include "xrAICore/Navigation/ai_object_location.h"
 #include "Level.h"
-#include "xrServerEntities/xrserver_objects_alife_monsters.h"
+#include "xrServerEntities/xrServer_Objects_ALife_Monsters.h"
 #include "alife_simulator.h"
 #include "alife_object_registry.h"
 #include "xrServer.h"
 #include "inventory_item.h"
-#include "xrServerEntities/xrServer_objects_ALife.h"
-#include "phMovementControl.h"
-#include "ai/Monsters/ai_monster_squad.h"
-#include "ai/Monsters/control_movement_base.h"
-#include "ai/Monsters/control_animation_base.h"
-#include "ai/Monsters/monster_velocity_space.h"
-#include "ai/Monsters/anti_aim_ability.h"
+#include "xrServerEntities/xrServer_Objects_ALife.h"
+#include "ai/monsters/ai_monster_squad.h"
+#include "ai/monsters/control_movement_base.h"
+#include "ai/monsters/control_animation_base.h"
+#include "ai/monsters/monster_velocity_space.h"
+#include "ai/monsters/anti_aim_ability.h"
 
 namespace detail
 {
@@ -134,7 +133,12 @@ void CBaseMonster::Load(LPCSTR section)
     {
         LPCSTR protections_sect = pSettings->r_string(section, "protections_sect");
         m_fSkinArmor = READ_IF_EXISTS(pSettings, r_float, protections_sect, "skin_armor", 0.f);
-        m_fHitFracMonster = READ_IF_EXISTS(pSettings, r_float, protections_sect, "hit_fraction_monster", 0.1f);
+        float defaultHitFraction = 0.1f;
+        if (ShadowOfChernobylMode || ClearSkyMode)
+        {
+            defaultHitFraction = pSettings->read_if_exists<float>(protections_sect, "hit_fraction", defaultHitFraction);
+        }
+        m_fHitFracMonster = pSettings->read_if_exists<float>(protections_sect, "hit_fraction_monster", defaultHitFraction);
     }
 
     m_force_anti_aim = false;
@@ -531,8 +535,8 @@ void CBaseMonster::fill_bones_body_parts(LPCSTR body_part, CriticalWoundType wou
     VERIFY(kinematics);
 
     CInifile::Sect& body_part_section = pSettings->r_section(body_parts_section);
-    CInifile::SectCIt I = body_part_section.Data.begin();
-    CInifile::SectCIt E = body_part_section.Data.end();
+    auto I = body_part_section.Data.cbegin();
+    auto E = body_part_section.Data.cend();
     for (; I != E; ++I)
         m_bones_body_parts.insert(std::make_pair(kinematics->LL_BoneID((*I).first), u32(wound_type)));
 }

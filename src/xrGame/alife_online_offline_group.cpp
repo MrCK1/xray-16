@@ -6,7 +6,7 @@
 //	Description : ALife Online Offline Group class
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "xrServer_Objects_ALife_Monsters.h"
 #include "ai_space.h"
 #include "alife_simulator.h"
@@ -58,10 +58,11 @@ void CSE_ALifeOnlineOfflineGroup::update()
     MEMBERS::iterator E = m_members.end();
     for (; I != E; ++I)
     {
-        ((*I).second)->o_Position = o_Position;
-        ((*I).second)->m_tNodeID = m_tNodeID;
-        ((*I).second)->m_tGraphID = m_tGraphID;
-        ((*I).second)->m_fDistance = m_fDistance;
+        MEMBER* m = (*I).second;
+        m->o_Position = o_Position;
+        m->m_tNodeID = m_tNodeID;
+        m->m_tGraphID = m_tGraphID;
+        m->m_fDistance = m_fDistance;
     }
     return;
 }
@@ -301,7 +302,7 @@ void CSE_ALifeOnlineOfflineGroup::on_after_game_load()
     if (m_members.empty())
         return;
 
-    ALife::_OBJECT_ID* temp = (ALife::_OBJECT_ID*)_alloca(m_members.size() * sizeof(ALife::_OBJECT_ID));
+    ALife::_OBJECT_ID* temp = (ALife::_OBJECT_ID*)xr_alloca(m_members.size() * sizeof(ALife::_OBJECT_ID));
     ALife::_OBJECT_ID *i = temp, *e = temp + m_members.size();
 
     {

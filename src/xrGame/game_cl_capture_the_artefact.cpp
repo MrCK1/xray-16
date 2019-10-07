@@ -1,13 +1,13 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "xr_level_controller.h"
 #include "map_manager.h"
 #include "map_location.h"
-#include "actor.h"
+#include "Actor.h"
 #include "ActorCondition.h"
 #include "Artefact.h"
 #include "ui/UIMainIngameWnd.h"
 #include "ui/UISkinSelector.h"
-#include "ui/UIPDAWnd.h"
+#include "ui/UIPdaWnd.h"
 #include "ui/UIMapDesc.h"
 #include "ui/UIVote.h"
 #include "ui/TeamInfo.h"
@@ -15,9 +15,10 @@
 #include "string_table.h"
 #include "game_cl_capture_the_artefact.h"
 #include "clsid_game.h"
-#include "actor.h"
-#include "weapon.h"
+#include "Actor.h"
+#include "Weapon.h"
 #include "game_cl_base_weapon_usage_statistic.h"
+#include "xrNetServer/NET_Messages.h"
 
 #include "xrEngine/IGame_Persistent.h"
 #include "ui/UIActorMenu.h"
@@ -107,7 +108,7 @@ void game_cl_CaptureTheArtefact::shedule_Update(u32 dt)
 {
     inherited::shedule_Update(dt);
 
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return;
 
     if ((Level().IsDemoPlayStarted() || Level().IsDemoPlayFinished()) && m_game_ui)
@@ -242,7 +243,7 @@ void game_cl_CaptureTheArtefact::UpdateMoneyIndicator()
     }
     if (total_money != last_money)
     {
-        itoa(total_money, MoneyStr, 10);
+        xr_itoa(total_money, MoneyStr, 10);
         m_game_ui->ChangeTotalMoneyIndicator(MoneyStr);
         last_money = total_money;
     }
@@ -250,7 +251,7 @@ void game_cl_CaptureTheArtefact::UpdateMoneyIndicator()
 
 void game_cl_CaptureTheArtefact::TranslateGameMessage(u32 msg, NET_Packet& P)
 {
-    CStringTable st;
+    CStringTable& st = StringTable();
     string1024 Text;
     // string512 tmp;
     //	LPSTR	Color_Teams[3]		= {"%c[255,255,255,255]", "%c[255,64,255,64]", "%c[255,64,64,255]"};
@@ -655,7 +656,7 @@ void game_cl_CaptureTheArtefact::net_import_update(NET_Packet& P)
 bool game_cl_CaptureTheArtefact::InWarmUp() const { return m_inWarmup; }
 CUIGameCustom* game_cl_CaptureTheArtefact::createGameUI()
 {
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return NULL;
 
     m_game_ui = smart_cast<CUIGameCTA*>(NEW_INSTANCE(CLSID_GAME_UI_CAPTURETHEARTEFACT));
@@ -732,7 +733,7 @@ void game_cl_CaptureTheArtefact::OnGameMenuRespond_ChangeTeam(NET_Packet& P)
 
 void game_cl_CaptureTheArtefact::UpdateMapLocations()
 {
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return;
     // updating firends indicator
     if (!local_player)
@@ -820,7 +821,7 @@ void game_cl_CaptureTheArtefact::OnSpawn(IGameObject* pObj)
 {
     inherited::OnSpawn(pObj);
 
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return;
 
     CArtefact* pArtefact = smart_cast<CArtefact*>(pObj);
@@ -1086,7 +1087,6 @@ bool game_cl_CaptureTheArtefact::NeedToSendReady_Actor(int key, game_PlayerState
 
 bool game_cl_CaptureTheArtefact::NeedToSendReady_Spectator(int key, game_PlayerState* ps)
 {
-    CStringTable st;
     bool res = inherited::NeedToSendReady_Spectator(key, ps);
     u32 gphase = Phase();
     if ((gphase == GAME_PHASE_INPROGRESS) && (key == kJUMP) && (!m_game_ui->IsBuySpawnShown()))
@@ -1237,19 +1237,17 @@ void game_cl_CaptureTheArtefact::OnVoteStart(NET_Packet& P)
     if (!m_game_ui)
         return;
 
-    CStringTable st;
-
     u32 psize = P.B.count + 1;
-    char* command = static_cast<char*>(_alloca(psize));
-    char* player = static_cast<char*>(_alloca(psize));
-    char* cmd_name = static_cast<char*>(_alloca(psize));
+    char* command = static_cast<char*>(xr_alloca(psize));
+    char* player = static_cast<char*>(xr_alloca(psize));
+    char* cmd_name = static_cast<char*>(xr_alloca(psize));
     char* tcmd_name = cmd_name;
-    static char* scans_format = "%s %s %s %s %s";
+    static constexpr pcstr scans_format = "%s %s %s %s %s";
 
     char* args[MAX_VOTE_PARAMS];
     for (u32 i = 0; i < MAX_VOTE_PARAMS; ++i)
     {
-        args[i] = static_cast<char*>(_alloca(psize + 1));
+        args[i] = static_cast<char*>(xr_alloca(psize + 1));
     }
 
     P.r_stringZ(command);
@@ -1260,7 +1258,7 @@ void game_cl_CaptureTheArtefact::OnVoteStart(NET_Packet& P)
     command[psize - 1] = 0;
     player[psize - 1] = 0;
 
-    sscanf_s(command, "%s", cmd_name, psize);
+    sscanf(command, "%s", cmd_name);
     u32 cmd_len = xr_strlen(cmd_name);
     u32 tcmd_len = cmd_len;
 
@@ -1275,8 +1273,7 @@ void game_cl_CaptureTheArtefact::OnVoteStart(NET_Packet& P)
     Msg("---Vote command: %s", cmd_name);
 #endif
 
-    int args_count = sscanf_s(command + cmd_len, scans_format, args[0], psize + 1, args[1], psize + 1, args[2],
-        psize + 1, args[3], psize + 1, args[4], psize + 1);
+    int args_count = sscanf(command + cmd_len, scans_format, args[0], args[1], args[2], args[3], args[4]);
     if (args_count < 0)
         args_count = 0;
 
@@ -1288,10 +1285,10 @@ void game_cl_CaptureTheArtefact::OnVoteStart(NET_Packet& P)
     {
         if (!xr_strcmp(cmd_name, ttable[i][0]))
         {
-            str_c ted_str = st.translate(ttable[i][1]).c_str();
+            pcstr ted_str = StringTable().translate(ttable[i][1]).c_str();
             VERIFY(ted_str);
             tcmd_len = xr_strlen(ted_str) + 1;
-            tcmd_name = static_cast<char*>(_alloca(tcmd_len));
+            tcmd_name = static_cast<char*>(xr_alloca(tcmd_len));
             xr_strcpy(tcmd_name, tcmd_len, ted_str);
 #ifdef CLIENT_CTA_LOG
             Msg("---Translated command to: %s", tcmd_name);
@@ -1301,7 +1298,7 @@ void game_cl_CaptureTheArtefact::OnVoteStart(NET_Packet& P)
     }
 
     u32 vstr_size = (args_count * (psize + 1)) + tcmd_len + 1;
-    char* vstr = static_cast<char*>(_alloca(vstr_size));
+    char* vstr = static_cast<char*>(xr_alloca(vstr_size));
     xr_strcpy(vstr, vstr_size, tcmd_name);
     for (int i = 0; i < args_count; ++i)
     {
@@ -1309,12 +1306,12 @@ void game_cl_CaptureTheArtefact::OnVoteStart(NET_Packet& P)
         Msg("---Next cat iteration state: %s", vstr);
 #endif
         xr_strcat(vstr, vstr_size, " ");
-        xr_strcat(vstr, vstr_size, st.translate(args[i]).c_str());
+        xr_strcat(vstr, vstr_size, StringTable().translate(args[i]).c_str());
     }
-    str_c t_vote_str = st.translate("mp_voting_started").c_str();
+    pcstr t_vote_str = StringTable().translate("mp_voting_started").c_str();
     VERIFY(t_vote_str);
     u32 fin_str_size = xr_strlen(t_vote_str) + vstr_size + xr_strlen(player) + 1;
-    char* fin_str = static_cast<char*>(_alloca(fin_str_size));
+    char* fin_str = static_cast<char*>(xr_alloca(fin_str_size));
 
 #ifdef CLIENT_CTA_LOG
     Msg("---Making finally string: (t_vote_str: %s), (vstr: %s), (player: %s)", t_vote_str, vstr, player);
@@ -1355,7 +1352,6 @@ void game_cl_CaptureTheArtefact::UpdateVotingTime(u32 current_time)
 {
     if (IsVotingEnabled() && IsVotingActive() && (m_dwVoteEndTime >= current_time))
     {
-        CStringTable st;
         u32 TimeLeft = m_dwVoteEndTime - current_time;
         string1024 VoteTimeResStr;
         u32 SecsLeft = (TimeLeft % 60000) / 1000;
@@ -1371,7 +1367,7 @@ void game_cl_CaptureTheArtefact::UpdateVotingTime(u32 current_time)
                 NumAgreed++;
         }
 
-        xr_sprintf(VoteTimeResStr, st.translate("mp_timeleft").c_str(), MinitsLeft, SecsLeft,
+        xr_sprintf(VoteTimeResStr, StringTable().translate("mp_timeleft").c_str(), MinitsLeft, SecsLeft,
             float(NumAgreed) / players.size());
         if (m_game_ui)
             m_game_ui->SetVoteTimeResultMsg(VoteTimeResStr);
@@ -1591,7 +1587,7 @@ void game_cl_CaptureTheArtefact::OnRender()
                 VERIFY(ps->getName());
                 string64 upper_name;
                 xr_strcpy(upper_name, ps->getName());
-                _strupr_s(upper_name);
+                _strupr(upper_name);
                 pActor->RenderText(upper_name, IPos, &dup, PLAYER_NAME_COLOR);
             }
             if (m_bFriendlyIndicators)
@@ -1621,7 +1617,8 @@ bool game_cl_CaptureTheArtefact::PlayerCanSprint(CActor* pActor)
 }
 
 bool game_cl_CaptureTheArtefact::CanActivateArtefact() const { return m_bCanActivateArtefact; }
-char* game_cl_CaptureTheArtefact::getTeamSection(int Team)
+
+pcstr game_cl_CaptureTheArtefact::getTeamSection(int Team)
 {
     switch (Team)
     {
@@ -1649,7 +1646,7 @@ void game_cl_CaptureTheArtefact::OnConnected()
     inherited::OnConnected();
     if (m_game_ui)
     {
-        VERIFY(!g_dedicated_server);
+        VERIFY(!GEnv.isDedicatedServer);
         m_game_ui = smart_cast<CUIGameCTA*>(CurrentGameUI());
         m_game_ui->SetClGame(this);
     }

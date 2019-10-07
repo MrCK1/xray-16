@@ -3,7 +3,7 @@
 //							другим персонажам
 //////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "relation_registry.h"
 #include "alife_registry_wrappers.h"
 
@@ -14,6 +14,7 @@
 #include "alife_object_registry.h"
 #include "xrServer_Objects_ALife_Monsters.h"
 #include "xrScriptEngine/script_engine.hpp"
+#include "xrGame/game_type.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -62,7 +63,7 @@ RELATION_REGISTRY::~RELATION_REGISTRY() {}
 //////////////////////////////////////////////////////////////////////////
 
 extern void load_attack_goodwill();
-extern bool IsGameTypeSingle();
+
 CRelationRegistryWrapper& RELATION_REGISTRY::relation_registry()
 {
     if (!m_relation_registry)
@@ -146,7 +147,7 @@ void RELATION_REGISTRY::ForceSetGoodwill(u16 from, u16 to, CHARACTER_GOODWILL go
 
     if (!from_obj || !to_obj)
     {
-        ai().script_engine().script_log(LuaMessageType::Error,
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
             "RELATION_REGISTRY::ForceSetGoodwill  : cannot convert obj to CSE_ALifeTraderAbstract!");
         return;
     }

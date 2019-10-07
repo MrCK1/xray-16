@@ -1,12 +1,12 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "phantom.h"
 #include "Level.h"
-#include "xrServerEntities/xrserver_objects_alife_monsters.h"
+#include "xrServerEntities/xrServer_Objects_ALife_Monsters.h"
 #include "xrCore/Animation/Motion.hpp"
 #include "Include/xrRender/RenderVisual.h"
 #include "Include/xrRender/KinematicsAnimated.h"
 
-CPhantom::CPhantom()
+CPhantom::CPhantom() : m_fly_particles(nullptr), m_enemy(nullptr)
 {
     fSpeed = 4.f;
     fASpeed = 1.7f;
@@ -80,6 +80,8 @@ BOOL CPhantom::net_Spawn(CSE_Abstract* DC)
     if (!inherited::net_Spawn(DC))
         return FALSE;
 
+    OBJ->set_killer_id(u16(-1)); // Alundaio: Hack to prevent strange crash with dynamic phantoms    
+
     m_enemy = Level().CurrentEntity();
     VERIFY(m_enemy);
 
@@ -137,6 +139,9 @@ void CPhantom::animation_end_callback(CBlend* B)
 //---------------------------------------------------------------------
 void CPhantom::SwitchToState_internal(EState new_state)
 {
+    if (!m_enemy)
+        m_enemy = Level().CurrentEntity();
+
     if (new_state != m_CurState)
     {
         IKinematicsAnimated* K = smart_cast<IKinematicsAnimated*>(Visual());
@@ -242,6 +247,9 @@ void CPhantom::OnFlyState()
 void CPhantom::OnDeadState() { UpdateFlyMedia(); }
 void CPhantom::UpdateFlyMedia()
 {
+    if (!m_enemy)
+        m_enemy = Level().CurrentEntity();
+
     UpdatePosition(m_enemy->Position());
     Fmatrix xform = XFORM_center();
     // update particles

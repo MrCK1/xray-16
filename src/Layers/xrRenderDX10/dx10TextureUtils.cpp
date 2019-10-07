@@ -65,11 +65,13 @@ TextureFormatPairs TextureFormatList[] = {
     // D3DFMT_D32 Not available
     // D3DFMT_D15S1 Not available
     // D3DFMT_D24S8 Not available
+    {D3DFMT_D24S8, DXGI_FORMAT_D24_UNORM_S8_UINT},
     {D3DFMT_D24X8, DXGI_FORMAT_R24G8_TYPELESS}, // DXGI_FORMAT_D24_UNORM_S8_UINT},	// Not available
     // D3DFMT_D24X4S4 Not available
-    // D3DFMT_D16 DXGI_FORMAT_D16_UNORM
-    //{ D3DFMT_D32F_LOCKABLE, DXGI_FORMAT_D32_FLOAT},
-    {D3DFMT_D32F_LOCKABLE, DXGI_FORMAT_R32_TYPELESS},
+    { D3DFMT_D16_LOCKABLE, DXGI_FORMAT_D16_UNORM },
+    { D3DFMT_D32F_LOCKABLE, DXGI_FORMAT_R32_TYPELESS },
+    { D3DFMT_D32F_LOCKABLE, DXGI_FORMAT_D32_FLOAT },
+    { D3DFMT_D32S8X24, DXGI_FORMAT_D32_FLOAT_S8X24_UINT},
     // D3DFMT_D24FS8 Not available
     // D3DFMT_S1D15 Not available
     // D3DFMT_S8D24 DXGI_FORMAT_D24_UNORM_S8_UINT
@@ -122,5 +124,18 @@ DXGI_FORMAT ConvertTextureFormat(D3DFORMAT dx9FMT)
 
     VERIFY(!"ConvertTextureFormat didn't find appropriate dx10 texture format!");
     return DXGI_FORMAT_UNKNOWN;
+}
+
+D3DFORMAT ConvertTextureFormat(DXGI_FORMAT dx10FMT)
+{
+    int arrayLength = sizeof(TextureFormatList) / sizeof(TextureFormatList[0]);
+    for (int i = 0; i < arrayLength; ++i)
+    {
+        if (TextureFormatList[i].m_dx10FMT == dx10FMT)
+            return TextureFormatList[i].m_dx9FMT;
+    }
+
+    VERIFY(!"ConvertTextureFormat didn't find appropriate dx9 texture format!");
+    return D3DFMT_UNKNOWN;
 }
 }

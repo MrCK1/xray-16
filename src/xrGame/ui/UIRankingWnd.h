@@ -6,9 +6,9 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #pragma once
-#include "UIWindow.h"
-#include "UIWndCallback.h"
-
+#include "xrUICore/Windows/UIWindow.h"
+#include "xrUICore/Callbacks/UIWndCallback.h"
+#include "UIRankFaction.h"
 #include "UIAchievements.h"
 
 class CUIStatic;
@@ -21,10 +21,11 @@ class CUIScrollView;
 
 class CUIRankingWnd : public CUIWindow, public CUIWndCallback
 {
-private:
-    typedef CUIWindow inherited;
+    using inherited = CUIWindow;
 
     CUIFrameWindow* m_background;
+    CUIFrameLineWnd* m_background2;
+    CUIStatic* m_center_background;
     CUIFrameWindow* m_down_background;
     CUIFrameWindow* m_icon_overlay;
 
@@ -34,6 +35,11 @@ private:
     CUITextWnd* m_money_value;
 
     CUITextWnd* m_center_caption;
+    CUIStatic* m_faction_static;
+    CUIFrameLineWnd* m_faction_line1;
+    CUIFrameLineWnd* m_faction_line2;
+
+    CUIScrollView* m_factions_list;
 
     CUIScrollView* m_achievements;
     CUIFrameWindow* m_achievements_background;
@@ -46,7 +52,7 @@ private:
     CUIStatic* m_favorite_weapon_bckgrnd;
     CUIStatic* m_favorite_weapon_icon;
 
-    DEFINE_VECTOR(CUIAchievements*, ACHIEVES_VEC, ACHIEVES_VEC_IT);
+    using ACHIEVES_VEC = xr_vector<CUIAchievements*>;
     ACHIEVES_VEC m_achieves_vec;
 
     enum
@@ -72,11 +78,16 @@ public:
     virtual void DrawHint();
     virtual void ResetAll();
 
-    void Init();
+    bool Init();
     void update_info();
 
 protected:
-    void add_achievement(CUIXml& xml, shared_str const& faction_id);
+    void add_faction(CUIXml& xml, shared_str const& faction_id);
+    void clear_all_factions();
+    bool xr_stdcall SortingLessFunction(CUIWindow* left, CUIWindow* right);
+    void get_value_from_script();
+
+    void add_achievement(CUIXml& xml, shared_str const& achiev_id);
     void get_statistic();
     void get_best_monster();
     void get_favorite_weapon();

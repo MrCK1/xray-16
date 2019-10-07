@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "burer.h"
 #include "xrPhysics/PhysicsShell.h"
 #include "CharacterPhysicsSupport.h"
@@ -18,9 +18,16 @@
 #include "Inventory.h"
 #include "ActorCondition.h"
 #include "xr_level_controller.h"
-#include "weapon.h"
+#include "Weapon.h"
 #include "xrCore/_vector3d_ext.h"
 #include "ai/monsters/control_direction_base.h"
+
+#define FX_STAND_FRONT { "fx_stand_f", true }
+#define FX_STAND_BACK { "fx_stand_b", true }
+#define FX_STAND_LEFT { "fx_stand_l", true }
+#define FX_STAND_RIGHT { "fx_stand_r", true }
+
+#define FX_STAND_ALL FX_STAND_FRONT, FX_STAND_BACK, FX_STAND_LEFT, FX_STAND_RIGHT
 
 bool CBurer::can_scan = true;
 
@@ -81,9 +88,9 @@ void CBurer::Load(LPCSTR section)
     particle_gravi_prepare = pSettings->r_string(section, "Particle_Gravi_Prepare");
     particle_tele_object = pSettings->r_string(section, "Particle_Tele_Object");
 
-    ::Sound->create(sound_gravi_wave, pSettings->r_string(section, "sound_gravi_wave"), st_Effect, SOUND_TYPE_WORLD);
-    ::Sound->create(sound_tele_hold, pSettings->r_string(section, "sound_tele_hold"), st_Effect, SOUND_TYPE_WORLD);
-    ::Sound->create(sound_tele_throw, pSettings->r_string(section, "sound_tele_throw"), st_Effect, SOUND_TYPE_WORLD);
+    GEnv.Sound->create(sound_gravi_wave, pSettings->r_string(section, "sound_gravi_wave"), st_Effect, SOUND_TYPE_WORLD);
+    GEnv.Sound->create(sound_tele_hold, pSettings->r_string(section, "sound_tele_hold"), st_Effect, SOUND_TYPE_WORLD);
+    GEnv.Sound->create(sound_tele_throw, pSettings->r_string(section, "sound_tele_throw"), st_Effect, SOUND_TYPE_WORLD);
 
     m_gravi.cooldown = pSettings->r_u32(section, "Gravi_Cooldown");
     m_gravi.min_dist = pSettings->r_float(section, "Gravi_MinDist");
@@ -134,40 +141,40 @@ void CBurer::Load(LPCSTR section)
     //		SVelocityParam &velocity_drag		= move().get_velocity(MonsterMovement::eVelocityParameterDrag);
 
     anim().AddAnim(eAnimStandIdle, "stand_idle_", -1, &velocity_none,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
     anim().AddAnim(eAnimStandTurnLeft, "stand_turn_ls_", -1, &velocity_turn,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
     anim().AddAnim(eAnimStandTurnRight, "stand_turn_rs_", -1, &velocity_turn,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
     //	anim().AddAnim(eAnimStandDamaged,	"stand_idle_dmg_",		-1, &velocity_none,		PS_STAND); //, "fx_stand_f",
     //"fx_stand_b", "fx_stand_l", "fx_stand_r");
 
     anim().AddAnim(eAnimWalkFwd, "stand_walk_fwd_", -1, &velocity_walk,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
     // anim().AddAnim(eAnimWalkDamaged,	"stand_walk_fwd_dmg_",	-1, &velocity_walk_dmg,	PS_STAND); //, 	"fx_stand_f",
     // "fx_stand_b", "fx_stand_l", "fx_stand_r");
     anim().AddAnim(eAnimRun, "stand_run_fwd_", -1, &velocity_run,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
     // anim().AddAnim(eAnimRunDamaged,		"stand_run_dmg_",		-1,	&velocity_run_dmg,	PS_STAND); //, "fx_stand_f",
     // "fx_stand_b", "fx_stand_l", "fx_stand_r");
 
     anim().AddAnim(eAnimAttack, "stand_attack_", -1, &velocity_turn,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
 
     anim().AddAnim(eAnimDie, "stand_die_", -1, &velocity_none,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
 
     anim().AddAnim(eAnimShieldStart, "stand_shield_", -1, &velocity_turn,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
     anim().AddAnim(eAnimShieldContinue, "stand_shield_idle_", -1, &velocity_turn,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
 
     anim().AddAnim(eAnimTeleFire, "stand_power_attack_", -1, &velocity_turn,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
     anim().AddAnim(eAnimTelekinesis, "telekinesis_", -1, &velocity_turn,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
     anim().AddAnim(eAnimGraviFire, "stand_power_attack_", -1, &velocity_turn,
-        PS_STAND); //, 	"fx_stand_f", "fx_stand_b", "fx_stand_l", "fx_stand_r");
+        PS_STAND, FX_STAND_ALL);
 
     anim().AddAnim(eAnimRunTurnLeft, "stand_run_fwd_turn_left_", -1, &velocity_run, PS_STAND);
     anim().AddAnim(eAnimRunTurnRight, "stand_run_fwd_turn_right_", -1, &velocity_run, PS_STAND);
@@ -364,7 +371,7 @@ void CBurer::UpdateGraviObject()
     ps->Play(false);
 
     // hit objects
-    m_nearest.clear_not_free();
+    m_nearest.clear();
     Level().ObjectSpace.GetNearest(m_nearest, m_gravi_object.cur_pos, m_gravi.radius, NULL);
     // xr_vector<IGameObject*> &m_nearest = Level().ObjectSpace.q_nearest;
 
@@ -388,7 +395,7 @@ void CBurer::UpdateGraviObject()
         sound_gravi_wave.set_position(snd_pos);
     }
     else
-        ::Sound->play_at_pos(sound_gravi_wave, 0, snd_pos);
+        GEnv.Sound->play_at_pos(sound_gravi_wave, 0, snd_pos);
 }
 
 void CBurer::UpdateCL()

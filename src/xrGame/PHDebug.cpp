@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #ifdef DEBUG
 
 #include "xrEngine/StatGraph.h"
@@ -7,20 +7,22 @@
 #include "xrPhysics/MathUtils.h"
 
 #include "xrPhysics/ExtendedGeom.h"
-#include "xrPhysics/iphworld.h"
-#include "xrPhysics/physicsshell.h"
+#include "xrPhysics/IPHWorld.h"
+#include "xrPhysics/PhysicsShell.h"
 
 #include "Level.h"
 
 #include "debug_renderer.h"
-#include "physicsshellholder.h"
+#include "PhysicsShellHolder.h"
 
 #include "Include/xrRender/Kinematics.h"
 #include "Include/xrRender/KinematicsAnimated.h"
 #include "xrCore/Animation/Bone.hpp"
-#include "xrEngine/iphdebug.h"
+#include "xrEngine/IPHdebug.h"
+#include "xrCore/xr_token.h"
+#include "xrEngine/GameFont.h"
 
-#include "ui_base.h"
+#include "xrUICore/ui_base.h"
 
 Flags32 ph_dbg_draw_mask;
 Flags32 ph_dbg_draw_mask1;
@@ -141,8 +143,8 @@ struct SPHDBGDrawTri : public SPHDBGDrawAbsract
     {
         if (solid)
         {
-            GlobalEnv.DRender->dbg_DrawTRI(Fidentity, v[0], v[1], v[2], c);
-            GlobalEnv.DRender->dbg_DrawTRI(Fidentity, v[2], v[1], v[0], c);
+            GEnv.DRender->dbg_DrawTRI(Fidentity, v[0], v[1], v[2], c);
+            GEnv.DRender->dbg_DrawTRI(Fidentity, v[2], v[1], v[0], c);
         }
         else
         {
@@ -538,13 +540,13 @@ void PH_DBG_Clear()
 void PH_DBG_Render()
 {
     if (ph_dbg_draw_mask.test(phDbgDrawZDisable))
-        GlobalEnv.DRender->ZEnable(false);
+        GEnv.DRender->ZEnable(false);
     // CHK_DX(HW.pDevice->SetRenderState(D3DRS_ZENABLE,0));
     UI().Font().pFontStat->OutSet(550, 250);
     DBG_PHAbstructRender();
 
     if (ph_dbg_draw_mask.test(phDbgDrawZDisable))
-        GlobalEnv.DRender->ZEnable(true);
+        GEnv.DRender->ZEnable(true);
     // CHK_DX(HW.pDevice->SetRenderState(D3DRS_ZENABLE,1));
 
     // draw_frame=!draw_frame;
@@ -699,14 +701,14 @@ void PH_DBG_SetTrackObject()
 
 static LPCSTR name_bool(BOOL v)
 {
-    static xr_token token_bool[] = {{"false", 0}, {"true", 1}};
+    static const xr_token token_bool[] = {{"false", 0}, {"true", 1}};
     return get_token_name(token_bool, v);
 }
 
 static LPCSTR name_blend_type(CBlend::ECurvature blend)
 {
-    static xr_token token_blend[] = {{"eFREE_SLOT", CBlend::eFREE_SLOT}, {"eAccrue", CBlend::eAccrue},
-        {"eFalloff", CBlend::eFalloff}, {"eFORCEDWORD", CBlend::eFORCEDWORD}};
+    static xr_token token_blend[] = {{"eFREE_SLOT", int(CBlend::eFREE_SLOT)}, {"eAccrue", int(CBlend::eAccrue)},
+        {"eFalloff", int(CBlend::eFalloff)}, {"eFORCEDWORD", int(CBlend::eFORCEDWORD)}};
     return get_token_name(token_blend, blend);
 }
 /*

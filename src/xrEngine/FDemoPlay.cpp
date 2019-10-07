@@ -10,8 +10,9 @@
 #include "Render.h"
 #include "CameraManager.h"
 
+#if !defined(LINUX)
 #include "xrSASH.h"
-
+#endif
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -21,9 +22,10 @@ CDemoPlay::CDemoPlay(const char* name, float ms, u32 cycles, float life_time)
 {
     Msg("*** Playing demo: %s", name);
     Console->Execute("hud_weapon 0");
+#if !defined(LINUX)
     if (g_bBenchmark || g_SASH.IsRunning())
         Console->Execute("hud_draw 0");
-
+#endif
     fSpeed = ms;
     dwCyclesLeft = cycles ? cycles : 1;
 
@@ -75,8 +77,10 @@ CDemoPlay::~CDemoPlay()
     xr_delete(m_pMotion);
     xr_delete(m_MParam);
     Console->Execute("hud_weapon 1");
+#if !defined(LINUX)
     if (g_bBenchmark || g_SASH.IsRunning())
         Console->Execute("hud_draw 1");
+#endif
 }
 
 void CDemoPlay::stat_Start()
@@ -175,7 +179,7 @@ void CDemoPlay::stat_Stop()
 
         FS.update_path(fname, "$app_data_root$", fname);
         CInifile res(fname, FALSE, FALSE, TRUE);
-        res.w_float("general", "renderer", float(GlobalEnv.Render->get_generation()) / 10.f, "dx-level required");
+        res.w_float("general", "renderer", float(GEnv.Render->get_generation()) / 10.f, "dx-level required");
         res.w_float("general", "min", rfps_min, "absolute minimum");
         res.w_float("general", "max", rfps_max, "absolute maximum");
         res.w_float("general", "average", rfps_average, "average for this run");

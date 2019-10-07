@@ -1,12 +1,12 @@
 #include "pch_script.h"
-#include "phrasedialog.h"
-#include "phrasedialogmanager.h"
-#include "gameobject.h"
+#include "PhraseDialog.h"
+#include "PhraseDialogManager.h"
+#include "GameObject.h"
 #include "ai_debug.h"
 #include "ai_space.h"
 #include "xrScriptEngine/script_engine.hpp"
 #include "script_game_object.h"
-#include "actor.h"
+#include "Actor.h"
 
 SPhraseDialogData::SPhraseDialogData()
 {
@@ -15,13 +15,13 @@ SPhraseDialogData::SPhraseDialogData()
 }
 
 SPhraseDialogData::~SPhraseDialogData() {}
-CPhraseDialog::CPhraseDialog()
+CPhraseDialog::CPhraseDialog() : m_bFirstIsSpeaking(false)
 {
     m_SaidPhraseID = "";
     m_bFinished = false;
-    m_pSpeakerFirst = NULL;
-    m_pSpeakerSecond = NULL;
-    m_DialogId = NULL;
+    m_pSpeakerFirst = nullptr;
+    m_pSpeakerSecond = nullptr;
+    m_DialogId = nullptr;
 }
 
 CPhraseDialog::~CPhraseDialog() {}
@@ -104,7 +104,7 @@ bool CPhraseDialog::SayPhrase(DIALOG_SHARED_PTR& phrase_dialog, const shared_str
     {
         //обновить список фраз, которые сейчас сможет говорить собеседник
         for (xr_vector<CPhraseGraph::CEdge>::const_iterator it = phrase_vertex->edges().begin();
-             it != phrase_vertex->edges().end(); it++)
+             it != phrase_vertex->edges().end(); ++it)
         {
             const CPhraseGraph::CEdge& edge = *it;
             CPhraseGraph::CVertex* next_phrase_vertex = phrase_dialog->data()->m_PhraseGraph.vertex(edge.vertex_id());
@@ -172,7 +172,7 @@ LPCSTR CPhraseDialog::GetPhraseText(const shared_str& phrase_id, bool current_sp
     if (ph->m_script_text_id.length() > 0)
     {
         luabind::functor<LPCSTR> lua_function;
-        bool functor_exists = ai().script_engine().functor(ph->m_script_text_id.c_str(), lua_function);
+        bool functor_exists = GEnv.ScriptEngine->functor(ph->m_script_text_id.c_str(), lua_function);
         THROW3(functor_exists, "Cannot find function", ph->m_script_text_id.c_str());
 
         ph->m_script_text_val =
@@ -203,7 +203,7 @@ void CPhraseDialog::load_shared(LPCSTR)
     pXML->SetLocalRoot(pXML->GetRoot());
 
     // loading from XML
-    XML_NODE* dialog_node = pXML->NavigateToNode(id_to_index::tag_name, item_data.pos_in_file);
+    XML_NODE dialog_node = pXML->NavigateToNode(id_to_index::tag_name, item_data.pos_in_file);
     THROW3(dialog_node, "dialog id=", *item_data.id);
 
     pXML->SetLocalRoot(dialog_node);
@@ -219,13 +219,13 @@ void CPhraseDialog::load_shared(LPCSTR)
     //заполнить граф диалога фразами
     data()->m_PhraseGraph.clear();
 
-    XML_NODE* phrase_list_node = pXML->NavigateToNode(dialog_node, "phrase_list", 0);
+    XML_NODE phrase_list_node = pXML->NavigateToNode(dialog_node, "phrase_list", 0);
     if (NULL == phrase_list_node)
     {
         LPCSTR func = pXML->Read(dialog_node, "init_func", 0, "");
 
         luabind::functor<void> lua_function;
-        bool functor_exists = ai().script_engine().functor(func, lua_function);
+        bool functor_exists = GEnv.ScriptEngine->functor(func, lua_function);
         THROW3(functor_exists, "Cannot find precondition", func);
         lua_function(this);
         return;
@@ -242,7 +242,7 @@ void CPhraseDialog::load_shared(LPCSTR)
 #endif
 
     //ищем стартовую фразу
-    XML_NODE* phrase_node = pXML->NavigateToNodeWithAttribute("phrase", "id", "0");
+    XML_NODE phrase_node = pXML->NavigateToNodeWithAttribute("phrase", "id", "0");
     THROW(phrase_node);
     AddPhrase(pXML, phrase_node, "0", "");
 }
@@ -273,7 +273,7 @@ CPhrase* CPhraseDialog::AddPhrase(
 }
 
 void CPhraseDialog::AddPhrase(
-    CUIXml* pXml, XML_NODE* phrase_node, const shared_str& phrase_id, const shared_str& prev_phrase_id)
+    CUIXml* pXml, XML_NODE phrase_node, const shared_str& phrase_id, const shared_str& prev_phrase_id)
 {
     LPCSTR sText = pXml->Read(phrase_node, "text", 0, "");
     int gw = pXml->ReadInt(phrase_node, "goodwill", 0, -10000);
@@ -292,7 +292,7 @@ void CPhraseDialog::AddPhrase(
     for (int i = 0; i < next_num; ++i)
     {
         LPCSTR next_phrase_id_str = pXml->Read(phrase_node, "next", i, "");
-        XML_NODE* next_phrase_node = pXml->NavigateToNodeWithAttribute("phrase", "id", next_phrase_id_str);
+        XML_NODE next_phrase_node = pXml->NavigateToNodeWithAttribute("phrase", "id", next_phrase_id_str);
         R_ASSERT2(next_phrase_node, next_phrase_id_str);
         AddPhrase(pXml, next_phrase_node, next_phrase_id_str, phrase_id);
     }
@@ -313,7 +313,7 @@ void CPhraseDialog::InitXmlIdToIndex()
 
 bool CPhraseDialog::allIsDummy()
 {
-    PHRASE_VECTOR_IT it = m_PhraseVector.begin();
+    auto it = m_PhraseVector.begin();
     bool bAllIsDummy = true;
     for (; it != m_PhraseVector.end(); ++it)
     {

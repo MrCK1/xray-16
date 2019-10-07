@@ -6,32 +6,33 @@
 //	Description : Stalker movement parameters class
 ////////////////////////////////////////////////////////////////////////////
 
+#pragma once
 #ifndef STALKER_MOVEMENT_PARAMS_H_INCLUDED
 #define STALKER_MOVEMENT_PARAMS_H_INCLUDED
 
 namespace MonsterSpace
 {
-enum EBodyState;
-enum EMovementType;
-enum EMentalState;
-enum EPathType;
-};
+enum EBodyState : u32;
+enum EMovementType : u32;
+enum EMentalState : u32;
+enum EPathType : u32;
+}
 
 namespace MovementManager
 {
-enum EPathType;
-};
+enum EPathType : u32;
+}
 
 namespace DetailPathManager
 {
-enum EDetailPathType;
-};
+enum EDetailPathType : u32;
+}
 
 namespace smart_cover
 {
 class cover;
 class loophole;
-};
+}
 
 class CGameObject;
 class stalker_movement_manager_smart_cover;
@@ -72,7 +73,7 @@ public:
     IC cover_type const* cover() const;
 
 public:
-    IC void cover_loophole_id(shared_str const& loophole_id);
+    /*IC*/ void cover_loophole_id(shared_str const& loophole_id); // XXX: can't compile Release because of "inline"
     LPCSTR cover_loophole_id() const;
     loophole_type const* cover_loophole() const;
 

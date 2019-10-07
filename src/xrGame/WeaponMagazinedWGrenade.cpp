@@ -1,9 +1,9 @@
-#include "stdafx.h"
-#include "weaponmagazinedwgrenade.h"
-#include "entity.h"
+#include "StdAfx.h"
+#include "WeaponMagazinedWGrenade.h"
+#include "Entity.h"
 #include "ParticlesObject.h"
 #include "GrenadeLauncher.h"
-#include "xrserver_objects_alife_items.h"
+#include "xrServer_Objects_ALife_Items.h"
 #include "ExplosiveRocket.h"
 #include "Actor.h"
 #include "xr_level_controller.h"
@@ -14,7 +14,7 @@
 #include "player_hud.h"
 
 #ifdef DEBUG
-#include "phdebug.h"
+#include "PHDebug.h"
 #endif
 
 CWeaponMagazinedWGrenade::CWeaponMagazinedWGrenade(ESoundTypes eSoundType) : CWeaponMagazined(eSoundType)
@@ -118,7 +118,7 @@ void CWeaponMagazinedWGrenade::switch2_Reload()
     {
         PlaySound("sndReloadG", get_LastFP2());
 
-        PlayHUDMotion("anm_reload_g", FALSE, this, GetState());
+        PlayHUDMotion("anm_reload_g", "anim_reload_g", FALSE, this, GetState());
         SetPending(TRUE);
     }
     else
@@ -173,25 +173,10 @@ void CWeaponMagazinedWGrenade::PerformSwitchGL()
 
     m_ammoTypes.swap(m_ammoTypes2);
 
-    swap(m_ammoType, m_ammoType2);
-    swap(m_DefaultCartridge, m_DefaultCartridge2);
+    std::swap(m_ammoType, m_ammoType2);
+    std::swap(m_DefaultCartridge, m_DefaultCartridge2);
 
-    xr_vector<CCartridge> l_magazine;
-    while (m_magazine.size())
-    {
-        l_magazine.push_back(m_magazine.back());
-        m_magazine.pop_back();
-    }
-    while (m_magazine2.size())
-    {
-        m_magazine.push_back(m_magazine2.back());
-        m_magazine2.pop_back();
-    }
-    while (l_magazine.size())
-    {
-        m_magazine2.push_back(l_magazine.back());
-        l_magazine.pop_back();
-    }
+    m_magazine.swap(m_magazine2);
     iAmmoElapsed = (int)m_magazine.size();
 
     m_BriefInfo_CalcFrame = 0;
@@ -231,8 +216,8 @@ bool CWeaponMagazinedWGrenade::Action(u16 cmd, u32 flags)
     return false;
 }
 
-#include "inventory.h"
-#include "inventoryOwner.h"
+#include "Inventory.h"
+#include "InventoryOwner.h"
 void CWeaponMagazinedWGrenade::state_Fire(float dt)
 {
     VERIFY(fOneShotTime > 0.f);
@@ -420,7 +405,7 @@ void CWeaponMagazinedWGrenade::ReloadMagazine()
     }
 }
 
-void CWeaponMagazinedWGrenade::OnStateSwitch(u32 S)
+void CWeaponMagazinedWGrenade::OnStateSwitch(u32 S, u32 oldState)
 {
     switch (S)
     {
@@ -435,7 +420,7 @@ void CWeaponMagazinedWGrenade::OnStateSwitch(u32 S)
     break;
     }
 
-    inherited::OnStateSwitch(S);
+    inherited::OnStateSwitch(S, oldState);
     UpdateGrenadeVisibility(!!iAmmoElapsed || S == eReload);
 }
 
@@ -527,11 +512,12 @@ bool CWeaponMagazinedWGrenade::Detach(LPCSTR item_section_name, bool b_spawn_ite
         !xr_strcmp(*m_sGrenadeLauncherName, item_section_name))
     {
         m_flagsAddOnState &= ~CSE_ALifeItemWeapon::eWeaponAddonGrenadeLauncher;
-        if (m_bGrenadeMode)
-        {
-            UnloadMagazine();
-            PerformSwitchGL();
-        }
+		
+		// Now we need to unload GL's magazine
+		if (!m_bGrenadeMode)
+			PerformSwitchGL();
+		UnloadMagazine();
+		PerformSwitchGL();        
 
         UpdateAddonsVisibility();
 
@@ -579,12 +565,12 @@ void CWeaponMagazinedWGrenade::PlayAnimShow()
     if (IsGrenadeLauncherAttached())
     {
         if (!m_bGrenadeMode)
-            PlayHUDMotion("anm_show_w_gl", FALSE, this, GetState());
+            PlayHUDMotion("anm_show_w_gl", "anim_draw_gl", FALSE, this, GetState());
         else
-            PlayHUDMotion("anm_show_g", FALSE, this, GetState());
+            PlayHUDMotion("anm_show_g", "anim_draw_g", FALSE, this, GetState());
     }
     else
-        PlayHUDMotion("anm_show", FALSE, this, GetState());
+        PlayHUDMotion("anm_show", "anim_show", FALSE, this, GetState());
 }
 
 void CWeaponMagazinedWGrenade::PlayAnimHide()
@@ -593,20 +579,41 @@ void CWeaponMagazinedWGrenade::PlayAnimHide()
 
     if (IsGrenadeLauncherAttached())
         if (!m_bGrenadeMode)
-            PlayHUDMotion("anm_hide_w_gl", TRUE, this, GetState());
+            PlayHUDMotion("anm_hide_w_gl", "anim_holster_gl", TRUE, this, GetState());
         else
-            PlayHUDMotion("anm_hide_g", TRUE, this, GetState());
+            PlayHUDMotion("anm_hide_g", "anim_holster_g", TRUE, this, GetState());
 
     else
-        PlayHUDMotion("anm_hide", TRUE, this, GetState());
+        PlayHUDMotion("anm_hide", "anim_holster", TRUE, this, GetState());
 }
 
 void CWeaponMagazinedWGrenade::PlayAnimReload()
 {
-    VERIFY(GetState() == eReload);
+    auto state = GetState();
+    VERIFY(state == eReload);
 
     if (IsGrenadeLauncherAttached())
-        PlayHUDMotion("anm_reload_w_gl", TRUE, this, GetState());
+    {
+        if (bMisfire)
+        {
+            if (isHUDAnimationExist("anm_reload_misfire_w_gl"))
+                PlayHUDMotion("anm_reload_misfire_w_gl", true, this, state);
+            else
+                PlayHUDMotion("anm_reload_w_gl", "anim_reload_gl", true, this, state);
+        }
+        else
+        {
+            if (iAmmoElapsed == 0)
+            {
+                if (isHUDAnimationExist("anm_reload_empty_w_gl"))
+                    PlayHUDMotion("anm_reload_empty_w_gl", true, this, state);
+                else
+                    PlayHUDMotion("anm_reload_w_gl", "anim_reload_gl", true, this, state);
+            }
+            else
+                PlayHUDMotion("anm_reload_w_gl", "anim_reload_gl", true, this, state);
+        }
+    }
     else
         inherited::PlayAnimReload();
 }
@@ -618,9 +625,9 @@ void CWeaponMagazinedWGrenade::PlayAnimIdle()
         if (IsZoomed())
         {
             if (m_bGrenadeMode)
-                PlayHUDMotion("anm_idle_g_aim", FALSE, NULL, GetState());
+                PlayHUDMotion("anm_idle_g_aim", "anim_idle_g_aim", /*FALSE*/TRUE, NULL, GetState()); //AVO: fix fast anim switch
             else
-                PlayHUDMotion("anm_idle_w_gl_aim", TRUE, NULL, GetState());
+                PlayHUDMotion("anm_idle_w_gl_aim", "anim_idle_gl_aim", TRUE, NULL, GetState());
         }
         else
         {
@@ -631,32 +638,39 @@ void CWeaponMagazinedWGrenade::PlayAnimIdle()
                 CEntity::SEntityState st;
                 pActor->g_State(st);
                 if (st.bSprint)
-                {
                     act_state = 1;
-                }
                 else if (pActor->AnyMove())
                 {
-                    act_state = 2;
+                    if (!st.bCrouch)
+                        act_state = 2;
+                    if (st.bCrouch)
+                        act_state = 3;
                 }
             }
 
             if (m_bGrenadeMode)
             {
                 if (act_state == 0)
-                    PlayHUDMotion("anm_idle_g", FALSE, NULL, GetState());
+                    PlayHUDMotion("anm_idle_g", "anim_idle_g", /*FALSE*/TRUE, NULL, GetState()); //AVO: fix fast anim switch
                 else if (act_state == 1)
-                    PlayHUDMotion("anm_idle_sprint_g", TRUE, NULL, GetState());
+                    PlayHUDMotion("anm_idle_sprint_g", "anim_idle_g", TRUE, NULL, GetState());
                 else if (act_state == 2)
-                    PlayHUDMotion("anm_idle_moving_g", TRUE, NULL, GetState());
+                    PlayHUDMotion("anm_idle_moving_g", "anim_idle_g", TRUE, NULL, GetState());
+                else if (act_state == 3)
+                    if (isHUDAnimationExist("anm_idle_moving_crouch_g"))
+                        PlayHUDMotion("anm_idle_moving_crouch_g", true, nullptr, GetState());
             }
             else
             {
                 if (act_state == 0)
-                    PlayHUDMotion("anm_idle_w_gl", FALSE, NULL, GetState());
+                    PlayHUDMotion("anm_idle_w_gl", "anim_idle_gl", /*FALSE*/TRUE, NULL, GetState()); //AVO: fix fast anim switch
                 else if (act_state == 1)
-                    PlayHUDMotion("anm_idle_sprint_w_gl", TRUE, NULL, GetState());
+                    PlayHUDMotion("anm_idle_sprint_w_gl", "anim_idle_gl", TRUE, NULL, GetState());
                 else if (act_state == 2)
-                    PlayHUDMotion("anm_idle_moving_w_gl", TRUE, NULL, GetState());
+                    PlayHUDMotion("anm_idle_moving_w_gl", "anim_idle_gl", TRUE, NULL, GetState());
+                else if (act_state == 3)
+                    if (isHUDAnimationExist("anm_idle_moving_crouch_w_gl"))
+                        PlayHUDMotion("anm_idle_moving_crouch_w_gl", true, nullptr, GetState());
             }
         }
     }
@@ -668,13 +682,13 @@ void CWeaponMagazinedWGrenade::PlayAnimShoot()
 {
     if (m_bGrenadeMode)
     {
-        PlayHUDMotion("anm_shots_g", FALSE, this, eFire);
+        PlayHUDMotion("anm_shots_g", "anim_shoot_g", FALSE, this, eFire);
     }
     else
     {
         VERIFY(GetState() == eFire);
         if (IsGrenadeLauncherAttached())
-            PlayHUDMotion("anm_shots_w_gl", FALSE, this, GetState());
+            PlayHUDMotion("anm_shots_w_gl", "anim_shoot_gl", FALSE, this, GetState());
         else
             inherited::PlayAnimShoot();
     }
@@ -683,9 +697,9 @@ void CWeaponMagazinedWGrenade::PlayAnimShoot()
 void CWeaponMagazinedWGrenade::PlayAnimModeSwitch()
 {
     if (m_bGrenadeMode)
-        PlayHUDMotion("anm_switch_g", FALSE, this, eSwitch);
+        PlayHUDMotion("anm_switch_g", "anim_switch_grenade_on", /*FALSE*/ TRUE, this, eSwitch); //AVO: fix fast anim switch
     else
-        PlayHUDMotion("anm_switch", FALSE, this, eSwitch);
+        PlayHUDMotion("anm_switch", "anim_switch_grenade_off", /*FALSE*/ TRUE, this, eSwitch); //AVO: fix fast anim switch
 }
 
 void CWeaponMagazinedWGrenade::PlayAnimBore()
@@ -693,9 +707,9 @@ void CWeaponMagazinedWGrenade::PlayAnimBore()
     if (IsGrenadeLauncherAttached())
     {
         if (m_bGrenadeMode)
-            PlayHUDMotion("anm_bore_g", TRUE, this, GetState());
+            PlayHUDMotion("anm_bore_g", "anim_idle_g", TRUE, this, GetState());
         else
-            PlayHUDMotion("anm_bore_w_gl", TRUE, this, GetState());
+            PlayHUDMotion("anm_bore_w_gl", "anim_idle_gl", TRUE, this, GetState());
     }
     else
         inherited::PlayAnimBore();
@@ -727,12 +741,12 @@ void CWeaponMagazinedWGrenade::save(NET_Packet& output_packet)
 void CWeaponMagazinedWGrenade::load(IReader& input_packet)
 {
     inherited::load(input_packet);
-    bool b;
+    bool b = false;
     load_data(b, input_packet);
     if (b != m_bGrenadeMode)
         SwitchMode();
 
-    u32 sz;
+    u32 sz = 0;
     load_data(sz, input_packet);
 
     CCartridge l_cartridge;
@@ -757,6 +771,14 @@ void CWeaponMagazinedWGrenade::net_Import(NET_Packet& P)
         SwitchMode();
 
     inherited::net_Import(P);
+}
+
+float CWeaponMagazinedWGrenade::Weight() const
+{
+    float res = inherited::Weight();
+    res += GetMagazineWeight(m_magazine2);
+
+    return res;
 }
 
 bool CWeaponMagazinedWGrenade::IsNecessaryItem(const shared_str& item_sect)
@@ -888,43 +910,59 @@ bool CWeaponMagazinedWGrenade::GetBriefInfo(II_BriefInfo& info)
 
     GetSuitableAmmoTotal();
 
-    u32 at_size = m_bGrenadeMode ? m_ammoTypes2.size() : m_ammoTypes.size();
+    const u32 at_size = m_bGrenadeMode ? m_ammoTypes2.size() : m_ammoTypes.size();
     if (unlimited_ammo() || at_size == 0)
     {
         info.fmj_ammo._set("--");
         info.ap_ammo._set("--");
+        info.third_ammo._set("--"); //Alundaio
+        info.total_ammo = "--";
     }
     else
     {
-        u8 ammo_type = m_bGrenadeMode ? m_ammoType2 : m_ammoType;
-        xr_sprintf(int_str, "%d", m_bGrenadeMode ? GetAmmoCount2(0) : GetAmmoCount(0));
-        if (ammo_type == 0)
-            info.fmj_ammo._set(int_str);
-        else
-            info.ap_ammo._set(int_str);
+        //Alundaio: Added third ammo type and cleanup
+        info.fmj_ammo._set("");
+        info.ap_ammo._set("");
+        info.third_ammo._set("");
 
-        if (at_size == 2)
+        int total = 0;
+        if (at_size >= 1)
         {
-            xr_sprintf(int_str, "%d", m_bGrenadeMode ? GetAmmoCount2(1) : GetAmmoCount(1));
-            if (ammo_type == 0)
-                info.ap_ammo._set(int_str);
-            else
-                info.fmj_ammo._set(int_str);
+            const int fmj = m_bGrenadeMode ? GetAmmoCount2(0) : GetAmmoCount(0);
+            xr_sprintf(int_str, "%d", fmj);
+            info.fmj_ammo._set(int_str);
+            total += fmj;
         }
-        else
-            info.ap_ammo._set("");
+        if (at_size >= 2)
+        {
+            const int ap = m_bGrenadeMode ? GetAmmoCount2(1) : GetAmmoCount(1);
+            xr_sprintf(int_str, "%d", ap);
+            info.ap_ammo._set(int_str);
+            total += ap;
+        }
+        if (at_size >= 3)
+        {
+            const int third = m_bGrenadeMode ? GetAmmoCount2(2) : GetAmmoCount(2);
+            xr_sprintf(int_str, "%d", third);
+            info.third_ammo._set(int_str);
+            total += third;
+        }
+
+        xr_sprintf(int_str, "%d", total);
+        info.total_ammo = int_str;
+        //-Alundaio
     }
 
     if (ae != 0 && m_magazine.size() != 0)
     {
         LPCSTR ammo_type = m_ammoTypes[m_magazine.back().m_LocalAmmoType].c_str();
-        info.name._set(CStringTable().translate(pSettings->r_string(ammo_type, "inv_name_short")));
+        info.name._set(StringTable().translate(pSettings->r_string(ammo_type, "inv_name_short")));
         info.icon._set(ammo_type);
     }
     else
     {
         LPCSTR ammo_type = m_ammoTypes[m_ammoType].c_str();
-        info.name._set(CStringTable().translate(pSettings->r_string(ammo_type, "inv_name_short")));
+        info.name._set(StringTable().translate(pSettings->r_string(ammo_type, "inv_name_short")));
         info.icon._set(ammo_type);
     }
 

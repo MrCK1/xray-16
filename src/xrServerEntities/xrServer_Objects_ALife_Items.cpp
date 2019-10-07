@@ -6,7 +6,7 @@
 //	Description : Server objects items for ALife simulator
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "xrMessages.h"
 #include "xrServer_Objects_ALife_Items.h"
 #include "clsid_game.h"
@@ -24,7 +24,7 @@
 ////////////////////////////////////////////////////////////////////////////
 // CSE_ALifeInventoryItem
 ////////////////////////////////////////////////////////////////////////////
-CSE_ALifeInventoryItem::CSE_ALifeInventoryItem(LPCSTR caSection)
+CSE_ALifeInventoryItem::CSE_ALifeInventoryItem(LPCSTR caSection) : m_self(nullptr), prev_freezed(false), m_u8NumItems(0)
 {
     //текущее состояние вещи
     m_fCondition = 1.0f;
@@ -209,34 +209,71 @@ void CSE_ALifeInventoryItem::UPDATE_Read(NET_Packet& tNetPacket)
     anim_use=false;
     }*/
 
+    const u16 m_wVersion = base()->m_wVersion;
     {
-        tNetPacket.r_vec3(State.force);
-        tNetPacket.r_vec3(State.torque);
+        if (m_wVersion >= 122) // Xottab_DUTY: not sure, 121 or even 119 may be correct
+        {
+            tNetPacket.r_vec3(State.force);
+            tNetPacket.r_vec3(State.torque);
+        }
+        else
+        {
+            State.force.set(0.f, 0.f, 0.f);
+            State.torque.set(0.f, 0.f, 0.f);
+        }
 
         tNetPacket.r_vec3(State.position);
         base()->o_Position.set(State.position); // this is very important because many functions use this o_Position..
 
-        tNetPacket.r_float(State.quaternion.x);
-        tNetPacket.r_float(State.quaternion.y);
-        tNetPacket.r_float(State.quaternion.z);
-        tNetPacket.r_float(State.quaternion.w);
+        if (m_wVersion >= 122) // Xottab_DUTY: not sure, 121 or even 119 may be correct too
+        {
+            tNetPacket.r_float(State.quaternion.x);
+            tNetPacket.r_float(State.quaternion.y);
+            tNetPacket.r_float(State.quaternion.z);
+            tNetPacket.r_float(State.quaternion.w);
+        }
+        else
+        {
+            tNetPacket.r_float_q8(State.quaternion.x, 0.f, 1.f);
+            tNetPacket.r_float_q8(State.quaternion.y, 0.f, 1.f);
+            tNetPacket.r_float_q8(State.quaternion.z, 0.f, 1.f);
+            tNetPacket.r_float_q8(State.quaternion.w, 0.f, 1.f);
+        }
 
         State.enabled = check(num_items.mask, inventory_item_state_enabled);
 
         if (!check(num_items.mask, inventory_item_angular_null))
         {
-            tNetPacket.r_float(State.angular_vel.x);
-            tNetPacket.r_float(State.angular_vel.y);
-            tNetPacket.r_float(State.angular_vel.z);
+            if (m_wVersion >= 122) // Xottab_DUTY: not sure, 121 or even 119 may be correct too
+            {
+                tNetPacket.r_float(State.angular_vel.x);
+                tNetPacket.r_float(State.angular_vel.y);
+                tNetPacket.r_float(State.angular_vel.z);
+            }
+            else
+            {
+                tNetPacket.r_float_q8(State.angular_vel.x, 0.f, 10 * PI_MUL_2);
+                tNetPacket.r_float_q8(State.angular_vel.y, 0.f, 10 * PI_MUL_2);
+                tNetPacket.r_float_q8(State.angular_vel.z, 0.f, 10 * PI_MUL_2);
+            }
         }
         else
             State.angular_vel.set(0.f, 0.f, 0.f);
 
         if (!check(num_items.mask, inventory_item_linear_null))
         {
-            tNetPacket.r_float(State.linear_vel.x);
-            tNetPacket.r_float(State.linear_vel.y);
-            tNetPacket.r_float(State.linear_vel.z);
+            if (m_wVersion >= 122) // Xottab_DUTY: not sure, 121 or even 119 may be correct too
+            {
+                tNetPacket.r_float(State.linear_vel.x);
+                tNetPacket.r_float(State.linear_vel.y);
+                tNetPacket.r_float(State.linear_vel.z);
+            }
+            else
+            {
+                tNetPacket.r_float_q8(State.linear_vel.x, -32.f, 32.f);
+                tNetPacket.r_float_q8(State.linear_vel.y, -32.f, 32.f);
+                tNetPacket.r_float_q8(State.linear_vel.z, -32.f, 32.f);
+            }
         }
         else
             State.linear_vel.set(0.f, 0.f, 0.f);
@@ -247,7 +284,7 @@ void CSE_ALifeInventoryItem::UPDATE_Read(NET_Packet& tNetPacket)
         }*/
     }
     prev_freezed = freezed;
-    if (tNetPacket.r_eof()) // in case spawn + update
+    if (tNetPacket.r_eof() || m_wVersion < 122) // in case spawn + update
     {
         freezed = false;
         return;
@@ -274,9 +311,9 @@ void CSE_ALifeInventoryItem::FillProps(LPCSTR pref, PropItemVec& values)
     PHelper().CreateFloat(values, PrepareKey(pref, *base()->s_name, "Item condition"), &m_fCondition, 0.f, 1.f);
     CSE_ALifeObject* alife_object = smart_cast<CSE_ALifeObject*>(base());
     R_ASSERT(alife_object);
-    PHelper().CreateFlag32(values, PrepareKey(pref, *base()->s_name, "ALife\\Useful for AI"), &alife_object->m_flags,
+    PHelper().CreateFlag32(values, PrepareKey(pref, *base()->s_name, "ALife" DELIMITER "Useful for AI"), &alife_object->m_flags,
         CSE_ALifeObject::flUsefulForAI);
-    PHelper().CreateFlag32(values, PrepareKey(pref, *base()->s_name, "ALife\\Visible for AI"), &alife_object->m_flags,
+    PHelper().CreateFlag32(values, PrepareKey(pref, *base()->s_name, "ALife" DELIMITER "Visible for AI"), &alife_object->m_flags,
         CSE_ALifeObject::flVisibleForAI);
 }
 #endif // #ifndef XRGAME_EXPORTS
@@ -588,15 +625,15 @@ void CSE_ALifeItemWeapon::FillProps(LPCSTR pref, PropItemVec& items)
     PHelper().CreateU16(items, PrepareKey(pref, *s_name, "Ammo: in magazine"), &a_elapsed, 0, 30, 1);
 
     if (m_scope_status == ALife::eAddonAttachable)
-        PHelper().CreateFlag8(items, PrepareKey(pref, *s_name, "Addons\\Scope"), &m_addon_flags, eWeaponAddonScope);
+        PHelper().CreateFlag8(items, PrepareKey(pref, *s_name, "Addons" DELIMITER "Scope"), &m_addon_flags, eWeaponAddonScope);
 
     if (m_silencer_status == ALife::eAddonAttachable)
         PHelper().CreateFlag8(
-            items, PrepareKey(pref, *s_name, "Addons\\Silencer"), &m_addon_flags, eWeaponAddonSilencer);
+            items, PrepareKey(pref, *s_name, "Addons" DELIMITER "Silencer"), &m_addon_flags, eWeaponAddonSilencer);
 
     if (m_grenade_launcher_status == ALife::eAddonAttachable)
         PHelper().CreateFlag8(
-            items, PrepareKey(pref, *s_name, "Addons\\Podstvolnik"), &m_addon_flags, eWeaponAddonGrenadeLauncher);
+            items, PrepareKey(pref, *s_name, "Addons" DELIMITER "Podstvolnik"), &m_addon_flags, eWeaponAddonGrenadeLauncher);
 }
 #endif // #ifndef XRGAME_EXPORTS
 
@@ -683,7 +720,7 @@ void CSE_ALifeItemWeaponMagazined::FillProps(LPCSTR pref, PropItemVec& items) { 
 CSE_ALifeItemWeaponMagazinedWGL::CSE_ALifeItemWeaponMagazinedWGL(LPCSTR caSection)
     : CSE_ALifeItemWeaponMagazined(caSection)
 {
-    m_bGrenadeMode = 0;
+    m_bGrenadeMode = false;
 }
 
 CSE_ALifeItemWeaponMagazinedWGL::~CSE_ALifeItemWeaponMagazinedWGL() {}
@@ -748,8 +785,9 @@ void CSE_ALifeItemAmmo::FillProps(LPCSTR pref, PropItemVec& values)
 }
 #endif // #ifndef XRGAME_EXPORTS
 
-bool CSE_ALifeItemAmmo::can_switch_online() const { return inherited::can_switch_online(); }
-bool CSE_ALifeItemAmmo::can_switch_offline() const { return (inherited::can_switch_offline() && a_elapsed != 0); }
+bool CSE_ALifeItemAmmo::can_switch_online() const /* noexcept */ { return inherited::can_switch_online(); }
+bool CSE_ALifeItemAmmo::can_switch_offline() const /* noexcept */
+{ return (inherited::can_switch_offline() && a_elapsed != 0); }
 ////////////////////////////////////////////////////////////////////////////
 // CSE_ALifeItemDetector
 ////////////////////////////////////////////////////////////////////////////
@@ -931,8 +969,8 @@ void CSE_ALifeItemExplosive::FillProps(LPCSTR pref, PropItemVec& items) { inheri
 ////////////////////////////////////////////////////////////////////////////
 CSE_ALifeItemBolt::CSE_ALifeItemBolt(LPCSTR caSection) : CSE_ALifeItem(caSection)
 {
-    m_flags.set(flUseSwitches, FALSE);
-    m_flags.set(flSwitchOffline, FALSE);
+    m_flags.set(flUseSwitches, false);
+    m_flags.set(flSwitchOffline, false);
     m_ef_weapon_type = READ_IF_EXISTS(pSettings, r_u32, caSection, "ef_weapon_type", u32(-1));
 }
 
@@ -947,11 +985,11 @@ void CSE_ALifeItemBolt::STATE_Write(NET_Packet& tNetPacket) { inherited::STATE_W
 void CSE_ALifeItemBolt::STATE_Read(NET_Packet& tNetPacket, u16 size) { inherited::STATE_Read(tNetPacket, size); }
 void CSE_ALifeItemBolt::UPDATE_Write(NET_Packet& tNetPacket) { inherited::UPDATE_Write(tNetPacket); };
 void CSE_ALifeItemBolt::UPDATE_Read(NET_Packet& tNetPacket) { inherited::UPDATE_Read(tNetPacket); };
-bool CSE_ALifeItemBolt::can_save() const
+bool CSE_ALifeItemBolt::can_save() const /* noexcept */
 {
-    return (false); //! attached());
+    return false; //! attached());
 }
-bool CSE_ALifeItemBolt::used_ai_locations() const { return false; }
+bool CSE_ALifeItemBolt::used_ai_locations() const /* noexcept */ { return false; }
 #ifndef XRGAME_EXPORTS
 void CSE_ALifeItemBolt::FillProps(LPCSTR pref, PropItemVec& values) { inherited::FillProps(pref, values); }
 #endif // #ifndef XRGAME_EXPORTS

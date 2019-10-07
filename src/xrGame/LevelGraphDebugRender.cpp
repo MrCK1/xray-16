@@ -6,9 +6,9 @@
 //	Description : Level graph debug functions
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "LevelGraphDebugRender.hpp"
-#if DEBUG
+#ifdef DEBUG
 #include "xrAICore/Navigation/game_graph.h"
 #include "xrAICore/Navigation/level_graph.h"
 #include "xrAICore/Navigation/graph_engine.h"
@@ -17,7 +17,7 @@
 #include "game_base_space.h"
 #include "game_sv_single.h"
 #include "game_cl_base.h"
-#include "xrserver_objects_alife_monsters.h"
+#include "xrServer_Objects_ALife_Monsters.h"
 #include "alife_simulator.h"
 #include "alife_graph_registry.h"
 #include "alife_object_registry.h"
@@ -25,7 +25,7 @@
 #include "alife_monster_movement_manager.h"
 #include "alife_monster_detail_path_manager.h"
 #include "ai_space.h"
-#include "ui_base.h"
+#include "xrUICore/ui_base.h"
 #include "CustomMonster.h"
 #include "ai/stalker/ai_stalker.h"
 #include "team_base_zone.h"
@@ -43,10 +43,11 @@
 #include "cover_evaluators.h"
 #include "smart_cover_object.h"
 #include "debug_renderer.h"
+#include "xrEngine/GameFont.h"
 
-LevelGraphDebugRender::LevelGraphDebugRender()
+LevelGraphDebugRender::LevelGraphDebugRender() : gameGraph(nullptr), levelGraph(nullptr)
 {
-    debugShader->create("debug\\ai_nodes", "$null");
+    debugShader->create("debug" DELIMITER "ai_nodes", "$null");
     currentLevelId = -1;
     currentActual = false;
     currentCenter = {flt_max, flt_max, flt_max};
@@ -373,10 +374,10 @@ void LevelGraphDebugRender::DrawGameGraph()
 // draw back plane
 #if 0 // XXX: disabled in original, reenable?
     Fvector vertices[4];
-	xform.transform_tiny(vertices[0], {center.x-bounds.x, center.y+bounds.y, center.z+bounds.z});
-	xform.transform_tiny(vertices[1], {center.x+bounds.x, center.y+bounds.y, center.z+bounds.z});
-	xform.transform_tiny(vertices[2], {center.x-bounds.x, center.y-bounds.y, center.z-bounds.z});
-	xform.transform_tiny(vertices[3], {center.x+bounds.x, center.y-bounds.y, center.z-bounds.z});
+    xform.transform_tiny(vertices[0], {center.x-bounds.x, center.y+bounds.y, center.z+bounds.z});
+    xform.transform_tiny(vertices[1], {center.x+bounds.x, center.y+bounds.y, center.z+bounds.z});
+    xform.transform_tiny(vertices[2], {center.x-bounds.x, center.y-bounds.y, center.z-bounds.z});
+    xform.transform_tiny(vertices[3], {center.x+bounds.x, center.y-bounds.y, center.z-bounds.z});
     u32 backColor = color_xrgb(0, 0, 0);
     GlobalEnv.DRender->dbg_DrawTRI(Fidentity, vertices[0], vertices[2], vertices[1], backColor);
     GlobalEnv.DRender->dbg_DrawTRI(Fidentity, vertices[1], vertices[2], vertices[3], backColor);
@@ -597,7 +598,7 @@ void LevelGraphDebugRender::DrawNodes()
             linked.push_back(levelGraph->value(vid, it));
     }
     // render
-    GlobalEnv.DRender->SetShader(debugShader);
+    GEnv.DRender->SetShader(debugShader);
     font->SetColor(color_rgba(255, 255, 255, 255));
     Fvector minPos = Device.vCameraPosition;
     Fvector maxPos = Device.vCameraPosition;
@@ -630,7 +631,7 @@ void LevelGraphDebugRender::DrawNodes()
         if (Device.vCameraPosition.distance_to(vertexPos) > 30)
             continue;
         float sr = levelGraph->header().cell_size();
-        if (GlobalEnv.Render->ViewBase.testSphere_dirty(vertexPos, sr))
+        if (GEnv.Render->ViewBase.testSphere_dirty(vertexPos, sr))
         {
             u32 colorC = color_xrgb(0, 0, 255);
             u32 colorT = color_xrgb(255, 255, 255);
@@ -671,8 +672,8 @@ void LevelGraphDebugRender::DrawNodes()
             Fvector v3 = createVertex(PL, {vertexPos.x + st, vertexPos.y, vertexPos.z + st}); // maxX, maxZ
             Fvector v4 = createVertex(PL, {vertexPos.x - st, vertexPos.y, vertexPos.z + st}); // minX, maxZ
             // render quad
-            GlobalEnv.DRender->dbg_DrawTRI(Fidentity, v3, v2, v1, colorT);
-            GlobalEnv.DRender->dbg_DrawTRI(Fidentity, v1, v4, v3, colorT);
+            GEnv.DRender->dbg_DrawTRI(Fidentity, v3, v2, v1, colorT);
+            GEnv.DRender->dbg_DrawTRI(Fidentity, v1, v4, v3, colorT);
             // render center
             Level().debug_renderer().draw_aabb(vertexPos, sc, sc, sc, colorC);
             // render id
@@ -701,7 +702,7 @@ void LevelGraphDebugRender::DrawRestrictions()
     const float yOffset = 0.1;
     for (auto& pair : spaceRestrictionMgr.restrictions())
     {
-        if (!pair.second->m_ref_count)
+        if (pair.second->released())
             continue;
         if (!pair.second->initialized())
             continue;
@@ -736,7 +737,7 @@ void LevelGraphDebugRender::DrawCovers()
     auto& nearest = coverPointCache;
     nearest.reserve(1000);
     ai().cover_manager().covers().nearest(Device.vCameraPosition, 5.0f, nearest);
-    for (auto coverPoint : nearest)
+    for (const auto& coverPoint : nearest)
     {
         // high cover
         Fvector pos = coverPoint->position();

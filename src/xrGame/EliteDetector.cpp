@@ -1,10 +1,10 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "EliteDetector.h"
 #include "player_hud.h"
 #include "Include/xrRender/UIRender.h"
 #include "ui/UIXmlInit.h"
-#include "ui/xrUIXmlParser.h"
-#include "ui/UIStatic.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "ui/ArtefactDetectorUI.h"
 
 CEliteDetector::CEliteDetector() { m_artefacts.m_af_rank = 3; }
@@ -52,7 +52,7 @@ void CEliteDetector::render_item_3d_ui()
     inherited::render_item_3d_ui();
     ui().Draw();
     //	Restore cull mode
-    GlobalEnv.UIRender->CacheSetCullMode(IUIRender::cmCCW);
+    GEnv.UIRender->CacheSetCullMode(IUIRender::cmCCW);
 }
 
 void fix_ws_wnd_size(CUIWindow* w, float kx)
@@ -79,32 +79,31 @@ void CUIArtefactDetectorElite::construct(CEliteDetector* p)
 {
     m_parent = p;
     CUIXml uiXml;
-    uiXml.Load(CONFIG_PATH, UI_PATH, "ui_detector_artefact.xml");
+    uiXml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "ui_detector_artefact.xml");
 
-    CUIXmlInit xml_init;
     string512 buff;
     xr_strcpy(buff, p->ui_xml_tag());
 
-    xml_init.InitWindow(uiXml, buff, 0, this);
+    CUIXmlInit::InitWindow(uiXml, buff, 0, this);
 
     m_wrk_area = new CUIWindow();
 
     xr_sprintf(buff, "%s:wrk_area", p->ui_xml_tag());
 
-    xml_init.InitWindow(uiXml, buff, 0, m_wrk_area);
+    CUIXmlInit::InitWindow(uiXml, buff, 0, m_wrk_area);
     m_wrk_area->SetAutoDelete(true);
     AttachChild(m_wrk_area);
 
     xr_sprintf(buff, "%s", p->ui_xml_tag());
     int num = uiXml.GetNodesNum(buff, 0, "palette");
-    XML_NODE* pStoredRoot = uiXml.GetLocalRoot();
+    XML_NODE pStoredRoot = uiXml.GetLocalRoot();
     uiXml.SetLocalRoot(uiXml.NavigateToNode(buff, 0));
     for (int idx = 0; idx < num; ++idx)
     {
         CUIStatic* S = new CUIStatic();
         shared_str name = uiXml.ReadAttrib("palette", idx, "id");
         m_palette[name] = S;
-        xml_init.InitStatic(uiXml, "palette", idx, S);
+        CUIXmlInit::InitStatic(uiXml, "palette", idx, S);
         S->SetAutoDelete(true);
         m_wrk_area->AttachChild(S);
         S->SetCustomDraw(true);
@@ -134,8 +133,8 @@ void CUIArtefactDetectorElite::Draw()
 
     UI().m_currentPointType = IUIRender::pttLIT;
 
-    GlobalEnv.UIRender->CacheSetXformWorld(LM);
-    GlobalEnv.UIRender->CacheSetCullMode(IUIRender::cmNONE);
+    GEnv.UIRender->CacheSetXformWorld(LM);
+    GEnv.UIRender->CacheSetCullMode(IUIRender::cmNONE);
 
     CUIWindow::Draw();
 

@@ -3,7 +3,7 @@
 #include "x_ray.h"
 
 #include "GameFont.h"
-#include "fDemoRecord.h"
+#include "FDemoRecord.h"
 #include "XR_IOConsole.h"
 #include "xr_input.h"
 #include "xr_object.h"
@@ -38,7 +38,7 @@ void setup_lm_screenshot_matrices()
 
     bb.xform(Device.mView);
     // build project matrix
-    Device.mProject.build_projection_ortho(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.min.z, bb.max.z);
+    Device.mProject.build_projection_ortho(bb.vMax.x - bb.vMin.x, bb.vMax.y - bb.vMin.y, bb.vMin.z, bb.vMax.z);
 }
 
 Fbox get_level_screenshot_bound()
@@ -47,11 +47,11 @@ Fbox get_level_screenshot_bound()
     if (g_pGameLevel->pLevel->section_exist("level_map"))
     {
         Fvector4 res2d = g_pGameLevel->pLevel->r_fvector4("level_map", "bound_rect");
-        res.min.x = res2d.x;
-        res.min.z = res2d.y;
+        res.vMin.x = res2d.x;
+        res.vMin.z = res2d.y;
 
-        res.max.x = res2d.z;
-        res.max.z = res2d.w;
+        res.vMax.x = res2d.z;
+        res.vMax.z = res2d.w;
     }
 
     return res;
@@ -69,7 +69,7 @@ CDemoRecord::CDemoRecord(const char* name, float life_time) : CEffectorCam(cefDe
      psHUD_Flags.set(HUD_CROSSHAIR, FALSE);
      */
     m_b_redirect_input_to_level = false;
-    _unlink(name);
+    xr_unlink(name);
     file = FS.w_open(name);
     if (file)
     {
@@ -146,7 +146,7 @@ void CDemoRecord::MakeScreenshotFace()
         psHUD_Flags.assign(0);
         break;
     case 1:
-        GlobalEnv.Render->Screenshot();
+        GEnv.Render->Screenshot();
         psHUD_Flags.assign(s_hud_flag);
         m_bMakeScreenshot = FALSE;
         break;
@@ -156,32 +156,32 @@ void CDemoRecord::MakeScreenshotFace()
 
 void GetLM_BBox(Fbox& bb, INT Step)
 {
-    float half_x = bb.min.x + (bb.max.x - bb.min.x) / 2;
-    float half_z = bb.min.z + (bb.max.z - bb.min.z) / 2;
+    float half_x = bb.vMin.x + (bb.vMax.x - bb.vMin.x) / 2;
+    float half_z = bb.vMin.z + (bb.vMax.z - bb.vMin.z) / 2;
     switch (Step)
     {
     case 0:
     {
-        bb.max.x = half_x;
-        bb.min.z = half_z;
+        bb.vMax.x = half_x;
+        bb.vMin.z = half_z;
     }
     break;
     case 1:
     {
-        bb.min.x = half_x;
-        bb.min.z = half_z;
+        bb.vMin.x = half_x;
+        bb.vMin.z = half_z;
     }
     break;
     case 2:
     {
-        bb.max.x = half_x;
-        bb.max.z = half_z;
+        bb.vMax.x = half_x;
+        bb.vMax.z = half_z;
     }
     break;
     case 3:
     {
-        bb.min.x = half_x;
-        bb.max.z = half_z;
+        bb.vMin.x = half_x;
+        bb.vMax.z = half_z;
     }
     break;
     default: {
@@ -227,7 +227,7 @@ void CDemoRecord::MakeLevelMapProcess()
             }
         }
 
-        GlobalEnv.Render->Screenshot(IRender::SM_FOR_LEVELMAP, tmp);
+        GEnv.Render->Screenshot(IRender::SM_FOR_LEVELMAP, tmp);
 
         if (m_iLMScreenshotFragment == -1 || m_iLMScreenshotFragment == 4)
         {
@@ -267,10 +267,10 @@ void CDemoRecord::MakeCubeMapFace(Fvector& D, Fvector& N)
     case 5:
         N.set(cmNorm[m_Stage]);
         D.set(cmDir[m_Stage]);
-        GlobalEnv.Render->Screenshot(IRender::SM_FOR_CUBEMAP, itoa(m_Stage, buf, 10));
+        GEnv.Render->Screenshot(IRender::SM_FOR_CUBEMAP, xr_itoa(m_Stage, buf, 10));
         break;
     case 6:
-        GlobalEnv.Render->Screenshot(IRender::SM_FOR_CUBEMAP, itoa(m_Stage, buf, 10));
+        GEnv.Render->Screenshot(IRender::SM_FOR_CUBEMAP, xr_itoa(m_Stage, buf, 10));
         N.set(m_Camera.j);
         D.set(m_Camera.k);
         psHUD_Flags.assign(s_hud_flag);
@@ -307,7 +307,7 @@ BOOL CDemoRecord::ProcessCam(SCamEffectorInfo& info)
     }
     else
     {
-        if (IR_GetKeyState(DIK_F1))
+        if (IR_GetKeyState(SDL_SCANCODE_F1))
         {
             pApp->pFontSystem->SetColor(color_rgba(255, 0, 0, 255));
             pApp->pFontSystem->SetAligment(CGameFont::alCenter);
@@ -337,17 +337,17 @@ BOOL CDemoRecord::ProcessCam(SCamEffectorInfo& info)
 
         float speed = m_fSpeed1, ang_speed = m_fAngSpeed1;
 
-        if (IR_GetKeyState(DIK_LSHIFT))
+        if (IR_GetKeyState(SDL_SCANCODE_LSHIFT))
         {
             speed = m_fSpeed0;
             ang_speed = m_fAngSpeed0;
         }
-        else if (IR_GetKeyState(DIK_LALT))
+        else if (IR_GetKeyState(SDL_SCANCODE_LALT))
         {
             speed = m_fSpeed2;
             ang_speed = m_fAngSpeed2;
         }
-        else if (IR_GetKeyState(DIK_LCONTROL))
+        else if (IR_GetKeyState(SDL_SCANCODE_LCTRL))
         {
             speed = m_fSpeed3;
             ang_speed = m_fAngSpeed3;
@@ -402,7 +402,7 @@ BOOL CDemoRecord::ProcessCam(SCamEffectorInfo& info)
 
 void CDemoRecord::IR_OnKeyboardPress(int dik)
 {
-    if (dik == DIK_MULTIPLY)
+    if (dik == SDL_SCANCODE_KP_MULTIPLY)
         m_b_redirect_input_to_level = !m_b_redirect_input_to_level;
 
     if (m_b_redirect_input_to_level)
@@ -410,21 +410,21 @@ void CDemoRecord::IR_OnKeyboardPress(int dik)
         g_pGameLevel->IR_OnKeyboardPress(dik);
         return;
     }
-    if (dik == DIK_GRAVE)
+    if (dik == SDL_SCANCODE_GRAVE)
         Console->Show();
-    if (dik == DIK_SPACE)
+    if (dik == SDL_SCANCODE_SPACE)
         RecordKey();
-    if (dik == DIK_BACK)
+    if (dik == SDL_SCANCODE_BACKSPACE)
         MakeCubemap();
-    if (dik == DIK_F11)
-        MakeLevelMapScreenshot(IR_GetKeyState(DIK_LCONTROL));
-    if (dik == DIK_F12)
+    if (dik == SDL_SCANCODE_F11)
+        MakeLevelMapScreenshot(IR_GetKeyState(SDL_SCANCODE_LCTRL));
+    if (dik == SDL_SCANCODE_F12)
         MakeScreenshot();
-    if (dik == DIK_ESCAPE)
+    if (dik == SDL_SCANCODE_ESCAPE)
         fLifeTime = -1;
 
 #ifndef MASTER_GOLD
-    if (dik == DIK_RETURN)
+    if (dik == SDL_SCANCODE_RETURN)
     {
         if (g_pGameLevel->CurrentEntity())
         {
@@ -432,9 +432,9 @@ void CDemoRecord::IR_OnKeyboardPress(int dik)
             fLifeTime = -1;
         }
     }
-#endif // #ifndef MASTER_GOLD
+#endif
 
-    if (dik == DIK_PAUSE)
+    if (dik == SDL_SCANCODE_PAUSE)
         Device.Pause(!Device.Paused(), TRUE, TRUE, "demo_record");
 }
 
@@ -457,41 +457,41 @@ void CDemoRecord::IR_OnKeyboardHold(int dik)
 
     switch (dik)
     {
-    case DIK_A:
-    case DIK_NUMPAD1:
-    case DIK_LEFT:
+    case SDL_SCANCODE_A:
+    case SDL_SCANCODE_KP_1:
+    case SDL_SCANCODE_LEFT:
         vT_delta.x -= 1.0f;
         break; // Slide Left
-    case DIK_D:
-    case DIK_NUMPAD3:
-    case DIK_RIGHT:
+    case SDL_SCANCODE_D:
+    case SDL_SCANCODE_KP_3:
+    case SDL_SCANCODE_RIGHT:
         vT_delta.x += 1.0f;
         break; // Slide Right
-    case DIK_S:
+    case SDL_SCANCODE_S:
         vT_delta.y -= 1.0f;
         break; // Slide Down
-    case DIK_W:
+    case SDL_SCANCODE_W:
         vT_delta.y += 1.0f;
         break; // Slide Up
     // rotate
-    case DIK_NUMPAD2:
+    case SDL_SCANCODE_KP_2:
         vR_delta.x -= 1.0f;
         break; // Pitch Down
-    case DIK_NUMPAD8:
+    case SDL_SCANCODE_KP_8:
         vR_delta.x += 1.0f;
         break; // Pitch Up
-    case DIK_E:
-    case DIK_NUMPAD6:
+    case SDL_SCANCODE_E:
+    case SDL_SCANCODE_KP_6:
         vR_delta.y += 1.0f;
         break; // Turn Left
-    case DIK_Q:
-    case DIK_NUMPAD4:
+    case SDL_SCANCODE_Q:
+    case SDL_SCANCODE_KP_4:
         vR_delta.y -= 1.0f;
         break; // Turn Right
-    case DIK_NUMPAD9:
+    case SDL_SCANCODE_KP_9:
         vR_delta.z -= 2.0f;
         break; // Turn Right
-    case DIK_NUMPAD7:
+    case SDL_SCANCODE_KP_7:
         vR_delta.z += 2.0f;
         break; // Turn Right
     }
@@ -527,12 +527,12 @@ void CDemoRecord::IR_OnMouseHold(int btn)
         return;
     }
     Fvector vT_delta = Fvector().set(0, 0, 0);
-    switch (btn)
+    switch (MouseButtonToKey[btn])
     {
-    case 0:
+    case MOUSE_1:
         vT_delta.z += 1.0f;
         break; // Move Backward
-    case 1:
+    case MOUSE_2:
         vT_delta.z -= 1.0f;
         break; // Move Forward
     }

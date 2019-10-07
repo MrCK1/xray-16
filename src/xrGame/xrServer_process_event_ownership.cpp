@@ -1,8 +1,10 @@
-#include "stdafx.h"
-#include "xrserver.h"
-#include "xrserver_objects.h"
-#include "xrserver_objects_alife_monsters.h"
+#include "StdAfx.h"
+#include "xrServer.h"
+#include "xrServer_Objects.h"
+#include "xrServer_Objects_ALife_Monsters.h"
 #include "xrServer_svclient_validation.h"
+#include "xrNetServer/NET_Messages.h"
+#include "xrServerEntities/xrMessages.h"
 
 void ReplaceOwnershipHeader(NET_Packet& P)
 {

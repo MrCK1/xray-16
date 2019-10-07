@@ -8,6 +8,7 @@
 
 #include "SkeletonCustom.h"
 #include "SkeletonXVertRender.h"
+#include "xrCDB/Intersect.hpp"
 
 // refs
 class CKinematics;
@@ -65,9 +66,17 @@ protected:
     virtual void _CollectBoneFaces(Fvisual* V, u32 iBase, u32 iCount) = 0;
 
     void _FillVerticesSoft1W(const Fmatrix& view, CSkeletonWallmark& wm, const Fvector& normal, float size,
-        u16* indices, CBoneData::FacesVec& faces);
+                             u16* indices, CBoneData::FacesVec& faces);
+
     void _FillVerticesSoft2W(const Fmatrix& view, CSkeletonWallmark& wm, const Fvector& normal, float size,
-        u16* indices, CBoneData::FacesVec& faces);
+                             u16* indices, CBoneData::FacesVec& faces);
+
+    void _FillVerticesSoft3W(const Fmatrix& view, CSkeletonWallmark& wm, const Fvector& normal, float size,
+                             u16* indices, CBoneData::FacesVec& faces);
+
+    void _FillVerticesSoft4W(const Fmatrix& view, CSkeletonWallmark& wm, const Fvector& normal, float size,
+                             u16* indices, CBoneData::FacesVec& faces);
+
     virtual void _FillVerticesHW1W(const Fmatrix& view, CSkeletonWallmark& wm, const Fvector& normal, float size,
         Fvisual* V, u16* indices, CBoneData::FacesVec& faces) = 0;
     virtual void _FillVerticesHW2W(const Fmatrix& view, CSkeletonWallmark& wm, const Fvector& normal, float size,
@@ -104,7 +113,7 @@ public:
     BOOL has_visible_bones();
     CSkeletonX()
     {
-        Parent = 0;
+        Parent = nullptr;
         ChildIDX = u16(-1);
     }
 
@@ -116,7 +125,7 @@ public:
     virtual void FillVertices(
         const Fmatrix& view, CSkeletonWallmark& wm, const Fvector& normal, float size, u16 bone_id) = 0;
 
-#if defined(USE_DX10) || defined(USE_DX11)
+#ifndef USE_DX9
 protected:
     void _DuplicateIndices(const char* N, IReader* data);
 
@@ -129,7 +138,7 @@ template <typename T_vertex, typename T_buffer>
 BOOL pick_bone(T_buffer vertices, CKinematics* Parent, IKinematics::pick_result& r, float dist, const Fvector& S,
     const Fvector& D, u16* indices, CBoneData::FacesVec& faces)
 {
-    for (CBoneData::FacesVecIt it = faces.begin(); it != faces.end(); it++)
+    for (auto it = faces.begin(); it != faces.end(); ++it)
     {
         u32 idx = (*it) * 3;
         for (u32 k = 0; k < 3; k++)
@@ -148,7 +157,7 @@ BOOL pick_bone(T_buffer vertices, CKinematics* Parent, IKinematics::pick_result&
     return FALSE;
 }
 
-#if defined(USE_DX10) || defined(USE_DX11)
+#ifndef USE_DX9
 template <typename T>
 BOOL pick_bone(CKinematics* Parent, IKinematics::pick_result& r, float dist, const Fvector& S, const Fvector& D,
     Fvisual* V, u16* indices, CBoneData::FacesVec& faces)
@@ -156,7 +165,7 @@ BOOL pick_bone(CKinematics* Parent, IKinematics::pick_result& r, float dist, con
     VERIFY(!"Not implemented");
     return FALSE;
 }
-#else USE_DX10
+#else //	USE_DX10
 template <typename T>
 BOOL pick_bone(CKinematics* Parent, IKinematics::pick_result& r, float dist, const Fvector& S, const Fvector& D,
     Fvisual* V, u16* indices, CBoneData::FacesVec& faces)

@@ -28,18 +28,6 @@
     <Filter Include="FS\file_stream_reader">
       <UniqueIdentifier>{fd3c609d-f0ba-4a89-a568-ddcc8027b942}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Memory manager">
-      <UniqueIdentifier>{11d9158f-7330-4434-81b2-684eebee4c83}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Memory manager\dlmalloc">
-      <UniqueIdentifier>{4705fd61-ddd0-41fa-bc61-dd6c3614dba5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Memory manager\dlmalloc\allocator">
-      <UniqueIdentifier>{246cd5dd-abec-4430-8eba-4018828784a7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Memory manager\dlmalloc\wrapper">
-      <UniqueIdentifier>{5f3b8536-3170-4e5e-90f1-222d3a4a144a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Debug core">
       <UniqueIdentifier>{fb17db11-1c85-43ab-9226-0c82ece07b51}</UniqueIdentifier>
     </Filter>
@@ -48,9 +36,6 @@
     </Filter>
     <Filter Include="intrusive_ptr">
       <UniqueIdentifier>{93a7b313-9b86-4fd4-82a0-9d4a7ec4639f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="memory_monitor">
-      <UniqueIdentifier>{6672355e-6ec8-4680-bf06-19c4aada83ec}</UniqueIdentifier>
     </Filter>
     <Filter Include="Compression">
       <UniqueIdentifier>{31e40506-2e4e-4860-be44-290fb6f03c61}</UniqueIdentifier>
@@ -121,12 +106,27 @@
     <Filter Include="XML\TinyXML">
       <UniqueIdentifier>{eb0bfab5-c514-4df4-a747-d14beb72f57b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="PCH">
+      <UniqueIdentifier>{061cfd8f-ceab-42cf-83c5-bdfb65c5d322}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Memory">
+      <UniqueIdentifier>{0173b19d-898c-495c-8d22-2cc3d8436008}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Compression\lzo">
+      <UniqueIdentifier>{c6342a66-65de-47b5-afe5-c51a7383edc0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="xrDelegate">
+      <UniqueIdentifier>{b54073c2-213d-456f-b88d-8eeb0dd440b0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Events">
+      <UniqueIdentifier>{f17d865f-a3fd-41ac-b217-d7d34ed591f5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Threading\Util">
+      <UniqueIdentifier>{14c94737-f2c7-482d-9033-775a3da068cb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FTimer.cpp">
-      <Filter>Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="stdafx.cpp">
       <Filter>Kernel</Filter>
     </ClCompile>
     <ClCompile Include="xrCore.cpp">
@@ -156,9 +156,6 @@
     <ClCompile Include="clsid.cpp">
       <Filter>Math\Extensions</Filter>
     </ClCompile>
-    <ClCompile Include="string_concatenations.cpp">
-      <Filter>Math\Extensions</Filter>
-    </ClCompile>
     <ClCompile Include="xr_trims.cpp">
       <Filter>Math\Extensions</Filter>
     </ClCompile>
@@ -186,7 +183,7 @@
     <ClCompile Include="NET_utils.cpp">
       <Filter>FS</Filter>
     </ClCompile>
-    <ClCompile Include="Xr_ini.cpp">
+    <ClCompile Include="xr_ini.cpp">
       <Filter>FS</Filter>
     </ClCompile>
     <ClCompile Include="stream_reader.cpp">
@@ -194,39 +191,6 @@
     </ClCompile>
     <ClCompile Include="file_stream_reader.cpp">
       <Filter>FS\file_stream_reader</Filter>
-    </ClCompile>
-    <ClCompile Include="memory_allocation_stats.cpp">
-      <Filter>Memory manager</Filter>
-    </ClCompile>
-    <ClCompile Include="memory_usage.cpp">
-      <Filter>Memory manager</Filter>
-    </ClCompile>
-    <ClCompile Include="xrMemory.cpp">
-      <Filter>Memory manager</Filter>
-    </ClCompile>
-    <ClCompile Include="xrMemory_align.cpp">
-      <Filter>Memory manager</Filter>
-    </ClCompile>
-    <ClCompile Include="xrMemory_debug.cpp">
-      <Filter>Memory manager</Filter>
-    </ClCompile>
-    <ClCompile Include="xrMemory_POOL.cpp">
-      <Filter>Memory manager</Filter>
-    </ClCompile>
-    <ClCompile Include="xrMemory_subst_borland.cpp">
-      <Filter>Memory manager</Filter>
-    </ClCompile>
-    <ClCompile Include="xrMemory_subst_msvc.cpp">
-      <Filter>Memory manager</Filter>
-    </ClCompile>
-    <ClCompile Include="ptmalloc3\malloc.c">
-      <Filter>Memory manager\dlmalloc\allocator</Filter>
-    </ClCompile>
-    <ClCompile Include="ptmalloc3\sysdeps\win32\win32.c">
-      <Filter>Memory manager\dlmalloc\allocator</Filter>
-    </ClCompile>
-    <ClCompile Include="doug_lea_allocator.cpp">
-      <Filter>Memory manager\dlmalloc\wrapper</Filter>
     </ClCompile>
     <ClCompile Include="crc32.cpp">
       <Filter>shared memory/string library</Filter>
@@ -239,15 +203,6 @@
     </ClCompile>
     <ClCompile Include="xrstring.cpp">
       <Filter>shared memory/string library</Filter>
-    </ClCompile>
-    <ClCompile Include="memory_monitor.cpp">
-      <Filter>memory_monitor</Filter>
-    </ClCompile>
-    <ClCompile Include="ppmd_compressor.cpp">
-      <Filter>Compression\ppmd</Filter>
-    </ClCompile>
-    <ClCompile Include="Model.cpp">
-      <Filter>Compression\ppmd\core</Filter>
     </ClCompile>
     <ClCompile Include="LzHuf.cpp">
       <Filter>Compression\lz</Filter>
@@ -282,13 +237,7 @@
     <ClCompile Include="Media\Image.cpp">
       <Filter>Media</Filter>
     </ClCompile>
-    <ClCompile Include="Threading\ttapi.cpp">
-      <Filter>Threading</Filter>
-    </ClCompile>
     <ClCompile Include="Math\PLC_SSE.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\Skin4W_MT.cpp">
       <Filter>Math</Filter>
     </ClCompile>
     <ClCompile Include="Math\SkinXW_SSE.cpp">
@@ -296,9 +245,6 @@
     </ClCompile>
     <ClCompile Include="Math\MathUtil.cpp">
       <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Text\MbHelpers.cpp">
-      <Filter>Text</Filter>
     </ClCompile>
     <ClCompile Include="Threading\Lock.cpp">
       <Filter>Threading</Filter>
@@ -327,9 +273,6 @@
     <ClCompile Include="Debug\MiniDump.cpp">
       <Filter>Debug core</Filter>
     </ClCompile>
-    <ClCompile Include="Debug\StackTrace.cpp">
-      <Filter>Debug core</Filter>
-    </ClCompile>
     <ClCompile Include="XML\tinystr.cpp">
       <Filter>XML\TinyXML</Filter>
     </ClCompile>
@@ -345,14 +288,65 @@
     <ClCompile Include="XML\XMLDocument.cpp">
       <Filter>XML</Filter>
     </ClCompile>
-    <ClCompile Include="Compression\lzo_compressor.cpp">
-      <Filter>Compression</Filter>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>PCH</Filter>
     </ClCompile>
-    <ClCompile Include="Compression\rt_compressor.cpp">
-      <Filter>Compression</Filter>
+    <ClCompile Include="Math\SkinXW_CPP.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\PLC_CPP.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="xr_token.cpp">
+      <Filter>Math\Extensions</Filter>
+    </ClCompile>
+    <ClCompile Include="xrMemory.cpp">
+      <Filter>Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Threading\ScopeLock.cpp">
+      <Filter>Threading</Filter>
+    </ClCompile>
+    <ClCompile Include="Compression\Model.cpp">
+      <Filter>Compression\ppmd\core</Filter>
+    </ClCompile>
+    <ClCompile Include="Compression\ppmd_compressor.cpp">
+      <Filter>Compression\ppmd</Filter>
     </ClCompile>
     <ClCompile Include="Compression\rt_compressor9.cpp">
-      <Filter>Compression</Filter>
+      <Filter>Compression\lzo</Filter>
+    </ClCompile>
+    <ClCompile Include="Compression\lzo_compressor.cpp">
+      <Filter>Compression\lzo</Filter>
+    </ClCompile>
+    <ClCompile Include="Compression\rt_compressor.cpp">
+      <Filter>Compression\lzo</Filter>
+    </ClCompile>
+    <ClCompile Include="Text\StringConversion.cpp">
+      <Filter>Text</Filter>
+    </ClCompile>
+    <ClCompile Include="FileCRC32.cpp">
+      <Filter>FS</Filter>
+    </ClCompile>
+    <ClCompile Include="Memory\xrMemory_align.cpp">
+      <Filter>Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Crypto\trivial_encryptor.cpp">
+      <Filter>Crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="Threading\Task.cpp">
+      <Filter>Threading</Filter>
+    </ClCompile>
+    <ClCompile Include="Threading\TaskManager.cpp">
+      <Filter>Threading</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\BoneEditor.cpp">
+      <Filter>Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="string_concatenations.cpp">
+      <Filter>shared memory/string library</Filter>
+    </ClCompile>
+    <ClCompile Include="Threading\ThreadUtil.cpp">
+      <Filter>Threading\Util</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -360,9 +354,6 @@
       <Filter>Kernel</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
-      <Filter>Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="stdafx.h">
       <Filter>Kernel</Filter>
     </ClInclude>
     <ClInclude Include="xrCore.h">
@@ -446,12 +437,6 @@
     <ClInclude Include="cpuid.h">
       <Filter>Math\CPU</Filter>
     </ClInclude>
-    <ClInclude Include="FixedMap.h">
-      <Filter>Math\STLext</Filter>
-    </ClInclude>
-    <ClInclude Include="FixedSet.h">
-      <Filter>Math\STLext</Filter>
-    </ClInclude>
     <ClInclude Include="FixedVector.h">
       <Filter>Math\STLext</Filter>
     </ClInclude>
@@ -468,12 +453,6 @@
       <Filter>Math\Extensions</Filter>
     </ClInclude>
     <ClInclude Include="fastdelegate.h">
-      <Filter>Math\Extensions</Filter>
-    </ClInclude>
-    <ClInclude Include="string_concatenations.h">
-      <Filter>Math\Extensions</Filter>
-    </ClInclude>
-    <ClInclude Include="string_concatenations_inline.h">
       <Filter>Math\Extensions</Filter>
     </ClInclude>
     <ClInclude Include="xr_trims.h">
@@ -518,33 +497,6 @@
     <ClInclude Include="file_stream_reader.h">
       <Filter>FS\file_stream_reader</Filter>
     </ClInclude>
-    <ClInclude Include="xrMemory.h">
-      <Filter>Memory manager</Filter>
-    </ClInclude>
-    <ClInclude Include="xrMemory_align.h">
-      <Filter>Memory manager</Filter>
-    </ClInclude>
-    <ClInclude Include="xrMEMORY_POOL.h">
-      <Filter>Memory manager</Filter>
-    </ClInclude>
-    <ClInclude Include="xrMemory_pure.h">
-      <Filter>Memory manager</Filter>
-    </ClInclude>
-    <ClInclude Include="xrMemory_subst_borland.h">
-      <Filter>Memory manager</Filter>
-    </ClInclude>
-    <ClInclude Include="xrMemory_subst_msvc.h">
-      <Filter>Memory manager</Filter>
-    </ClInclude>
-    <ClInclude Include="ptmalloc3\malloc-2.8.3.h">
-      <Filter>Memory manager\dlmalloc\allocator</Filter>
-    </ClInclude>
-    <ClInclude Include="doug_lea_allocator.h">
-      <Filter>Memory manager\dlmalloc\wrapper</Filter>
-    </ClInclude>
-    <ClInclude Include="memory_allocator_options.h">
-      <Filter>Memory manager\dlmalloc\wrapper</Filter>
-    </ClInclude>
     <ClInclude Include="xrDebug.h">
       <Filter>Debug core</Filter>
     </ClInclude>
@@ -565,33 +517,6 @@
     </ClInclude>
     <ClInclude Include="intrusive_ptr.h">
       <Filter>intrusive_ptr</Filter>
-    </ClInclude>
-    <ClInclude Include="intrusive_ptr_inline.h">
-      <Filter>intrusive_ptr</Filter>
-    </ClInclude>
-    <ClInclude Include="memory_monitor.h">
-      <Filter>memory_monitor</Filter>
-    </ClInclude>
-    <ClInclude Include="ppmd_compressor.h">
-      <Filter>Compression\ppmd</Filter>
-    </ClInclude>
-    <ClInclude Include="PPMd.h">
-      <Filter>Compression\ppmd\common</Filter>
-    </ClInclude>
-    <ClInclude Include="PPMdType.h">
-      <Filter>Compression\ppmd\common</Filter>
-    </ClInclude>
-    <ClInclude Include="Coder.hpp">
-      <Filter>Compression\ppmd\core</Filter>
-    </ClInclude>
-    <ClInclude Include="SubAlloc.hpp">
-      <Filter>Compression\ppmd\core\allocator</Filter>
-    </ClInclude>
-    <ClInclude Include="compression_ppmd_stream.h">
-      <Filter>Compression\ppmd\stream</Filter>
-    </ClInclude>
-    <ClInclude Include="compression_ppmd_stream_inline.h">
-      <Filter>Compression\ppmd\stream</Filter>
     </ClInclude>
     <ClInclude Include="lzhuf.h">
       <Filter>Compression\lz</Filter>
@@ -635,13 +560,7 @@
     <ClInclude Include="cdecl_cast.hpp">
       <Filter>Kernel</Filter>
     </ClInclude>
-    <ClInclude Include="Threading\ttapi.h">
-      <Filter>Threading</Filter>
-    </ClInclude>
     <ClInclude Include="Math\PLC_SSE.hpp">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\Skin4W_MT.hpp">
       <Filter>Math</Filter>
     </ClInclude>
     <ClInclude Include="Math\SkinXW_SSE.hpp">
@@ -655,9 +574,6 @@
     </ClInclude>
     <ClInclude Include="Containers\AssociativeVector.hpp">
       <Filter>Containers</Filter>
-    </ClInclude>
-    <ClInclude Include="Text\MbHelpers.h">
-      <Filter>Text</Filter>
     </ClInclude>
     <ClInclude Include="Threading\Lock.hpp">
       <Filter>Threading</Filter>
@@ -722,12 +638,6 @@
     <ClInclude Include="Debug\MiniDump.h">
       <Filter>Debug core</Filter>
     </ClInclude>
-    <ClInclude Include="Debug\StackTrace.h">
-      <Filter>Debug core</Filter>
-    </ClInclude>
-    <ClInclude Include="Debug\SymbolEngine.h">
-      <Filter>Debug core</Filter>
-    </ClInclude>
     <ClInclude Include="..\Common\Noncopyable.hpp">
       <Filter>Common</Filter>
     </ClInclude>
@@ -740,11 +650,107 @@
     <ClInclude Include="XML\XMLDocument.hpp">
       <Filter>XML</Filter>
     </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>PCH</Filter>
+    </ClInclude>
+    <ClInclude Include="math_constants.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="xr_vector_defs.h">
+      <Filter>Math\Extensions</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\SkinXW_CPP.hpp">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\PLC_CPP.hpp">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="xrCore_benchmark_macros.h">
+      <Filter>Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="xr_shortcut.h">
+      <Filter>Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="xr_token.h">
+      <Filter>Math\Extensions</Filter>
+    </ClInclude>
+    <ClInclude Include="xrMemory.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Threading\ScopeLock.hpp">
+      <Filter>Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="Compression\SubAlloc.hpp">
+      <Filter>Compression\ppmd\core\allocator</Filter>
+    </ClInclude>
+    <ClInclude Include="Compression\Coder.hpp">
+      <Filter>Compression\ppmd\core</Filter>
+    </ClInclude>
+    <ClInclude Include="Compression\PPMd.h">
+      <Filter>Compression\ppmd\common</Filter>
+    </ClInclude>
+    <ClInclude Include="Compression\PPMdType.h">
+      <Filter>Compression\ppmd\common</Filter>
+    </ClInclude>
+    <ClInclude Include="Compression\compression_ppmd_stream.h">
+      <Filter>Compression\ppmd\stream</Filter>
+    </ClInclude>
+    <ClInclude Include="Compression\compression_ppmd_stream_inline.h">
+      <Filter>Compression\ppmd\stream</Filter>
+    </ClInclude>
+    <ClInclude Include="Compression\ppmd_compressor.h">
+      <Filter>Compression\ppmd</Filter>
+    </ClInclude>
     <ClInclude Include="Compression\lzo_compressor.h">
-      <Filter>Compression</Filter>
+      <Filter>Compression\lzo</Filter>
     </ClInclude>
     <ClInclude Include="Compression\rt_compressor.h">
-      <Filter>Compression</Filter>
+      <Filter>Compression\lzo</Filter>
+    </ClInclude>
+    <ClInclude Include="Text\StringConversion.hpp">
+      <Filter>Text</Filter>
+    </ClInclude>
+    <ClInclude Include="FileCRC32.h">
+      <Filter>FS</Filter>
+    </ClInclude>
+    <ClInclude Include="Events\Notifier.h">
+      <Filter>Events</Filter>
+    </ClInclude>
+    <ClInclude Include="xrDelegate\xrDelegate.h">
+      <Filter>xrDelegate</Filter>
+    </ClInclude>
+    <ClInclude Include="xrDelegate\xrDelegateArguments.h">
+      <Filter>xrDelegate</Filter>
+    </ClInclude>
+    <ClInclude Include="xrDelegate\xrDelegateBinder.h">
+      <Filter>xrDelegate</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\xalloc.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\xrMemory_align.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Containers\FixedMap.h">
+      <Filter>Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Crypto\trivial_encryptor.h">
+      <Filter>Crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="Threading\Task.hpp">
+      <Filter>Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="Threading\TaskManager.hpp">
+      <Filter>Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="string_concatenations.h">
+      <Filter>shared memory/string library</Filter>
+    </ClInclude>
+    <ClInclude Include="string_concatenations_inline.h">
+      <Filter>shared memory/string library</Filter>
+    </ClInclude>
+    <ClInclude Include="Threading\ThreadUtil.h">
+      <Filter>Threading\Util</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -761,5 +767,9 @@
     <None Include="Debug\DXTrace.inl">
       <Filter>Debug core\DxErr</Filter>
     </None>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\OpenXRay.natvis" />
   </ItemGroup>
 </Project>

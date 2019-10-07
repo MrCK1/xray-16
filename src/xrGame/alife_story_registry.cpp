@@ -6,7 +6,7 @@
 //	Description : ALife story registry
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "alife_story_registry.h"
 #include "xrServer_Objects_ALife.h"
 #include "ai_space.h"
@@ -23,7 +23,7 @@ void CALifeStoryRegistry::add(ALife::_STORY_ID id, CSE_ALifeDynamicObject* objec
         *ai().game_graph().header().level(ai().game_graph().vertex(object->m_tGraphID)->level_id()).name());
 #endif
 
-    ALife::STORY_P_PAIR_IT I = m_objects.find(id);
+    auto I = m_objects.find(id);
     if (I != m_objects.end())
     {
         R_ASSERT2(no_assert, "Specified story object is already in the Story registry!");

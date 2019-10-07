@@ -6,9 +6,11 @@
 
 #pragma once
 #include "GraviArtifact.h"
-#include "xrEngine/feel_touch.h"
+#include "xrEngine/Feel_Touch.h"
 #include "PhysicsShellHolder.h"
-DEFINE_VECTOR(CPhysicsShellHolder*, GAME_OBJECT_LIST, GAME_OBJECT_LIST_it);
+#include "xrCDB/xr_collide_defs.h"
+
+using GAME_OBJECT_LIST = xr_vector<CPhysicsShellHolder*>;
 
 class CBlackGraviArtefact : public CGraviArtefact, public Feel::Touch
 {

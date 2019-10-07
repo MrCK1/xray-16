@@ -1,9 +1,9 @@
 #include "pch_script.h"
-#include "actor.h"
-#include "hudmanager.h"
+#include "Actor.h"
+#include "HUDManager.h"
 #include "Actor_Flags.h"
-#include "inventory.h"
-#include "xrserver_objects_alife_monsters.h"
+#include "Inventory.h"
+#include "xrServer_Objects_ALife_Monsters.h"
 #include "xrServer.h"
 #include "xrEngine/CustomHUD.h"
 #include "CameraLook.h"
@@ -11,16 +11,16 @@
 
 #include "ActorEffector.h"
 
-#include "xrPhysics/iPHWorld.h"
-#include "xrPhysics/actorcameracollision.h"
+#include "xrPhysics/IPHWorld.h"
+#include "xrPhysics/ActorCameraCollision.h"
 #include "Level.h"
 #include "xr_level_controller.h"
 #include "game_cl_base.h"
-#include "infoportion.h"
+#include "InfoPortion.h"
 #include "alife_registry_wrappers.h"
 #include "Include/xrRender/Kinematics.h"
 #include "client_spawn_manager.h"
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
 #include "CharacterPhysicsSupport.h"
 #include "Grenade.h"
@@ -36,9 +36,9 @@
 
 #include "map_manager.h"
 #include "ui/UIMainIngameWnd.h"
-#include "gamepersistent.h"
+#include "GamePersistent.h"
 #include "game_object_space.h"
-#include "GameTaskManager.h"
+#include "GametaskManager.h"
 #include "game_base_kill_type.h"
 #include "holder_custom.h"
 #include "actor_memory.h"
@@ -703,7 +703,7 @@ BOOL CActor::net_Spawn(CSE_Abstract* DC)
     callback.bind(this, &CActor::on_requested_spawn);
     m_holder_id = E->m_holderID;
     if (E->m_holderID != ALife::_OBJECT_ID(-1))
-        if (!g_dedicated_server)
+        if (!GEnv.isDedicatedServer)
             Level().client_spawn_manager().add(E->m_holderID, ID(), callback);
     // F
     //-------------------------------------------------------------
@@ -737,12 +737,12 @@ void CActor::net_Destroy()
     inherited::net_Destroy();
 
     if (m_holder_id != ALife::_OBJECT_ID(-1))
-        if (!g_dedicated_server)
+        if (!GEnv.isDedicatedServer)
             Level().client_spawn_manager().remove(m_holder_id, ID());
 
     delete_data(m_statistic_manager);
 
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         Level().MapManager().OnObjectDestroyNotify(ID());
 
 #pragma todo("Dima to MadMax : do not comment inventory owner net_Destroy!!!")
@@ -752,7 +752,7 @@ void CActor::net_Destroy()
     if (m_pPhysicsShell)
     {
         m_pPhysicsShell->Deactivate();
-        xr_delete<CPhysicsShell>(m_pPhysicsShell);
+        xr_delete/*<CPhysicsShell>*/(m_pPhysicsShell);
     };
     m_pPhysics_support->in_NetDestroy();
 
@@ -802,7 +802,7 @@ void CActor::net_Relcase(IGameObject* O)
     }
     inherited::net_Relcase(O);
 
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         memory().remove_links(O);
 
     m_pPhysics_support->in_NetRelcase(O);
@@ -865,7 +865,7 @@ void CActor::OnChangeVisual()
         CStepManager::reload(cNameSect().c_str());
         SetCallbacks();
         m_anims->Create(V);
-        //.		m_vehicle_anims->Create			(V);
+        m_vehicle_anims->Create(V);
         CDamageManager::reload(*cNameSect(), "damage", pSettings);
         //-------------------------------------------------------------------------------
         m_head = smart_cast<IKinematics*>(Visual())->LL_BoneID("bip01_head");
@@ -1396,10 +1396,10 @@ void CActor::save(NET_Packet& output_packet)
     CInventoryOwner::save(output_packet);
     output_packet.w_u8(u8(m_bOutBorder));
     CUITaskWnd* task_wnd = HUD().GetGameUI()->GetPdaMenu().pUITaskWnd;
-    output_packet.w_u8(task_wnd->IsTreasuresEnabled() ? 1 : 0);
-    output_packet.w_u8(task_wnd->IsQuestNpcsEnabled() ? 1 : 0);
-    output_packet.w_u8(task_wnd->IsSecondaryTasksEnabled() ? 1 : 0);
-    output_packet.w_u8(task_wnd->IsPrimaryObjectsEnabled() ? 1 : 0);
+    output_packet.w_u8(task_wnd && task_wnd->IsTreasuresEnabled() ? 1 : 0);
+    output_packet.w_u8(task_wnd && task_wnd->IsQuestNpcsEnabled() ? 1 : 0);
+    output_packet.w_u8(task_wnd && task_wnd->IsSecondaryTasksEnabled() ? 1 : 0);
+    output_packet.w_u8(task_wnd && task_wnd->IsPrimaryObjectsEnabled() ? 1 : 0);
 
     output_packet.w_stringZ(g_quick_use_slots[0]);
     output_packet.w_stringZ(g_quick_use_slots[1]);
@@ -1412,11 +1412,20 @@ void CActor::load(IReader& input_packet)
     inherited::load(input_packet);
     CInventoryOwner::load(input_packet);
     m_bOutBorder = !!(input_packet.r_u8());
+
+    const bool treasures = !!input_packet.r_u8();
+    const bool questNpcs = !!input_packet.r_u8();
+    const bool secondaryTasks = !!input_packet.r_u8();
+    const bool primaryObjects = !!input_packet.r_u8();
+
     CUITaskWnd* task_wnd = HUD().GetGameUI()->GetPdaMenu().pUITaskWnd;
-    task_wnd->TreasuresEnabled(!!input_packet.r_u8());
-    task_wnd->QuestNpcsEnabled(!!input_packet.r_u8());
-    task_wnd->SecondaryTasksEnabled(!!input_packet.r_u8());
-    task_wnd->PrimaryObjectsEnabled(!!input_packet.r_u8());
+    if (task_wnd)
+    {
+        task_wnd->TreasuresEnabled(treasures);
+        task_wnd->QuestNpcsEnabled(questNpcs);
+        task_wnd->SecondaryTasksEnabled(secondaryTasks);
+        task_wnd->PrimaryObjectsEnabled(primaryObjects);
+    }
     // need_quick_slot_reload = true;
 
     input_packet.r_stringZ(g_quick_use_slots[0], sizeof(g_quick_use_slots[0]));
@@ -1464,10 +1473,10 @@ void dbg_draw_piramid(Fvector pos, Fvector dir, float size, float xdir, u32 colo
 
     if (!Double)
     {
-        GlobalEnv.DRender->dbg_DrawTRI(t, p0, p1, p4, color);
-        GlobalEnv.DRender->dbg_DrawTRI(t, p1, p2, p4, color);
-        GlobalEnv.DRender->dbg_DrawTRI(t, p2, p3, p4, color);
-        GlobalEnv.DRender->dbg_DrawTRI(t, p3, p0, p4, color);
+        GEnv.DRender->dbg_DrawTRI(t, p0, p1, p4, color);
+        GEnv.DRender->dbg_DrawTRI(t, p1, p2, p4, color);
+        GEnv.DRender->dbg_DrawTRI(t, p2, p3, p4, color);
+        GEnv.DRender->dbg_DrawTRI(t, p3, p0, p4, color);
         // RCache.dbg_DrawTRI(t, p0, p1, p4, color);
         // RCache.dbg_DrawTRI(t, p1, p2, p4, color);
         // RCache.dbg_DrawTRI(t, p2, p3, p4, color);
@@ -1495,7 +1504,7 @@ void dbg_draw_piramid(Fvector pos, Fvector dir, float size, float xdir, u32 colo
 void CActor::OnRender_Network()
 {
     // RCache.OnFrameEnd();
-    GlobalEnv.DRender->OnFrameEnd();
+    GEnv.DRender->OnFrameEnd();
 
     //-----------------------------------------------------------------------------------------------------
     float size = 0.2f;
@@ -1536,7 +1545,7 @@ void CActor::OnRender_Network()
                     Skeleton->_dbg_refresh();
 
                     const CCF_Skeleton::ElementVec& Elements = Skeleton->_GetElements();
-                    for (CCF_Skeleton::ElementVec::const_iterator I = Elements.begin(); I != Elements.end(); I++)
+                    for (CCF_Skeleton::ElementVec::const_iterator I = Elements.begin(); I != Elements.end(); ++I)
                     {
                         if (!I->valid())
                             continue;
@@ -1675,9 +1684,9 @@ void CActor::OnRender_Network()
         if (!pLastPos->empty())
         {
             Fvector Pos1, Pos2;
-            VIS_POSITION_it It = pLastPos->begin();
+            auto It = pLastPos->begin();
             Pos1 = *It;
-            for (; It != pLastPos->end(); It++)
+            for (; It != pLastPos->end(); ++It)
             {
                 Pos2 = *It;
 

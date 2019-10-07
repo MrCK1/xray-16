@@ -1,25 +1,27 @@
 #include "pch_script.h"
-#include "ScriptXmlInit.h"
-#include "ui\UIXmlInit.h"
-#include "ui\UITextureMaster.h"
-#include "ui\UICheckButton.h"
-#include "ui\UISpinNum.h"
-#include "ui\UISpinText.h"
-#include "ui\UIComboBox.h"
-#include "ui\UITabControl.h"
-#include "ui\UIFrameWindow.h"
-#include "ui\UILabel.h"
-#include "ui\ServerList.h"
-#include "ui\UIMapList.h"
-#include "ui\UIKeyBinding.h"
-#include "ui\UIEditBox.h"
-#include "ui\UIAnimatedStatic.h"
-#include "ui\UITrackBar.h"
-#include "ui\UICDkey.h"
-#include "ui\UIMapInfo.h"
-#include "ui\UIMMShniaga.h"
-#include "ui\UIScrollView.h"
-#include "ui\UIProgressBar.h"
+#include "ScriptXMLInit.h"
+#include "ui/UIXmlInit.h"
+#include "xrUICore/XML/UITextureMaster.h"
+#include "xrUICore/Buttons/UICheckButton.h"
+#include "xrUICore/SpinBox/UISpinNum.h"
+#include "xrUICore/SpinBox/UISpinText.h"
+#include "xrUICore/ComboBox/UIComboBox.h"
+#include "xrUICore/TabControl/UITabControl.h"
+#include "xrUICore/Windows/UIFrameWindow.h"
+#include "ui/UILabel.h"
+#include "ui/ServerList.h"
+#include "ui/UIMapList.h"
+#include "ui/UIKeyBinding.h"
+#include "xrUICore/EditBox/UIEditBox.h"
+#include "xrUICore/Static/UIAnimatedStatic.h"
+#include "ui/UISleepStatic.h"
+#include "xrUICore/TrackBar/UITrackBar.h"
+#include "ui/UICDkey.h"
+#include "ui/UIMapInfo.h"
+#include "ui/UIMMShniaga.h"
+#include "xrUICore/ScrollView/UIScrollView.h"
+#include "xrUICore/ListWnd/UIListWnd.h"
+#include "xrUICore/ProgressBar/UIProgressBar.h"
 #include "xrScriptEngine/ScriptExporter.hpp"
 
 using namespace luabind;
@@ -37,7 +39,13 @@ void _attach_child(CUIWindow* _child, CUIWindow* _parent)
         _parent->AttachChild(_child);
 }
 
-void CScriptXmlInit::ParseFile(LPCSTR xml_file) { m_xml.Load(CONFIG_PATH, UI_PATH, xml_file); }
+void CScriptXmlInit::ParseFile(LPCSTR xml_file) { m_xml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, xml_file); }
+
+void CScriptXmlInit::ParseShTexInfo(pcstr xml_file)
+{
+    CUITextureMaster::ParseShTexInfo(xml_file);
+}
+
 void CScriptXmlInit::InitWindow(LPCSTR path, int index, CUIWindow* pWnd)
 {
     CUIXmlInit::InitWindow(m_xml, path, index, pWnd);
@@ -103,6 +111,14 @@ CUIScrollView* CScriptXmlInit::InitScrollView(LPCSTR path, CUIWindow* parent)
 {
     CUIScrollView* pWnd = new CUIScrollView();
     CUIXmlInit::InitScrollView(m_xml, path, 0, pWnd);
+    _attach_child(pWnd, parent);
+    return pWnd;
+}
+
+CUIListWnd* CScriptXmlInit::InitListWnd(pcstr path, CUIWindow* parent)
+{
+    CUIListWnd* pWnd = new CUIListWnd();
+    CUIXmlInit::InitListWnd(m_xml, path, 0, pWnd);
     _attach_child(pWnd, parent);
     return pWnd;
 }
@@ -246,34 +262,41 @@ CUIEditBox* CScriptXmlInit::InitMPPlayerName(LPCSTR path, CUIWindow* parent)
     return pWnd;
 }
 
-SCRIPT_EXPORT(CScriptXmlInit, (), {
-    module(luaState)[class_<CScriptXmlInit>("CScriptXmlInit")
-                         .def(constructor<>())
-                         .def("ParseFile", &CScriptXmlInit::ParseFile)
-                         .def("InitWindow", &CScriptXmlInit::InitWindow)
-                         .def("InitFrame", &CScriptXmlInit::InitFrame)
-                         .def("InitFrameLine", &CScriptXmlInit::InitFrameLine)
-                         .def("InitEditBox", &CScriptXmlInit::InitEditBox)
-                         .def("InitStatic", &CScriptXmlInit::InitStatic)
-                         .def("InitTextWnd", &CScriptXmlInit::InitTextWnd)
-                         .def("InitAnimStatic", &CScriptXmlInit::InitAnimStatic)
-                         .def("InitSleepStatic", &CScriptXmlInit::InitSleepStatic)
-                         .def("Init3tButton", &CScriptXmlInit::Init3tButton)
-                         .def("InitCheck", &CScriptXmlInit::InitCheck)
-                         .def("InitSpinNum", &CScriptXmlInit::InitSpinNum)
-                         .def("InitSpinFlt", &CScriptXmlInit::InitSpinFlt)
-                         .def("InitSpinText", &CScriptXmlInit::InitSpinText)
-                         .def("InitComboBox", &CScriptXmlInit::InitComboBox)
-                         .def("InitTab", &CScriptXmlInit::InitTab)
-                         .def("InitServerList", &CScriptXmlInit::InitServerList)
-                         .def("InitMapList", &CScriptXmlInit::InitMapList)
-                         .def("InitMapInfo", &CScriptXmlInit::InitMapInfo)
-                         .def("InitTrackBar", &CScriptXmlInit::InitTrackBar)
-                         .def("InitCDkey", &CScriptXmlInit::InitCDkey)
-                         .def("InitMPPlayerName", &CScriptXmlInit::InitMPPlayerName)
-                         .def("InitKeyBinding", &CScriptXmlInit::InitKeyBinding)
-                         .def("InitMMShniaga", &CScriptXmlInit::InitMMShniaga)
-                         .def("InitScrollView", &CScriptXmlInit::InitScrollView)
-                         .def("InitListBox", &CScriptXmlInit::InitListBox)
-                         .def("InitProgressBar", &CScriptXmlInit::InitProgressBar)];
+SCRIPT_EXPORT(CScriptXmlInit, (),
+{
+    module(luaState)
+    [
+        class_<CScriptXmlInit>("CScriptXmlInit")
+            .def(constructor<>())
+            .def("ParseFile", &CScriptXmlInit::ParseFile)
+            .def("ParseShTexInfo", &CScriptXmlInit::ParseShTexInfo)
+            .def("InitWindow", &CScriptXmlInit::InitWindow)
+            .def("InitFrame", &CScriptXmlInit::InitFrame)
+            .def("InitFrameLine", &CScriptXmlInit::InitFrameLine)
+            .def("InitEditBox", &CScriptXmlInit::InitEditBox)
+            .def("InitStatic", &CScriptXmlInit::InitStatic)
+            .def("InitTextWnd", &CScriptXmlInit::InitTextWnd)
+            .def("InitLabel", &CScriptXmlInit::InitStatic)
+            .def("InitAnimStatic", &CScriptXmlInit::InitAnimStatic)
+            .def("InitSleepStatic", &CScriptXmlInit::InitSleepStatic)
+            .def("Init3tButton", &CScriptXmlInit::Init3tButton)
+            .def("InitCheck", &CScriptXmlInit::InitCheck)
+            .def("InitSpinNum", &CScriptXmlInit::InitSpinNum)
+            .def("InitSpinFlt", &CScriptXmlInit::InitSpinFlt)
+            .def("InitSpinText", &CScriptXmlInit::InitSpinText)
+            .def("InitComboBox", &CScriptXmlInit::InitComboBox)
+            .def("InitTab", &CScriptXmlInit::InitTab)
+            .def("InitServerList", &CScriptXmlInit::InitServerList)
+            .def("InitMapList", &CScriptXmlInit::InitMapList)
+            .def("InitMapInfo", &CScriptXmlInit::InitMapInfo)
+            .def("InitTrackBar", &CScriptXmlInit::InitTrackBar)
+            .def("InitCDkey", &CScriptXmlInit::InitCDkey)
+            .def("InitMPPlayerName", &CScriptXmlInit::InitMPPlayerName)
+            .def("InitKeyBinding", &CScriptXmlInit::InitKeyBinding)
+            .def("InitMMShniaga", &CScriptXmlInit::InitMMShniaga)
+            .def("InitScrollView", &CScriptXmlInit::InitScrollView)
+            .def("InitList", &CScriptXmlInit::InitListWnd)
+            .def("InitListBox", &CScriptXmlInit::InitListBox)
+            .def("InitProgressBar", &CScriptXmlInit::InitProgressBar)
+    ];
 });

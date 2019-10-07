@@ -1,17 +1,17 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "PHActivationShape.h"
 
 #include "Physics.h"
 #include "MathUtils.h"
-#include "phvalidevalues.h"
+#include "PHValideValues.h"
 
-#include "Extendedgeom.h"
+#include "ExtendedGeom.h"
 #include "SpaceUtils.h"
 #include "MathUtils.h"
 #include "xrEngine/GameMtlLib.h"
 
 #include "PHWorld.h"
-#include "Externals/ode/ode/src/util.h"
+#include "ode/ode/src/util.h"
 
 #ifdef DEBUG
 #include "debug_output.h"
@@ -19,7 +19,7 @@
 
 #include "PHDynamicData.h"
 #include "xrServerEntities/PHSynchronize.h"
-#include "xrServerEntities/phnetstate.h"
+#include "xrServerEntities/PHNetState.h"
 static float max_depth = 0.f;
 static float friction_factor = 0.f;
 static const float cfm = 1.e-10f;
@@ -119,21 +119,21 @@ static void ActivateTestDepthCallback(
 
 void StaticEnvironment(bool& do_colide, bool bo1, dContact& c, SGameMtl* material_1, SGameMtl* material_2)
 {
-    dJointID contact_joint = dJointCreateContact(0, ContactGroup, &c);
+    dJointID contact_joint = dJointCreateContact(nullptr, ContactGroup, &c);
 
     if (bo1)
     {
         ((CPHActivationShape*)(retrieveGeomUserData(c.geom.g1)->callback_data))
             ->DActiveIsland()
             ->ConnectJoint(contact_joint);
-        dJointAttach(contact_joint, dGeomGetBody(c.geom.g1), 0);
+        dJointAttach(contact_joint, dGeomGetBody(c.geom.g1), nullptr);
     }
     else
     {
         ((CPHActivationShape*)(retrieveGeomUserData(c.geom.g2)->callback_data))
             ->DActiveIsland()
             ->ConnectJoint(contact_joint);
-        dJointAttach(contact_joint, 0, dGeomGetBody(c.geom.g2));
+        dJointAttach(contact_joint, nullptr, dGeomGetBody(c.geom.g2));
     }
     do_colide = false;
 }
@@ -150,11 +150,10 @@ void GetMaxDepthCallback(bool& do_colide, bool bo1, dContact& c, SGameMtl* mater
 
 void RestoreVelocityState(V_PH_WORLD_STATE& state)
 {
-    V_PH_WORLD_STATE::iterator i = state.begin(), e = state.end();
-    for (; e != i; ++i)
+    for (auto& it : state)
     {
-        CPHSynchronize& sync = *i->first;
-        SPHNetState& old_s = i->second;
+        CPHSynchronize& sync = *it.first;
+        SPHNetState& old_s = it.second;
         SPHNetState new_s;
         sync.get_State(new_s);
         new_s.angular_vel.set(old_s.angular_vel);
@@ -166,10 +165,10 @@ void RestoreVelocityState(V_PH_WORLD_STATE& state)
 
 CPHActivationShape::CPHActivationShape()
 {
-    m_geom = NULL;
-    m_body = NULL;
+    m_geom = nullptr;
+    m_body = nullptr;
     m_flags.zero();
-    m_flags.set(flFixedRotation, TRUE);
+    m_flags.set(flFixedRotation, true);
 }
 CPHActivationShape::~CPHActivationShape() { VERIFY(!m_body && !m_geom); }
 void CPHActivationShape::Create(
@@ -179,16 +178,16 @@ void CPHActivationShape::Create(
     R_ASSERT(_valid(start_pos));
     R_ASSERT(_valid(start_size));
 
-    m_body = dBodyCreate(0);
+    m_body = dBodyCreate(nullptr);
     dMass m;
     dMassSetSphere(&m, 1.f, 100000.f);
     dMassAdjust(&m, 1.f);
     dBodySetMass(m_body, &m);
     switch (_type)
     {
-    case etBox: m_geom = dCreateBox(0, start_size.x, start_size.y, start_size.z); break;
+    case etBox: m_geom = dCreateBox(nullptr, start_size.x, start_size.y, start_size.z); break;
 
-    case etSphere: m_geom = dCreateSphere(0, start_size.x); break;
+    case etSphere: m_geom = dCreateSphere(nullptr, start_size.x); break;
     };
 
     dGeomCreateUserData(m_geom);
@@ -200,7 +199,7 @@ void CPHActivationShape::Create(
     dBodyEnable(m_body);
     m_safe_state.create(m_body);
     spatial_register();
-    m_flags.set(flags, TRUE);
+    m_flags.set(flags, true);
 }
 void CPHActivationShape::Destroy()
 {
@@ -209,9 +208,9 @@ void CPHActivationShape::Destroy()
     CPHObject::deactivate();
     dGeomDestroyUserData(m_geom);
     dGeomDestroy(m_geom);
-    m_geom = NULL;
+    m_geom = nullptr;
     dBodyDestroy(m_body);
-    m_body = NULL;
+    m_body = nullptr;
 }
 bool CPHActivationShape::Activate(
     const Fvector need_size, u16 steps, float max_displacement, float max_rotation, bool un_freeze_later /*	=false*/)

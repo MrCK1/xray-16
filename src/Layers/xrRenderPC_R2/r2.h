@@ -4,13 +4,13 @@
 #include "Layers/xrRender/PSLibrary.h"
 #include "r2_types.h"
 #include "r2_rendertarget.h"
-#include "Layers/xrRender/hom.h"
-#include "Layers/xrRender/detailmanager.h"
-#include "Layers/xrRender/modelpool.h"
-#include "Layers/xrRender/wallmarksengine.h"
+#include "Layers/xrRender/HOM.h"
+#include "Layers/xrRender/DetailManager.h"
+#include "Layers/xrRender/ModelPool.h"
+#include "Layers/xrRender/WallmarksEngine.h"
 #include "smap_allocator.h"
 #include "Layers/xrRender/light_db.h"
-#include "light_render_direct.h"
+#include "Layers/xrRender/light_render_direct.h"
 #include "Layers/xrRender/LightTrack.h"
 #include "Layers/xrRender/r_sun_cascades.h"
 #include "xrEngine/IRenderable.h"
@@ -118,8 +118,8 @@ public:
     xr_vector<ref_shader> Shaders;
     typedef svector<D3DVERTEXELEMENT9, MAXD3DDECLLENGTH + 1> VertexDeclarator;
     xr_vector<VertexDeclarator> nDC, xDC;
-    xr_vector<IDirect3DVertexBuffer9 *> nVB, xVB;
-    xr_vector<IDirect3DIndexBuffer9 *> nIB, xIB;
+    xr_vector<ID3DVertexBuffer*> nVB, xVB;
+    xr_vector<ID3DIndexBuffer*> nIB, xIB;
     xr_vector<dxRender_Visual*> Visuals;
     CPSLibrary PSLibrary;
 
@@ -136,7 +136,7 @@ public:
     light_Package LP_normal;
     light_Package LP_pending;
 
-    xr_vector<Fbox3, render_alloc<Fbox3>> main_coarse_structure;
+    xr_vector<Fbox3> main_coarse_structure;
 
     shared_str c_sbase;
     shared_str c_lmaterial;
@@ -153,17 +153,12 @@ public:
 
 private:
     // Loading / Unloading
-    void LoadBuffers(CStreamReader* fs, BOOL _alternative);
+    void LoadBuffers(CStreamReader* fs, bool alternative);
     void LoadVisuals(IReader* fs);
     void LoadLights(IReader* fs);
     void LoadPortals(IReader* fs);
     void LoadSectors(IReader* fs);
     void LoadSWIs(CStreamReader* fs);
-
-    BOOL add_Dynamic(dxRender_Visual* pVisual, u32 planes); // normal processing
-    void add_Static(dxRender_Visual* pVisual, u32 planes);
-    void add_leafs_Dynamic(dxRender_Visual* pVisual); // if detected node's full visibility
-    void add_leafs_Static(dxRender_Visual* pVisual); // if detected node's full visibility
 
 public:
     IRender_Sector* rimp_detectSector(Fvector& P, Fvector& D);
@@ -183,9 +178,9 @@ public:
 public:
     ShaderElement* rimp_select_sh_static(dxRender_Visual* pVisual, float cdist_sq);
     ShaderElement* rimp_select_sh_dynamic(dxRender_Visual* pVisual, float cdist_sq);
-    D3DVERTEXELEMENT9* getVB_Format(int id, BOOL _alt = FALSE);
-    IDirect3DVertexBuffer9* getVB(int id, BOOL _alt = FALSE);
-    IDirect3DIndexBuffer9* getIB(int id, BOOL _alt = FALSE);
+    D3DVERTEXELEMENT9* getVB_Format(int id, bool alternative = false);
+    ID3DVertexBuffer* getVB(int id, bool alternative = false);
+    ID3DIndexBuffer* getIB(int id, bool alternative = false);
     FSlideWindowItem* getSWI(int id);
     IRender_Portal* getPortal(int id);
     IRender_Sector* getSectorActive();
@@ -245,12 +240,12 @@ public:
     virtual void level_Unload();
 
     virtual IDirect3DBaseTexture9* texture_load(LPCSTR fname, u32& msize);
-    virtual HRESULT shader_compile(LPCSTR name, DWORD const* pSrcData, UINT SrcDataLen, LPCSTR pFunctionName,
-        LPCSTR pTarget, DWORD Flags, void*& result);
+    virtual HRESULT shader_compile(
+        LPCSTR name, IReader* fs, LPCSTR pFunctionName, LPCSTR pTarget, DWORD Flags, void*& result);
 
     // Information
     virtual void DumpStatistics(class IGameFont& font, class IPerformanceAlert* alert) override;
-    virtual LPCSTR getShaderPath() { return "r2\\"; }
+    virtual LPCSTR getShaderPath() { return "r2" DELIMITER ""; }
     virtual ref_shader getShader(int id);
     virtual IRender_Sector* getSector(int id);
     virtual IRenderVisual* getVisual(int id);
@@ -259,10 +254,9 @@ public:
 
     // Main
     virtual void flush();
-    virtual void set_Object(IRenderable* O);
     virtual void add_Occluder(Fbox2& bb_screenspace); // mask screen region as oclluded
-    virtual void add_Visual(IRenderVisual* V); // add visual leaf	(no culling performed at all)
-    virtual void add_Geometry(IRenderVisual* V); // add visual(s)	(all culling performed)
+    void add_Visual(IRenderable* root, IRenderVisual* V, Fmatrix& m) override; // add visual leaf	(no culling performed at all)
+    void add_Geometry(IRenderVisual* V, const CFrustum& view) override; // add visual(s)	(all culling performed)
 
     // wallmarks
     virtual void add_StaticWallmark(ref_shader& S, const Fvector& P, float s, CDB::TRI* T, Fvector* V);
@@ -305,6 +299,8 @@ public:
     virtual BOOL occ_visible(sPoly& P);
 
     // Main
+    void BeforeFrame() override;
+
     virtual void Calculate();
     virtual void Render();
     virtual void Screenshot(ScreenshotMode mode = SM_NORMAL, LPCSTR name = 0);
@@ -313,10 +309,15 @@ public:
     virtual void ScreenshotAsyncEnd(CMemoryWriter& memory_writer);
     virtual void OnFrame();
 
+    void BeforeWorldRender() override; //--#SM+#-- +SecondVP+ Вызывается перед началом рендера мира и пост-эффектов
+    void AfterWorldRender() override;  //--#SM+#-- +SecondVP+ Вызывается после рендера мира и перед UI
+
     // Render mode
     virtual void rmNear();
     virtual void rmFar();
     virtual void rmNormal();
+
+    u32 active_phase() override { return phase; }
 
     // Constructor/destructor/loader
     CRender();

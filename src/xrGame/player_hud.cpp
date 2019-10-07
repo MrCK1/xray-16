@@ -1,16 +1,30 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "player_hud.h"
 #include "HudItem.h"
-#include "ui_base.h"
-#include "actor.h"
+#include "xrUICore/ui_base.h"
+#include "Actor.h"
 #include "physic_item.h"
 #include "static_cast_checked.hpp"
-#include "actoreffector.h"
+#include "ActorEffector.h"
 #include "xrEngine/IGame_Persistent.h"
 
-player_hud* g_player_hud = NULL;
+
+player_hud* g_player_hud = nullptr;
 Fvector _ancor_pos;
 Fvector _wpn_root_pos;
+
+// clang-format off
+// --#SM+# Begin--
+constexpr float PITCH_OFFSET_R    = 0.0f;   // Насколько сильно ствол смещается вбок (влево) при вертикальных поворотах камеры
+constexpr float PITCH_OFFSET_N    = 0.0f;   // Насколько сильно ствол поднимается\опускается при вертикальных поворотах камеры
+constexpr float PITCH_OFFSET_D    = 0.02f;  // Насколько сильно ствол приближается\отдаляется при вертикальных поворотах камеры
+constexpr float PITCH_LOW_LIMIT   = -PI;    // Минимальное значение pitch при использовании совместно с PITCH_OFFSET_N
+constexpr float ORIGIN_OFFSET     = -0.05f; // Фактор влияния инерции на положение ствола (чем меньше, тем масштабней инерция)
+constexpr float ORIGIN_OFFSET_AIM = -0.03f; // (Для прицеливания)
+constexpr float TENDTO_SPEED      = 5.f;    // Скорость нормализации положения ствола
+constexpr float TENDTO_SPEED_AIM  = 8.f;    // (Для прицеливания)
+// --#SM+# End--
+// clang-format on
 
 float CalcMotionSpeed(const shared_str& anim_name)
 {
@@ -28,24 +42,25 @@ player_hud_motion* player_hud_motion_container::find_motion(const shared_str& na
     {
         const shared_str& s = (true) ? (*it).m_alias_name : (*it).m_base_name;
         if (s == name)
-            return &(*it);
+            return &*it;
     }
-    return NULL;
+    return nullptr;
 }
 
 void player_hud_motion_container::load(IKinematicsAnimated* model, const shared_str& sect)
 {
     CInifile::Sect& _sect = pSettings->r_section(sect);
-    CInifile::SectCIt _b = _sect.Data.begin();
-    CInifile::SectCIt _e = _sect.Data.end();
-    player_hud_motion* pm = NULL;
+    auto _b = _sect.Data.cbegin();
+    auto _e = _sect.Data.cend();
+    player_hud_motion* pm = nullptr;
 
     string512 buff;
     MotionID motion_ID;
 
     for (; _b != _e; ++_b)
     {
-        if (strstr(_b->first.c_str(), "anm_") == _b->first.c_str())
+        if (strstr(_b->first.c_str(), "anm_") == _b->first.c_str() ||
+            strstr(_b->first.c_str(), "anim_") == _b->first.c_str())
         {
             const shared_str& anm = _b->second;
             m_anims.resize(m_anims.size() + 1);
@@ -202,10 +217,9 @@ void attachable_hud_item::setup_firedeps(firedeps& fd)
 }
 
 bool attachable_hud_item::need_renderable() { return m_parent_hud_item->need_renderable(); }
-void attachable_hud_item::render()
+void attachable_hud_item::render(IRenderable* root)
 {
-    GlobalEnv.Render->set_Transform(&m_item_transform);
-    GlobalEnv.Render->add_Visual(m_model->dcast_RenderVisual());
+    GEnv.Render->add_Visual(root, m_model->dcast_RenderVisual(), m_item_transform);
     debug_draw_firedeps();
     m_parent_hud_item->render_hud_mode();
 }
@@ -279,13 +293,25 @@ void hud_item_measures::load(const shared_str& sect_name, IKinematics* K)
         sect_name.c_str());
 
     m_prop_flags.set(e_16x9_mode_now, is_16x9);
+
+    //Загрузка параметров инерции --#SM+# Begin--
+    m_inertion_params.m_pitch_offset_r = READ_IF_EXISTS(pSettings, r_float, sect_name, "pitch_offset_right", PITCH_OFFSET_R);
+    m_inertion_params.m_pitch_offset_n = READ_IF_EXISTS(pSettings, r_float, sect_name, "pitch_offset_up", PITCH_OFFSET_N);
+    m_inertion_params.m_pitch_offset_d = READ_IF_EXISTS(pSettings, r_float, sect_name, "pitch_offset_forward", PITCH_OFFSET_D);
+    m_inertion_params.m_pitch_low_limit = READ_IF_EXISTS(pSettings, r_float, sect_name, "pitch_offset_up_low_limit", PITCH_LOW_LIMIT);
+
+    m_inertion_params.m_origin_offset = READ_IF_EXISTS(pSettings, r_float, sect_name, "inertion_origin_offset", ORIGIN_OFFSET);
+    m_inertion_params.m_origin_offset_aim = READ_IF_EXISTS(pSettings, r_float, sect_name, "inertion_origin_aim_offset", ORIGIN_OFFSET_AIM);
+    m_inertion_params.m_tendto_speed = READ_IF_EXISTS(pSettings, r_float, sect_name, "inertion_tendto_speed", TENDTO_SPEED);
+    m_inertion_params.m_tendto_speed_aim = READ_IF_EXISTS(pSettings, r_float, sect_name, "inertion_tendto_aim_speed", TENDTO_SPEED_AIM);
+    //--#SM+# End--
 }
 
 attachable_hud_item::~attachable_hud_item()
 {
     IRenderVisual* v = m_model->dcast_RenderVisual();
-    GlobalEnv.Render->model_Delete(v);
-    m_model = NULL;
+    GEnv.Render->model_Delete(v);
+    m_model = nullptr;
 }
 
 void attachable_hud_item::load(const shared_str& sect_name)
@@ -294,7 +320,7 @@ void attachable_hud_item::load(const shared_str& sect_name)
 
     // Visual
     const shared_str& visual_name = pSettings->r_string(sect_name, "item_visual");
-    m_model = smart_cast<IKinematics*>(GlobalEnv.Render->model_Create(visual_name.c_str()));
+    m_model = smart_cast<IKinematics*>(GEnv.Render->model_Create(visual_name.c_str()));
 
     m_attach_place_idx = pSettings->r_u16(sect_name, "attach_place_idx");
     m_measures.load(sect_name, m_model);
@@ -364,22 +390,22 @@ u32 attachable_hud_item::anim_play(const shared_str& anm_name_b, BOOL bMixIn, co
     {
         CActor* current_actor = static_cast_checked<CActor*>(Level().CurrentControlEntity());
         VERIFY(current_actor);
-        CEffectorCam* ec = current_actor->Cameras().GetCamEffector(eCEWeaponAction);
 
-        if (NULL == ec)
+        string_path ce_path;
+        string_path anm_name;
+        strconcat(sizeof(anm_name), anm_name, "camera_effects" DELIMITER "weapon" DELIMITER, M.name.c_str(), ".anm");
+        if (FS.exist(ce_path, "$game_anims$", anm_name))
         {
-            string_path ce_path;
-            string_path anm_name;
-            strconcat(sizeof(anm_name), anm_name, "camera_effects\\weapon\\", M.name.c_str(), ".anm");
-            if (FS.exist(ce_path, "$game_anims$", anm_name))
-            {
-                CAnimatorCamEffector* e = new CAnimatorCamEffector();
-                e->SetType(eCEWeaponAction);
-                e->SetHudAffect(false);
-                e->SetCyclic(false);
-                e->Start(anm_name);
-                current_actor->Cameras().AddCamEffector(e);
-            }
+            CEffectorCam* ec = current_actor->Cameras().GetCamEffector(eCEWeaponAction);
+            if (ec)
+                current_actor->Cameras().RemoveCamEffector(eCEWeaponAction);
+            
+            CAnimatorCamEffector* e = new CAnimatorCamEffector();
+            e->SetType(eCEWeaponAction);
+            e->SetHudAffect(false);
+            e->SetCyclic(false);
+            e->Start(anm_name);
+            current_actor->Cameras().AddCamEffector(e);
         }
     }
     return ret;
@@ -387,17 +413,17 @@ u32 attachable_hud_item::anim_play(const shared_str& anm_name_b, BOOL bMixIn, co
 
 player_hud::player_hud()
 {
-    m_model = NULL;
-    m_attached_items[0] = NULL;
-    m_attached_items[1] = NULL;
+    m_model = nullptr;
+    m_attached_items[0] = nullptr;
+    m_attached_items[1] = nullptr;
     m_transform.identity();
 }
 
 player_hud::~player_hud()
 {
     IRenderVisual* v = m_model->dcast_RenderVisual();
-    GlobalEnv.Render->model_Delete(v);
-    m_model = NULL;
+    GEnv.Render->model_Delete(v);
+    m_model = nullptr;
 
     xr_vector<attachable_hud_item*>::iterator it = m_pool.begin();
     xr_vector<attachable_hud_item*>::iterator it_e = m_pool.end();
@@ -413,20 +439,25 @@ void player_hud::load(const shared_str& player_hud_sect)
 {
     if (player_hud_sect == m_sect_name)
         return;
-    bool b_reload = (m_model != NULL);
+    bool b_reload = (m_model != nullptr);
     if (m_model)
     {
         IRenderVisual* v = m_model->dcast_RenderVisual();
-        GlobalEnv.Render->model_Delete(v);
+        GEnv.Render->model_Delete(v);
+    }
+
+    if (ShadowOfChernobylMode && !pSettings->line_exist(player_hud_sect, "visual"))
+    {
+        return;
     }
 
     m_sect_name = player_hud_sect;
     const shared_str& model_name = pSettings->r_string(player_hud_sect, "visual");
-    m_model = smart_cast<IKinematicsAnimated*>(GlobalEnv.Render->model_Create(model_name.c_str()));
+    m_model = smart_cast<IKinematicsAnimated*>(GEnv.Render->model_Create(model_name.c_str()));
 
     CInifile::Sect& _sect = pSettings->r_section(player_hud_sect);
-    CInifile::SectCIt _b = _sect.Data.begin();
-    CInifile::SectCIt _e = _sect.Data.end();
+    auto _b = _sect.Data.cbegin();
+    auto _e = _sect.Data.cend();
     for (; _b != _e; ++_b)
     {
         if (strstr(_b->first.c_str(), "ancor_") == _b->first.c_str())
@@ -475,7 +506,7 @@ void player_hud::render_item_ui()
         m_attached_items[1]->render_item_ui();
 }
 
-void player_hud::render_hud()
+void player_hud::render_hud(IRenderable* root)
 {
     if (!m_attached_items[0] && !m_attached_items[1])
         return;
@@ -486,14 +517,13 @@ void player_hud::render_hud()
     if (!b_r0 && !b_r1)
         return;
 
-    GlobalEnv.Render->set_Transform(&m_transform);
-    GlobalEnv.Render->add_Visual(m_model->dcast_RenderVisual());
+    GEnv.Render->add_Visual(root, m_model->dcast_RenderVisual(), m_transform);
 
     if (m_attached_items[0])
-        m_attached_items[0]->render();
+        m_attached_items[0]->render(root);
 
     if (m_attached_items[1])
-        m_attached_items[1]->render();
+        m_attached_items[1]->render(root);
 }
 
 #include "xrCore/Animation/Motion.hpp"
@@ -507,38 +537,22 @@ u32 player_hud::motion_length(const shared_str& anim_name, const shared_str& hud
         return 100; // ms TEMPORARY
     R_ASSERT2(pm,
         make_string("hudItem model [%s] has no motion with alias [%s]", hud_name.c_str(), anim_name.c_str()).c_str());
-    return motion_length(pm->m_animations[0].mid, md, speed);
+    return motion_length(pm->m_animations[0].mid, md, speed, smart_cast<IKinematicsAnimated*>(pi->m_model));
 }
 
-u32 player_hud::motion_length(const MotionID& M, const CMotionDef*& md, float speed)
+u32 player_hud::motion_length(const MotionID& M, const CMotionDef*& md, float speed, IKinematicsAnimated* itemModel)
 {
-    md = m_model->LL_GetMotionDef(M);
+    IKinematicsAnimated* model = m_model;
+    if (!model && itemModel)
+        model = itemModel;
+    md = model->LL_GetMotionDef(M);
     VERIFY(md);
     if (md->flags & esmStopAtEnd)
     {
-        CMotion* motion = m_model->LL_GetRootMotion(M);
+        CMotion* motion = model->LL_GetRootMotion(M);
         return iFloor(0.5f + 1000.f * motion->GetLength() / (md->Dequantize(md->speed) * speed));
     }
     return 0;
-}
-const Fvector& player_hud::attach_rot() const
-{
-    if (m_attached_items[0])
-        return m_attached_items[0]->hands_attach_rot();
-    else if (m_attached_items[1])
-        return m_attached_items[1]->hands_attach_rot();
-    else
-        return Fvector().set(0, 0, 0);
-}
-
-const Fvector& player_hud::attach_pos() const
-{
-    if (m_attached_items[0])
-        return m_attached_items[0]->hands_attach_pos();
-    else if (m_attached_items[1])
-        return m_attached_items[1]->hands_attach_pos();
-    else
-        return Fvector().set(0, 0, 0);
 }
 
 void player_hud::update(const Fmatrix& cam_trans)
@@ -547,16 +561,35 @@ void player_hud::update(const Fmatrix& cam_trans)
     update_inertion(trans);
     update_additional(trans);
 
-    Fvector ypr = attach_rot();
+    Fvector ypr;
+    if (m_attached_items[0])
+        ypr = m_attached_items[0]->hands_attach_rot();
+    else if (m_attached_items[1])
+        ypr = m_attached_items[1]->hands_attach_rot();
+    else
+        ypr = Fvector().set(0, 0, 0);
+
     ypr.mul(PI / 180.f);
     m_attach_offset.setHPB(ypr.x, ypr.y, ypr.z);
-    m_attach_offset.translate_over(attach_pos());
+    
+    Fvector tmp;
+    if (m_attached_items[0])
+        tmp = m_attached_items[0]->hands_attach_pos();
+    else if (m_attached_items[1])
+        tmp = m_attached_items[1]->hands_attach_pos();
+    else
+        tmp = Fvector().set(0, 0, 0);
+
+    m_attach_offset.translate_over(tmp);
     m_transform.mul(trans, m_attach_offset);
     // insert inertion here
 
-    m_model->UpdateTracks();
-    m_model->dcast_PKinematics()->CalculateBones_Invalidate();
-    m_model->dcast_PKinematics()->CalculateBones(TRUE);
+    if (m_model)
+    {
+        m_model->UpdateTracks();
+        m_model->dcast_PKinematics()->CalculateBones_Invalidate();
+        m_model->dcast_PKinematics()->CalculateBones(TRUE);
+    }
 
     if (m_attached_items[0])
         m_attached_items[0]->update(true);
@@ -583,7 +616,7 @@ u32 player_hud::anim_play(u16 part, const MotionID& M, BOOL bMixIn, const CMotio
     }
     m_model->dcast_PKinematics()->CalculateBones_Invalidate();
 
-    return motion_length(M, md, speed);
+    return motion_length(M, md, speed, nullptr);
 }
 
 void player_hud::update_additional(Fmatrix& trans)
@@ -595,21 +628,42 @@ void player_hud::update_additional(Fmatrix& trans)
         m_attached_items[1]->update_hud_additional(trans);
 }
 
-static const float PITCH_OFFSET_R = 0.017f;
-static const float PITCH_OFFSET_N = 0.012f;
-static const float PITCH_OFFSET_D = 0.02f;
-static const float ORIGIN_OFFSET = -0.05f;
-static const float TENDTO_SPEED = 5.f;
-
 void player_hud::update_inertion(Fmatrix& trans)
 {
     if (inertion_allowed())
     {
+        attachable_hud_item* pMainHud = m_attached_items[0];
+
         Fmatrix xform;
         Fvector& origin = trans.c;
         xform = trans;
 
         static Fvector st_last_dir = {0, 0, 0};
+
+        // load params
+        hud_item_measures::inertion_params inertion_data;
+        if (pMainHud != NULL)
+        { // Загружаем параметры инерции из основного худа
+            inertion_data.m_pitch_offset_r = pMainHud->m_measures.m_inertion_params.m_pitch_offset_r;
+            inertion_data.m_pitch_offset_n = pMainHud->m_measures.m_inertion_params.m_pitch_offset_n;
+            inertion_data.m_pitch_offset_d = pMainHud->m_measures.m_inertion_params.m_pitch_offset_d;
+            inertion_data.m_pitch_low_limit = pMainHud->m_measures.m_inertion_params.m_pitch_low_limit;
+            inertion_data.m_origin_offset = pMainHud->m_measures.m_inertion_params.m_origin_offset;
+            inertion_data.m_origin_offset_aim = pMainHud->m_measures.m_inertion_params.m_origin_offset_aim;
+            inertion_data.m_tendto_speed = pMainHud->m_measures.m_inertion_params.m_tendto_speed;
+            inertion_data.m_tendto_speed_aim = pMainHud->m_measures.m_inertion_params.m_tendto_speed_aim;
+        }
+        else
+        { // Загружаем дефолтные параметры инерции
+            inertion_data.m_pitch_offset_r = PITCH_OFFSET_R;
+            inertion_data.m_pitch_offset_n = PITCH_OFFSET_N;
+            inertion_data.m_pitch_offset_d = PITCH_OFFSET_D;
+            inertion_data.m_pitch_low_limit = PITCH_LOW_LIMIT;
+            inertion_data.m_origin_offset = ORIGIN_OFFSET;
+            inertion_data.m_origin_offset_aim = ORIGIN_OFFSET_AIM;
+            inertion_data.m_tendto_speed = TENDTO_SPEED;
+            inertion_data.m_tendto_speed_aim = TENDTO_SPEED_AIM;
+        }
 
         // calc difference
         Fvector diff_dir;
@@ -628,14 +682,46 @@ void player_hud::update_inertion(Fmatrix& trans)
         }
 
         // tend to forward
-        st_last_dir.mad(diff_dir, TENDTO_SPEED * Device.fTimeDelta);
-        origin.mad(diff_dir, ORIGIN_OFFSET);
+        float _tendto_speed, _origin_offset;
+        if (pMainHud != NULL && pMainHud->m_parent_hud_item->GetCurrentHudOffsetIdx() > 0)
+        { // Худ в режиме "Прицеливание"
+            float factor = pMainHud->m_parent_hud_item->GetInertionFactor();
+            _tendto_speed = inertion_data.m_tendto_speed_aim - (inertion_data.m_tendto_speed_aim - inertion_data.m_tendto_speed) * factor;
+            _origin_offset =
+                inertion_data.m_origin_offset_aim - (inertion_data.m_origin_offset_aim - inertion_data.m_origin_offset) * factor;
+        }
+        else
+        { // Худ в режиме "От бедра"
+            _tendto_speed = inertion_data.m_tendto_speed;
+            _origin_offset = inertion_data.m_origin_offset;
+        }
+
+        // Фактор силы инерции
+        if (pMainHud != NULL)
+        {
+            float power_factor = pMainHud->m_parent_hud_item->GetInertionPowerFactor();
+            _tendto_speed *= power_factor;
+            _origin_offset *= power_factor;
+        }
+
+        st_last_dir.mad(diff_dir, _tendto_speed * Device.fTimeDelta);
+        origin.mad(diff_dir, _origin_offset);
 
         // pitch compensation
         float pitch = angle_normalize_signed(xform.k.getP());
-        origin.mad(xform.k, -pitch * PITCH_OFFSET_D);
-        origin.mad(xform.i, -pitch * PITCH_OFFSET_R);
-        origin.mad(xform.j, -pitch * PITCH_OFFSET_N);
+
+        if (pMainHud != NULL)
+            pitch *= pMainHud->m_parent_hud_item->GetInertionFactor();
+
+        // Отдаление\приближение
+        origin.mad(xform.k, -pitch * inertion_data.m_pitch_offset_d);
+
+        // Сдвиг в противоположную часть экрана
+        origin.mad(xform.i, -pitch * inertion_data.m_pitch_offset_r);
+
+        // Подьём\опускание
+        clamp(pitch, inertion_data.m_pitch_low_limit, PI);
+        origin.mad(xform.j, -pitch * inertion_data.m_pitch_offset_n);
     }
 }
 
@@ -651,7 +737,8 @@ attachable_hud_item* player_hud::create_hud_item(const shared_str& sect)
     }
     attachable_hud_item* res = new attachable_hud_item(this);
     res->load(sect);
-    res->m_hand_motions.load(m_model, sect);
+    IKinematicsAnimated* animatedHudItem = smart_cast<IKinematicsAnimated*>(res->m_model);
+    res->m_hand_motions.load(m_model ? m_model : animatedHudItem, sect);
     m_pool.push_back(res);
 
     return res;
@@ -688,13 +775,13 @@ void player_hud::attach_item(CHudItem* item)
 
 void player_hud::detach_item_idx(u16 idx)
 {
-    if (NULL == attached_item(idx))
+    if (nullptr == attached_item(idx))
         return;
 
     m_attached_items[idx]->m_parent_hud_item->on_b_hud_detach();
 
-    m_attached_items[idx]->m_parent_hud_item = NULL;
-    m_attached_items[idx] = NULL;
+    m_attached_items[idx]->m_parent_hud_item = nullptr;
+    m_attached_items[idx] = nullptr;
 
     if (idx == 1 && attached_item(0))
     {
@@ -732,7 +819,7 @@ void player_hud::detach_item_idx(u16 idx)
 
 void player_hud::detach_item(CHudItem* item)
 {
-    if (NULL == item->HudItemData())
+    if (nullptr == item->HudItemData())
         return;
     u16 item_idx = item->HudItemData()->m_attach_place_idx;
 

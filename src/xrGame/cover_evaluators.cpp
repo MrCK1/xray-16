@@ -6,7 +6,7 @@
 //	Description : Cover evaluators
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "cover_evaluators.h"
 #include "cover_point.h"
 #include "ai_space.h"
@@ -22,6 +22,7 @@
 float g_smart_cover_factor = 1.f;
 
 CCoverEvaluatorBase::CCoverEvaluatorBase(CRestrictedObject* object)
+    : m_best_loophole_value(0), m_loophole(nullptr), m_can_use_smart_covers(false)
 {
     m_inertia_time = 0;
     m_last_update = 0;
@@ -42,8 +43,8 @@ bool CCoverEvaluatorBase::inertia(Fvector const& position, float radius)
 {
     //	m_actuality				= m_actuality && fsimilar(m_last_radius,radius);
     //	m_actuality				= m_actuality && ((m_last_radius + EPS_L) >= radius);
-    bool radius_criteria = ((m_last_radius + EPS_L) >= radius);
-    bool time_criteria = (Device.dwTimeGlobal < m_last_update + m_inertia_time);
+    const bool radius_criteria = ((m_last_radius + EPS_L) >= radius);
+    const bool time_criteria = (Device.dwTimeGlobal < m_last_update + m_inertia_time);
 
     m_last_radius = radius;
 
@@ -57,8 +58,9 @@ bool CCoverEvaluatorBase::inertia(Fvector const& position, float radius)
     if (!cover)
         return false;
 
-    if (!m_stalker->get_current_loophole() ||
-        !cover->is_position_in_danger_fov(*m_stalker->get_current_loophole(), position))
+    smart_cover::loophole const* loophole = m_stalker->get_current_loophole();
+    
+    if (!loophole || !cover->is_position_in_danger_fov(*loophole, position))
         return false;
 
     if (!m_stalker->can_fire_right_now())
@@ -206,7 +208,7 @@ void CCoverEvaluatorBest::evaluate_cover(const CCoverPoint* cover_point, float w
 
     float high_cover_value = ai().level_graph().high_cover_in_direction(y, cover_point->level_vertex_id());
     float low_cover_value = ai().level_graph().low_cover_in_direction(y, cover_point->level_vertex_id());
-    float cover_value = _min(high_cover_value, low_cover_value);
+    float cover_value = std::min(high_cover_value, low_cover_value);
     float value = cover_value;
     if (ai().level_graph().neighbour_in_direction(direction, cover_point->level_vertex_id()))
         value += 10.f;
@@ -309,7 +311,7 @@ void CCoverEvaluatorSafe::evaluate_cover(const CCoverPoint* cover_point, float w
 
     float high_cover_value = ai().level_graph().vertex_high_cover(cover_point->level_vertex_id());
     float low_cover_value = ai().level_graph().vertex_low_cover(cover_point->level_vertex_id());
-    float cover_value = _min(high_cover_value, low_cover_value);
+    float cover_value = std::min(high_cover_value, low_cover_value);
     if (cover_value >= m_best_value)
         return;
 
@@ -352,14 +354,14 @@ void CCoverEvaluatorAmbush::evaluate_cover(const CCoverPoint* cover_point, float
     y = angle_normalize(y);
     float high_cover_from_enemy = ai().level_graph().high_cover_in_direction(y, cover_point->level_vertex_id());
     float low_cover_from_enemy = ai().level_graph().low_cover_in_direction(y, cover_point->level_vertex_id());
-    float cover_from_enemy = _min(high_cover_from_enemy, low_cover_from_enemy);
+    float cover_from_enemy = std::min(high_cover_from_enemy, low_cover_from_enemy);
 
     direction.sub(m_my_position, cover_point->position());
     direction.getHP(y, p);
     y = angle_normalize(y);
     float high_cover_from_myself = ai().level_graph().high_cover_in_direction(y, cover_point->level_vertex_id());
     float low_cover_from_myself = ai().level_graph().low_cover_in_direction(y, cover_point->level_vertex_id());
-    float cover_from_myself = _min(high_cover_from_myself, low_cover_from_myself);
+    float cover_from_myself = std::min(high_cover_from_myself, low_cover_from_myself);
 
     float value = cover_from_enemy / cover_from_myself;
     if (value >= m_best_value)

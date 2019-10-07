@@ -1,14 +1,16 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "xrServer.h"
 #include "game_sv_single.h"
 #include "alife_simulator.h"
-#include "xrserver_objects.h"
+#include "xrServer_Objects.h"
 #include "game_base.h"
 #include "game_cl_base.h"
 #include "ai_space.h"
 #include "alife_object_registry.h"
 #include "xrServer_Objects_ALife_Items.h"
 #include "xrServer_Objects_ALife_Monsters.h"
+#include "xrNetServer/NET_Messages.h"
+#include "xrServerEntities/xrMessages.h"
 
 void xrServer::Process_event(NET_Packet& P, ClientID sender)
 {

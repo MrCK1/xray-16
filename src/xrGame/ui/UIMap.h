@@ -1,6 +1,6 @@
 #pragma once
-#include "UIStatic.h"
-#include "UIWndCallback.h"
+#include "xrUICore/Static/UIStatic.h"
+#include "xrUICore/Callbacks/UIWndCallback.h"
 
 class CUIGlobalMapSpot;
 class CUIMapWnd;
@@ -106,8 +106,8 @@ class CUILevelMap : public CUICustomMap
 
     CUIMapWnd* m_mapWnd;
     Frect m_GlobalRect; // virtual map size (meters)
-    CUILevelMap(const CUILevelMap& obj) {}
-    CUILevelMap& operator=(const CUILevelMap& obj) {}
+    CUILevelMap(const CUILevelMap& obj) = delete;
+    CUILevelMap& operator=(const CUILevelMap& obj) = delete;
 public:
     CUILevelMap(CUIMapWnd*);
     virtual ~CUILevelMap();

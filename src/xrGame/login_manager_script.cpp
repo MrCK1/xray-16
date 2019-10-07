@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "login_manager.h"
 #include "xrScriptEngine/ScriptExporter.hpp"
 
@@ -33,10 +33,11 @@ SCRIPT_EXPORT(profile, (), {
 });
 
 SCRIPT_EXPORT(login_operation_cb, (), {
-    module(luaState)[class_<gamespy_gp::login_operation_cb>("login_operation_cb")
+    using namespace gamespy_gp;
+    module(luaState)[class_<login_operation_cb>("login_operation_cb")
                          .def(constructor<>())
-                         .def(constructor<gamespy_gp::login_operation_cb::lua_object_type,
-                             gamespy_gp::login_operation_cb::lua_function_type>())
-                         .def("bind", &gamespy_gp::login_operation_cb::bind)
-                         .def("clear", &gamespy_gp::login_operation_cb::clear)];
+                         .def(constructor<login_operation_cb::lua_object_type,
+                             login_operation_cb::lua_function_type>())
+                         .def("bind", (login_operation_cb::lua_bind_type)(&login_operation_cb::bind))
+                         .def("clear", &login_operation_cb::clear)];
 });

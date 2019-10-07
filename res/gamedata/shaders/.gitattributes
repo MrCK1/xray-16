@@ -1,0 +1,18 @@
+# X-Ray blending template
+*.s linguist-language=Lua diff=Lua
+
+# DirectX renderer shader extension names
+r*/*.ps linguist-language=HLSL diff=HLSL
+r*/*.vs linguist-language=HLSL diff=HLSL
+r*/*.gs linguist-language=HLSL diff=HLSL
+r*/*.cs linguist-language=HLSL diff=HLSL
+r*/*.hs linguist-language=HLSL diff=HLSL
+r*/*.ds linguist-language=HLSL diff=HLSL
+
+# OpenGL renderer uses the same extensions
+gl/*.ps linguist-language=GLSL diff=GLSL
+gl/*.vs linguist-language=GLSL diff=GLSL
+gl/*.gs linguist-language=GLSL diff=GLSL
+gl/*.cs linguist-language=GLSL diff=GLSL
+gl/*.hs linguist-language=GLSL diff=GLSL
+gl/*.ds linguist-language=GLSL diff=GLSL

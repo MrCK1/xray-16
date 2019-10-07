@@ -31,7 +31,7 @@ void CRenderTarget::accum_direct(u32 sub_phase)
 
     //	TODO: DX10: Remove half pixe offset
     // *** assume accumulator setted up ***
-    light* fuckingsun = (light*)RImplementation.Lights.sun_adapted._get();
+    light* fuckingsun = (light*)RImplementation.Lights.sun._get();
 
     // Common calc for quad-rendering
     u32 Offset;
@@ -75,7 +75,7 @@ void CRenderTarget::accum_direct(u32 sub_phase)
         Fvector dir = L_dir;
         dir.normalize().mul(-_sqrt(intensity + EPS));
         RCache.set_Element(s_accum_mask->E[SE_MASK_DIRECT]); // masker
-        RCache.set_c("Ldynamic_dir", dir.x, dir.y, dir.z, 0);
+        RCache.set_c("Ldynamic_dir", dir.x, dir.y, dir.z, 0.f);
 
         // if (stencil>=1 && aref_pass)	stencil = light_id
         //	Done in blender!
@@ -238,7 +238,7 @@ void CRenderTarget::accum_direct(u32 sub_phase)
 
         // setup
         RCache.set_Element(s_accum_direct->E[uiElementIndex]);
-        RCache.set_c("Ldynamic_dir", L_dir.x, L_dir.y, L_dir.z, 0);
+        RCache.set_c("Ldynamic_dir", L_dir.x, L_dir.y, L_dir.z, 0.f);
         RCache.set_c("Ldynamic_color", L_clr.x, L_clr.y, L_clr.z, L_spec);
         RCache.set_c("m_shadow", m_shadow);
         RCache.set_c("m_sunmask", m_clouds_shadow);
@@ -348,7 +348,7 @@ void CRenderTarget::accum_direct_cascade(u32 sub_phase, Fmatrix& xform, Fmatrix&
 
     //	TODO: DX10: Remove half pixe offset
     // *** assume accumulator setted up ***
-    light* fuckingsun = (light*)RImplementation.Lights.sun_adapted._get();
+    light* fuckingsun = (light*)RImplementation.Lights.sun._get();
 
     // Common calc for quad-rendering
     u32 Offset;
@@ -392,7 +392,7 @@ void CRenderTarget::accum_direct_cascade(u32 sub_phase, Fmatrix& xform, Fmatrix&
         Fvector dir = L_dir;
         dir.normalize().mul(-_sqrt(intensity + EPS));
         RCache.set_Element(s_accum_mask->E[SE_MASK_DIRECT]); // masker
-        RCache.set_c("Ldynamic_dir", dir.x, dir.y, dir.z, 0);
+        RCache.set_c("Ldynamic_dir", dir.x, dir.y, dir.z, 0.f);
 
         // if (stencil>=1 && aref_pass)	stencil = light_id
         //	Done in blender!
@@ -574,7 +574,7 @@ void CRenderTarget::accum_direct_cascade(u32 sub_phase, Fmatrix& xform, Fmatrix&
         // setup
         RCache.set_Element(s_accum_direct->E[uiElementIndex]);
         RCache.set_c("m_texgen", m_Texgen);
-        RCache.set_c("Ldynamic_dir", L_dir.x, L_dir.y, L_dir.z, 0);
+        RCache.set_c("Ldynamic_dir", L_dir.x, L_dir.y, L_dir.z, 0.f);
         RCache.set_c("Ldynamic_color", L_clr.x, L_clr.y, L_clr.z, L_spec);
         RCache.set_c("m_shadow", m_shadow);
         RCache.set_c("m_sunmask", m_clouds_shadow);
@@ -588,7 +588,7 @@ void CRenderTarget::accum_direct_cascade(u32 sub_phase, Fmatrix& xform, Fmatrix&
 
             m_shadow.transform_dir(view_viewspace);
             Fvector4 view_projlightspace;
-            view_projlightspace.set(view_viewspace.x, view_viewspace.y, 0, 0);
+            view_projlightspace.set(view_viewspace.x, view_viewspace.y, 0.f, 0.f);
             view_projlightspace.normalize();
 
             RCache.set_c("view_shadow_proj", view_projlightspace);
@@ -817,7 +817,7 @@ void CRenderTarget::accum_direct_f(u32 sub_phase)
         u_setrt(rt_Generic_0_r, NULL, NULL, RImplementation.Target->rt_MSAADepth->pZRT);
 
     // *** assume accumulator setted up ***
-    light* fuckingsun = (light*)RImplementation.Lights.sun_adapted._get();
+    light* fuckingsun = (light*)RImplementation.Lights.sun._get();
 
     // Common calc for quad-rendering
     u32 Offset;
@@ -864,7 +864,7 @@ void CRenderTarget::accum_direct_f(u32 sub_phase)
         Fvector dir = L_dir;
         dir.normalize().mul(-_sqrt(intensity + EPS));
         RCache.set_Element(s_accum_mask->E[SE_MASK_DIRECT]); // masker
-        RCache.set_c("Ldynamic_dir", dir.x, dir.y, dir.z, 0);
+        RCache.set_c("Ldynamic_dir", dir.x, dir.y, dir.z, 0.f);
 
         // if (stencil>=1 && aref_pass)	stencil = light_id
         //	Done in blender!
@@ -991,7 +991,7 @@ void CRenderTarget::accum_direct_f(u32 sub_phase)
 
         // setup
         RCache.set_Element(s_accum_direct->E[sub_phase]);
-        RCache.set_c("Ldynamic_dir", L_dir.x, L_dir.y, L_dir.z, 0);
+        RCache.set_c("Ldynamic_dir", L_dir.x, L_dir.y, L_dir.z, 0.f);
         RCache.set_c("Ldynamic_color", L_clr.x, L_clr.y, L_clr.z, L_spec);
         RCache.set_c("m_shadow", m_shadow);
 
@@ -1043,7 +1043,7 @@ void CRenderTarget::accum_direct_lum()
     phase_accumulator();
 
     // *** assume accumulator setted up ***
-    light* fuckingsun = (light*)RImplementation.Lights.sun_adapted._get();
+    light* fuckingsun = (light*)RImplementation.Lights.sun._get();
 
     // Common calc for quad-rendering
     u32 Offset;
@@ -1145,7 +1145,7 @@ void CRenderTarget::accum_direct_lum()
 
     // setup
     RCache.set_Element(s_accum_direct->E[SE_SUN_LUMINANCE]);
-    RCache.set_c("Ldynamic_dir", L_dir.x, L_dir.y, L_dir.z, 0);
+    RCache.set_c("Ldynamic_dir", L_dir.x, L_dir.y, L_dir.z, 0.f);
     RCache.set_c("Ldynamic_color", L_clr.x, L_clr.y, L_clr.z, L_spec);
 
     if (!RImplementation.o.dx10_msaa)
@@ -1230,7 +1230,7 @@ void CRenderTarget::accum_direct_volumetric(u32 sub_phase, const u32 Offset, con
 
         STextureList::iterator _it = _T->begin();
         STextureList::iterator _end = _T->end();
-        for (; _it != _end; _it++)
+        for (; _it != _end; ++_it)
         {
             std::pair<u32, ref_texture>& loader = *_it;
             u32 load_id = loader.first;
@@ -1246,7 +1246,7 @@ void CRenderTarget::accum_direct_volumetric(u32 sub_phase, const u32 Offset, con
     // Perform lighting
     {
         // *** assume accumulator setted up ***
-        light* fuckingsun = (light*)RImplementation.Lights.sun_adapted._get();
+        light* fuckingsun = (light*)RImplementation.Lights.sun._get();
 
         // Common constants (light-related)
         Fvector L_clr;
@@ -1259,8 +1259,8 @@ void CRenderTarget::accum_direct_volumetric(u32 sub_phase, const u32 Offset, con
         // RCache.set_Element			(s_accum_direct_volumetric->E[sub_phase]);
         RCache.set_Element(Element);
         RCache.set_CullMode(CULL_CCW);
-        //		RCache.set_c				("Ldynamic_dir",		L_dir.x,L_dir.y,L_dir.z,0 );
-        RCache.set_c("Ldynamic_color", L_clr.x, L_clr.y, L_clr.z, 0);
+        //		RCache.set_c				("Ldynamic_dir",		L_dir.x,L_dir.y,L_dir.z,0.f );
+        RCache.set_c("Ldynamic_color", L_clr.x, L_clr.y, L_clr.z, 0.f);
         RCache.set_c("m_shadow", mShadow);
         Fmatrix m_Texgen;
         m_Texgen.identity();
@@ -1286,7 +1286,7 @@ void CRenderTarget::accum_direct_volumetric(u32 sub_phase, const u32 Offset, con
             zMax = OLES_SUN_LIMIT_27_01_07;
         }
 
-        RCache.set_c("volume_range", zMin, zMax, 0, 0);
+        RCache.set_c("volume_range", zMin, zMax, 0.f, 0.f);
 
         Fvector center_pt;
         center_pt.mad(Device.vCameraPosition, Device.vCameraDirection, zMin);

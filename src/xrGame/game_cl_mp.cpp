@@ -1,11 +1,10 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "game_cl_mp.h"
 #include "xr_level_controller.h"
 #include "xrMessages.h"
 #include "Actor.h"
 #include "ExplosiveItem.h"
 #include "Level.h"
-#include <dinput.h>
 #include "CustomZone.h"
 #include "game_base_kill_type.h"
 #include "game_base_menu_events.h"
@@ -15,8 +14,8 @@
 #include "ui/UIChatWnd.h"
 #include "ui/UIGameLog.h"
 #include "ui/UIMainIngameWnd.h"
-#include "ui/UIStatic.h"
-#include "ui/UITextureMaster.h"
+#include "xrUICore/Static/UIStatic.h"
+#include "xrUICore/XML/UITextureMaster.h"
 #include "ui/UIVotingCategory.h"
 #include "ui/UIMPAdminMenu.h"
 #include "ui/UIVote.h"
@@ -27,12 +26,12 @@
 
 #include "string_table.h"
 #include "clsid_game.h"
-#include "mainmenu.h"
+#include "MainMenu.h"
 #include "WeaponKnife.h"
 #include "RegistryFuncs.h"
 #include "xrGameSpy/xrGameSpy_MainDefs.h"
 #include "screenshot_server.h"
-#include "xrCore/ppmd_compressor.h"
+#include "xrCore/Compression/ppmd_compressor.h"
 #include "xrCore/Compression/rt_compressor.h"
 #include "game_cl_mp_snd_messages.h"
 
@@ -44,10 +43,10 @@
 
 #include "xrServer_info.h" //for enum_server_info_type
 
-#define KILLEVENT_ICONS "ui\\ui_hud_mp_icon_death"
-#define RADIATION_ICONS "ui\\ui_mn_radiations_hard"
-#define BLOODLOSS_ICONS "ui\\ui_mn_wounds_hard"
-#define RANK_ICONS "ui\\ui_mp_icon_rank"
+#define KILLEVENT_ICONS "ui" DELIMITER "ui_hud_mp_icon_death"
+#define RADIATION_ICONS "ui" DELIMITER "ui_mn_radiations_hard"
+#define BLOODLOSS_ICONS "ui" DELIMITER "ui_mn_wounds_hard"
+#define RANK_ICONS "ui" DELIMITER "ui_mp_icon_rank"
 
 #define KILLEVENT_GRID_WIDTH 64
 #define KILLEVENT_GRID_HEIGHT 64
@@ -85,13 +84,13 @@ game_cl_mp::game_cl_mp()
     //-----------------------------------------------------------
     //-----------------------------------------------------------
     /*	pBuySpawnMsgBox		= new CUIMessageBoxEx();
-	//.	pBuySpawnMsgBox->SetWorkPhase(GAME_PHASE_INPROGRESS);
-	pBuySpawnMsgBox->Init("message_box_buy_spawn");
-	pBuySpawnMsgBox->AddCallback("msg_box", MESSAGE_BOX_YES_CLICKED, CUIWndCallback::void_function(this, &game_cl_mp::OnBuySpawn));
-	string1024	BuySpawnText;
-	xr_sprintf(BuySpawnText, "You can buy a spawn for %d $. Press Yes to pay.", 
-		abs(m_iSpawn_Cost));
-	pBuySpawnMsgBox->SetText(BuySpawnText);
+    //.	pBuySpawnMsgBox->SetWorkPhase(GAME_PHASE_INPROGRESS);
+    pBuySpawnMsgBox->Init("message_box_buy_spawn");
+    pBuySpawnMsgBox->AddCallback("msg_box", MESSAGE_BOX_YES_CLICKED, CUIWndCallback::void_function(this, &game_cl_mp::OnBuySpawn));
+    string1024	BuySpawnText;
+    xr_sprintf(BuySpawnText, "You can buy a spawn for %d $. Press Yes to pay.",
+        abs(m_iSpawn_Cost));
+    pBuySpawnMsgBox->SetText(BuySpawnText);
 */ //-----------------------------------------------------------
     m_reward_generator = NULL;
     m_ready_to_open_buy_menu = true;
@@ -165,7 +164,6 @@ bool game_cl_mp::OnKeyboardPress(int key)
     if (inherited::OnKeyboardPress(key))
         return true;
 
-    CStringTable st;
     if (kJUMP == key || kWPN_FIRE == key)
     {
         bool b_need_to_send_ready = false;
@@ -226,7 +224,7 @@ bool game_cl_mp::OnKeyboardPress(int key)
             R_ASSERT(!pChatWnd->IsShown());
             string512 prefix;
             xr_sprintf(
-                prefix, "%s> ", st.translate((kCHAT_TEAM == key) ? "st_mp_say_to_team" : "st_mp_say_to_all").c_str());
+                prefix, "%s> ", StringTable().translate((kCHAT_TEAM == key) ? "st_mp_say_to_team" : "st_mp_say_to_all").c_str());
             pChatWnd->ChatToAll(kCHAT == key);
             pChatWnd->SetEditBoxPrefix(prefix);
             pChatWnd->ShowDialog(false);
@@ -250,7 +248,7 @@ bool game_cl_mp::OnKeyboardPress(int key)
                 VotingBegin();
             else
                 OnCantVoteMsg(
-                    st.translate((IsVotingEnabled()) ? "st_mp_only_one_voting" : "st_mp_disabled_voting").c_str());
+                    StringTable().translate((IsVotingEnabled()) ? "st_mp_only_one_voting" : "st_mp_disabled_voting").c_str());
         }
         break;
         case kVOTE:
@@ -260,9 +258,9 @@ bool game_cl_mp::OnKeyboardPress(int key)
             else
             {
                 if (!IsVotingEnabled())
-                    OnCantVoteMsg(st.translate("st_mp_disabled_voting").c_str());
+                    OnCantVoteMsg(StringTable().translate("st_mp_disabled_voting").c_str());
                 else
-                    OnCantVoteMsg(st.translate("st_mp_no_current_voting").c_str());
+                    OnCantVoteMsg(StringTable().translate("st_mp_no_current_voting").c_str());
             }
         }
         break;
@@ -338,17 +336,16 @@ void game_cl_mp::GetActiveVoting()
     u_EventSend(P);
 }
 
-u32 Color_Teams_u32[3] = {color_rgba(255, 240, 190, 255), color_rgba(64, 255, 64, 255), color_rgba(64, 64, 255, 255)};
-LPSTR Color_Teams[3] = {"%c[255,255,240,190]", "%c[255,64,255,64]", "%c[255,64,64,255]"};
-char Color_Main[] = "%c[255,192,192,192]";
+u32 Color_Teams_u32[3] = { color_rgba(255, 240, 190, 255), color_rgba(64, 255, 64, 255), color_rgba(64, 64, 255, 255) };
+constexpr pcstr Color_Teams[3] = {"%c[255,255,240,190]", "%c[255,64,255,64]", "%c[255,64,64,255]"};
+constexpr char Color_Main[] = "%c[255,192,192,192]";
 u32 Color_Neutral_u32 = color_rgba(255, 0, 255, 255);
-char Color_Red[] = "%c[255,255,1,1]";
-char Color_Green[] = "%c[255,1,255,1]";
+constexpr char Color_Red[] = "%c[255,255,1,1]";
+constexpr char Color_Green[] = "%c[255,1,255,1]";
 
 void game_cl_mp::TranslateGameMessage(u32 msg, NET_Packet& P)
 {
     string4096 Text;
-    CStringTable st;
 
     switch (msg)
     {
@@ -359,7 +356,7 @@ void game_cl_mp::TranslateGameMessage(u32 msg, NET_Packet& P)
     break;
     case GAME_EVENT_VOTE_START:
     {
-        xr_sprintf(Text, "%s%s", Color_Main, *st.translate("mp_voting_started_msg"));
+        xr_sprintf(Text, "%s%s", Color_Main, *StringTable().translate("mp_voting_started_msg"));
         if (CurrentGameUI())
             CurrentGameUI()->CommonMessageOut(Text);
         OnVoteStart(P);
@@ -367,7 +364,7 @@ void game_cl_mp::TranslateGameMessage(u32 msg, NET_Packet& P)
     break;
     case GAME_EVENT_VOTE_STOP:
     {
-        xr_sprintf(Text, "%s%s", Color_Main, *st.translate("mp_voting_broken"));
+        xr_sprintf(Text, "%s%s", Color_Main, *StringTable().translate("mp_voting_broken"));
         if (CurrentGameUI())
             CurrentGameUI()->CommonMessageOut(Text);
 
@@ -378,7 +375,7 @@ void game_cl_mp::TranslateGameMessage(u32 msg, NET_Packet& P)
     {
         string4096 Reason;
         P.r_stringZ(Reason);
-        xr_sprintf(Text, "%s%s", Color_Main, *st.translate(Reason));
+        xr_sprintf(Text, "%s%s", Color_Main, *StringTable().translate(Reason));
         if (CurrentGameUI())
             CurrentGameUI()->CommonMessageOut(Text);
         OnVoteEnd(P);
@@ -415,7 +412,7 @@ void game_cl_mp::TranslateGameMessage(u32 msg, NET_Packet& P)
     {
         string1024 mess;
         P.r_stringZ(mess);
-        xr_sprintf(Text, "%s%s", Color_Red, *st.translate(mess));
+        xr_sprintf(Text, "%s%s", Color_Red, *StringTable().translate(mess));
         if (CurrentGameUI())
             CurrentGameUI()->CommonMessageOut(Text);
     }
@@ -425,7 +422,7 @@ void game_cl_mp::TranslateGameMessage(u32 msg, NET_Packet& P)
         string1024 mess;
         P.r_stringZ(mess);
         Msg(mess);
-        if (MainMenu() && !g_dedicated_server)
+        if (MainMenu() && !GEnv.isDedicatedServer)
         {
             MainMenu()->OnSessionTerminate(mess);
         }
@@ -485,7 +482,14 @@ void game_cl_mp::TranslateGameMessage(u32 msg, NET_Packet& P)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////
+void game_cl_mp::CommonMessageOut(pcstr msg)
+{
+    if (GEnv.isDedicatedServer)
+        return;
+
+    if (CurrentGameUI())
+        CurrentGameUI()->m_pMessagesWnd->AddLogMessage(msg);
+}
 
 void game_cl_mp::ChatSay(LPCSTR phrase, bool bAll)
 {
@@ -540,16 +544,15 @@ void game_cl_mp::OnChatMessage(NET_Packet* P)
     P->r_s16(team);
 
     ///#ifdef DEBUG
-    CStringTable st;
     switch (team)
     {
-    case 0: Msg("%s: %s : %s", *st.translate("mp_chat"), PlayerName.c_str(), ChatMsg.c_str()); break;
-    case 1: Msg("- %s: %s : %s", *st.translate("mp_chat"), PlayerName.c_str(), ChatMsg.c_str()); break;
-    case 2: Msg("@ %s: %s : %s", *st.translate("mp_chat"), PlayerName.c_str(), ChatMsg.c_str()); break;
+    case 0: Msg("%s: %s : %s", *StringTable().translate("mp_chat"), PlayerName.c_str(), ChatMsg.c_str()); break;
+    case 1: Msg("- %s: %s : %s", *StringTable().translate("mp_chat"), PlayerName.c_str(), ChatMsg.c_str()); break;
+    case 2: Msg("@ %s: %s : %s", *StringTable().translate("mp_chat"), PlayerName.c_str(), ChatMsg.c_str()); break;
     }
 
     //#endif
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return;
 
     if (team < 0 || 2 < team)
@@ -570,7 +573,7 @@ void game_cl_mp::shedule_Update(u32 dt)
     inherited::shedule_Update(dt);
     //-----------------------------------------
 
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return;
 
     if (m_reward_generator)
@@ -683,11 +686,10 @@ void game_cl_mp::OnPlayerVoted(game_PlayerState* ps)
     if (ps->m_bCurrentVoteAgreed == 2)
         return;
 
-    CStringTable st;
     string1024 resStr;
     xr_sprintf(resStr, "%s\"%s\" %s%s %s\"%s\"", Color_Teams[ps->team], ps->getName(), Color_Main,
-        *st.translate("mp_voted"), ps->m_bCurrentVoteAgreed ? Color_Green : Color_Red,
-        *st.translate(ps->m_bCurrentVoteAgreed ? "mp_voted_yes" : "mp_voted_no"));
+        *StringTable().translate("mp_voted"), ps->m_bCurrentVoteAgreed ? Color_Green : Color_Red,
+        *StringTable().translate(ps->m_bCurrentVoteAgreed ? "mp_voted_yes" : "mp_voted_no"));
     if (CurrentGameUI())
         CurrentGameUI()->CommonMessageOut(resStr);
 }
@@ -777,7 +779,7 @@ const ui_shader& game_cl_mp::GetEquipmentIconsShader()
     if (m_EquipmentIconsShader->inited())
         return m_EquipmentIconsShader;
 
-    m_EquipmentIconsShader->create("hud\\default", "ui\\ui_mp_icon_kill");
+    m_EquipmentIconsShader->create("hud" DELIMITER "default", "ui" DELIMITER "ui_mp_icon_kill");
     return m_EquipmentIconsShader;
 }
 
@@ -787,7 +789,7 @@ const ui_shader& game_cl_mp::GetKillEventIconsShader()
     /*
     if (m_KillEventIconsShader) return m_KillEventIconsShader;
 
-    m_KillEventIconsShader.create("hud\\default", KILLEVENT_ICONS);
+    m_KillEventIconsShader.create("hud" DELIMITER "default", KILLEVENT_ICONS);
     return m_KillEventIconsShader;
     */
 }
@@ -798,7 +800,7 @@ const ui_shader& game_cl_mp::GetRadiationIconsShader()
     /*
     if (m_RadiationIconsShader) return m_RadiationIconsShader;
 
-    m_RadiationIconsShader.create("hud\\default", RADIATION_ICONS);
+    m_RadiationIconsShader.create("hud" DELIMITER "default", RADIATION_ICONS);
     return m_RadiationIconsShader;
     */
 }
@@ -809,7 +811,7 @@ const ui_shader& game_cl_mp::GetBloodLossIconsShader()
     /*
     if (m_BloodLossIconsShader) return m_BloodLossIconsShader;
 
-    m_BloodLossIconsShader.create("hud\\default", BLOODLOSS_ICONS);
+    m_BloodLossIconsShader.create("hud" DELIMITER "default", BLOODLOSS_ICONS);
     return m_BloodLossIconsShader;
     */
 }
@@ -818,13 +820,12 @@ const ui_shader& game_cl_mp::GetRankIconsShader()
     if (m_RankIconsShader->inited())
         return m_RankIconsShader;
 
-    m_RankIconsShader->create("hud\\default", RANK_ICONS);
+    m_RankIconsShader->create("hud" DELIMITER "default", RANK_ICONS);
     return m_RankIconsShader;
 }
 
 void game_cl_mp::OnPlayerKilled(NET_Packet& P)
 {
-    CStringTable st;
     //-----------------------------------------------------------
     KILL_TYPE KillType = KILL_TYPE(P.r_u8());
     u16 KilledID = P.r_u16();
@@ -875,13 +876,13 @@ void game_cl_mp::OnPlayerKilled(NET_Packet& P)
                     KMS.m_initiator.m_rect.y1 = 202;
                     KMS.m_initiator.m_rect.x2 = KMS.m_initiator.m_rect.x1 + 31;
                     KMS.m_initiator.m_rect.y2 = KMS.m_initiator.m_rect.y1 + 30;
-                    xr_sprintf(sWeapon, *st.translate("mp_by_explosion"));
+                    xr_sprintf(sWeapon, *StringTable().translate("mp_by_explosion"));
                 }
                 else
                 {
                     KMS.m_initiator.m_rect = pIItem->GetKillMsgRect();
                     KMS.m_initiator.m_rect.rb.add(KMS.m_initiator.m_rect.lt);
-                    xr_sprintf(sWeapon, "%s %s", st.translate("mp_from").c_str(), pIItem->NameShort());
+                    xr_sprintf(sWeapon, "%s %s", StringTable().translate("mp_from").c_str(), pIItem->NameShort());
                 }
             }
             else
@@ -894,7 +895,7 @@ void game_cl_mp::OnPlayerKilled(NET_Packet& P)
                     KMS.m_initiator.m_rect.y1 = 202;
                     KMS.m_initiator.m_rect.x2 = KMS.m_initiator.m_rect.x1 + 31;
                     KMS.m_initiator.m_rect.y2 = KMS.m_initiator.m_rect.y1 + 30;
-                    xr_sprintf(sWeapon, *st.translate("mp_by_anomaly"));
+                    xr_sprintf(sWeapon, *StringTable().translate("mp_by_anomaly"));
                 }
             }
         }
@@ -939,7 +940,7 @@ void game_cl_mp::OnPlayerKilled(NET_Packet& P)
         break;
         case SKT_HEADSHOT: // Head Shot
         {
-            BONUSES_it it = std::find(m_pBonusList.begin(), m_pBonusList.end(), "headshot");
+            auto it = std::find(m_pBonusList.begin(), m_pBonusList.end(), "headshot");
             if (it != m_pBonusList.end() && (*it == "headshot"))
             {
                 Bonus_Struct* pBS = &(*it);
@@ -950,7 +951,7 @@ void game_cl_mp::OnPlayerKilled(NET_Packet& P)
                 KMS.m_ext_info.m_rect.y2 = pBS->IconRects[0].y1 + pBS->IconRects[0].y2;
             };
 
-            xr_sprintf(sSpecial, *st.translate("mp_with_headshot"));
+            xr_sprintf(sSpecial, *StringTable().translate("mp_with_headshot"));
 
             if (pOKiller && pOKiller == Level().CurrentViewEntity())
                 PlaySndMessage(ID_HEADSHOT);
@@ -958,7 +959,7 @@ void game_cl_mp::OnPlayerKilled(NET_Packet& P)
         break;
         case SKT_EYESHOT:
         {
-            BONUSES_it it = std::find(m_pBonusList.begin(), m_pBonusList.end(), "eyeshot");
+            auto it = std::find(m_pBonusList.begin(), m_pBonusList.end(), "eyeshot");
             if (it != m_pBonusList.end() && (*it == "eyeshot"))
             {
                 Bonus_Struct* pBS = &(*it);
@@ -969,7 +970,7 @@ void game_cl_mp::OnPlayerKilled(NET_Packet& P)
                 KMS.m_ext_info.m_rect.y2 = pBS->IconRects[0].y1 + pBS->IconRects[0].y2;
             };
 
-            xr_sprintf(sSpecial, *st.translate("mp_with_eyeshot"));
+            xr_sprintf(sSpecial, *StringTable().translate("mp_with_eyeshot"));
 
             if (pOKiller && pOKiller == Level().CurrentViewEntity())
                 PlaySndMessage(ID_ASSASSIN);
@@ -977,7 +978,7 @@ void game_cl_mp::OnPlayerKilled(NET_Packet& P)
         break;
         case SKT_BACKSTAB: // BackStab
         {
-            BONUSES_it it = std::find(m_pBonusList.begin(), m_pBonusList.end(), "backstab");
+            auto it = std::find(m_pBonusList.begin(), m_pBonusList.end(), "backstab");
             if (it != m_pBonusList.end() && (*it == "backstab"))
             {
                 Bonus_Struct* pBS = &(*it);
@@ -988,7 +989,7 @@ void game_cl_mp::OnPlayerKilled(NET_Packet& P)
                 KMS.m_ext_info.m_rect.y2 = pBS->IconRects[0].y1 + pBS->IconRects[0].y2;
             };
 
-            xr_sprintf(sSpecial, *st.translate("mp_with_backstab"));
+            xr_sprintf(sSpecial, *StringTable().translate("mp_with_backstab"));
             if (pOKiller && pOKiller == Level().CurrentViewEntity())
                 PlaySndMessage(ID_ASSASSIN);
         }
@@ -1076,8 +1077,6 @@ extern void WritePlayerName_ToRegistry(LPSTR name);
 
 void game_cl_mp::OnPlayerChangeName(NET_Packet& P)
 {
-    CStringTable st;
-
     u16 ObjID = P.r_u16();
     s16 Team = P.r_s16();
     string1024 OldName, NewName;
@@ -1085,7 +1084,7 @@ void game_cl_mp::OnPlayerChangeName(NET_Packet& P)
     P.r_stringZ(NewName);
 
     string1024 resStr;
-    xr_sprintf(resStr, "%s\"%s\" %s%s %s\"%s\"", Color_Teams[Team], OldName, Color_Main, *st.translate("mp_is_now"),
+    xr_sprintf(resStr, "%s\"%s\" %s%s %s\"%s\"", Color_Teams[Team], OldName, Color_Main, *StringTable().translate("mp_is_now"),
         Color_Teams[Team], NewName);
     if (CurrentGameUI())
         CurrentGameUI()->CommonMessageOut(resStr);
@@ -1114,12 +1113,11 @@ void game_cl_mp::LoadSndMessages()
 
 void game_cl_mp::OnRankChanged(u8 OldRank)
 {
-    CStringTable st;
     string256 tmp;
     string1024 RankStr;
     xr_sprintf(tmp, "rank_%d", local_player->rank);
-    xr_sprintf(RankStr, "%s : %s", *st.translate("mp_your_rank"),
-        *st.translate(READ_IF_EXISTS(pSettings, r_string, tmp, "rank_name", "")));
+    xr_sprintf(RankStr, "%s : %s", *StringTable().translate("mp_your_rank"),
+        *StringTable().translate(READ_IF_EXISTS(pSettings, r_string, tmp, "rank_name", "")));
     if (CurrentGameUI())
         CurrentGameUI()->CommonMessageOut(RankStr);
 #ifdef DEBUG
@@ -1207,7 +1205,7 @@ void game_cl_mp::OnEventMoneyChanged(NET_Packet& P)
     OnMoneyChanged();
     {
         string256 MoneyStr;
-        itoa(local_player->money_for_round, MoneyStr, 10);
+        xr_itoa(local_player->money_for_round, MoneyStr, 10);
         m_game_ui_custom->ChangeTotalMoneyIndicator(MoneyStr);
     }
     s32 Money_Added = P.r_s32();
@@ -1273,7 +1271,7 @@ void game_cl_mp::OnEventMoneyChanged(NET_Packet& P)
         }
         break;
         };
-        BONUSES_it it = std::find(m_pBonusList.begin(), m_pBonusList.end(), BName.c_str());
+        auto it = std::find(m_pBonusList.begin(), m_pBonusList.end(), BName.c_str());
         if (it != m_pBonusList.end() && (*it == BName.c_str()))
         {
             Bonus_Struct* pBS = &(*it);
@@ -1328,8 +1326,7 @@ void game_cl_mp::OnGameRoundStarted()
 {
     //			xr_sprintf(Text, "%sRound started !!!",Color_Main);
     string512 Text;
-    CStringTable st;
-    xr_sprintf(Text, "%s%s", Color_Main, *st.translate("mp_match_started"));
+    xr_sprintf(Text, "%s%s", Color_Main, *StringTable().translate("mp_match_started"));
     if (CurrentGameUI())
         CurrentGameUI()->CommonMessageOut(Text);
     OnSwitchPhase_InProgress();
@@ -1397,7 +1394,7 @@ void game_cl_mp::LoadBonuses()
             xr_sprintf(IconH, "%s_h", IconStr);
             if (pSettings->line_exist("mp_bonus_icons", IconShader))
             {
-                NewBonus.IconShader->create("hud\\default", pSettings->r_string("mp_bonus_icons", IconShader));
+                NewBonus.IconShader->create("hud" DELIMITER "default", pSettings->r_string("mp_bonus_icons", IconShader));
             }
             Frect IconRect;
             IconRect.x1 = READ_IF_EXISTS(pSettings, r_float, "mp_bonus_icons", IconX, 0);
@@ -1441,12 +1438,12 @@ void game_cl_mp::OnRadminMessage(u16 type, NET_Packet* P)
     {
         string4096 buff;
         P->r_stringZ(buff);
-        if (!g_dedicated_server)
+        if (!GEnv.isDedicatedServer)
         {
             if (!m_pAdminMenuWindow)
                 m_pAdminMenuWindow = new CUIMpAdminMenu();
 
-            if (0 == stricmp(buff, "Access permitted."))
+            if (0 == xr_stricmp(buff, "Access permitted."))
                 m_pAdminMenuWindow->ShowDialog(true);
             else
                 m_pAdminMenuWindow->ShowMessageBox(CUIMessageBox::MESSAGEBOX_OK, buff);
@@ -1536,26 +1533,36 @@ void game_cl_mp::SendCollectedData(u8 const* buffer, u32 buffer_size, u32 uncomp
         upload_memory_writer.pointer(), upload_memory_writer.size(), sending_cb, uncompressed_size);
 };
 
-void game_cl_mp::generate_file_name(string_path& file_name, LPCSTR file_suffix, SYSTEMTIME const& date_time)
+xr_string game_cl_mp::generate_file_name(const xr_string& base_name, const time_t* date_time)
 {
-    xr_sprintf(file_name, "%02d%02d%02d-%02d%02d%02d_%s", date_time.wYear % 100, date_time.wMonth, date_time.wDay,
-        date_time.wHour, date_time.wMinute, date_time.wSecond, file_suffix);
+    xr_string res = sanitize_filename(base_name);
+
+    time_t file_time = (date_time != nullptr) ? *date_time : time(nullptr);
+
+    tm time_splitted;
+    if (localtime_safe(&file_time, &time_splitted) != nullptr)
+    {
+        string16 date_str = {};
+        xr_sprintf(date_str, "%02d%02d%02d-%02d%02d%02d_", time_splitted.tm_year % 100, time_splitted.tm_mon,
+            time_splitted.tm_mday, time_splitted.tm_hour, time_splitted.tm_min, time_splitted.tm_sec);
+        res = xr_string(date_str) + res;
+    }
+    return res;
 }
 
-LPCSTR game_cl_mp::make_file_name(LPCSTR session_id, string_path& dest)
+xr_string game_cl_mp::sanitize_filename(const xr_string& base_name)
 {
-    xr_strcpy(dest, sizeof(dest), session_id);
-    static const char* denied_symbols = "/\\?%%*:|\"<>.";
-    size_t tmp_length = xr_strlen(dest);
-    size_t start_pos = 0;
-    size_t char_pos;
-    while ((char_pos = strcspn(dest + start_pos, denied_symbols)) < (tmp_length - start_pos))
+    xr_string res = base_name;
+
+    for (size_t i = 0; i < res.length(); ++i)
     {
-        char_pos += start_pos;
-        dest[char_pos] = '_';
-        ++start_pos;
+        static const char* DENIED_SYMBOLS = "/\\" DELIMITER "?%%*:|\"<>.";
+        if (strchr(DENIED_SYMBOLS, res[i]) != nullptr)
+        {
+            res[i] = '_';
+        }
     }
-    return dest;
+    return res;
 }
 
 void game_cl_mp::start_receive_server_info(ClientID const& svclient_id)
@@ -1580,13 +1587,6 @@ void game_cl_mp::start_receive_server_info(ClientID const& svclient_id)
 void game_cl_mp::PrepareToReceiveFile(
     ClientID const& from_client, shared_str const& client_session_id, clientdata_event_t response_event)
 {
-    string_path screen_shot_fn;
-    LPCSTR dest_file_name = NULL;
-    STRCONCAT(dest_file_name, make_file_name(client_session_id.c_str(), screen_shot_fn));
-    SYSTEMTIME date_time;
-    GetLocalTime(&date_time);
-    generate_file_name(screen_shot_fn, dest_file_name, date_time);
-
     fr_callback_binder* tmp_binder = get_receiver_cb_binder();
     if (!tmp_binder)
     {
@@ -1603,7 +1603,8 @@ void game_cl_mp::PrepareToReceiveFile(
         draw_downloads(false);
     }
 
-    tmp_binder->m_file_name = screen_shot_fn;
+    xr_string base_name = client_session_id.c_str();
+    tmp_binder->m_file_name = generate_file_name(base_name).c_str();
     tmp_binder->m_owner = this;
     tmp_binder->m_active = true;
     tmp_binder->m_downloaded_size = 0; // initial value for rendering
@@ -1722,7 +1723,7 @@ void __stdcall game_cl_mp::fr_callback_binder::receiving_serverinfo_callback(
     case file_transfer::receiving_complete:
     {
         Msg("* serverinfo: download complete successfully !");
-        R_ASSERT2(m_owner->m_game_ui_custom || g_dedicated_server, "game ui not initialized");
+        R_ASSERT2(m_owner->m_game_ui_custom || GEnv.isDedicatedServer, "game ui not initialized");
         if (m_owner->m_game_ui_custom)
             m_owner->extract_server_info(m_writer.pointer(), m_writer.size());
         m_active = false;
@@ -1867,7 +1868,7 @@ void game_cl_mp::extract_server_info(u8* data_ptr, u32 data_size)
         return;
     }
     using namespace file_transfer;
-    buffer_vector<const_buffer_t> tmp_vector(_alloca(sizeof(const_buffer_t) * 2), 2);
+    buffer_vector<const_buffer_t> tmp_vector(xr_alloca(sizeof(const_buffer_t) * 2), 2);
     split_received_to_buffers(data_ptr, data_size, tmp_vector);
     if (tmp_vector.empty())
     {

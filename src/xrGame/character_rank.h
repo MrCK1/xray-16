@@ -21,7 +21,7 @@ struct RANK_DATA
 
 class CHARACTER_RANK;
 
-typedef CIni_IdToIndex<1, RANK_DATA, shared_str, int, CHARACTER_RANK> CHARACTER_RANK_base;
+typedef CIni_IdToIndex<true, RANK_DATA, shared_str, int, CHARACTER_RANK> CHARACTER_RANK_base;
 
 class CHARACTER_RANK : public CHARACTER_RANK_base
 {
@@ -30,7 +30,7 @@ private:
     friend inherited;
 
 public:
-    CHARACTER_RANK() : m_current_value(NO_RANK){};
+    CHARACTER_RANK() : m_current_value(NO_RANK), m_current_index(0) {}
     ~CHARACTER_RANK(){};
 
     void set(CHARACTER_RANK_VALUE);

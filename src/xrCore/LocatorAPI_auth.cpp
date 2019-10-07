@@ -1,5 +1,6 @@
 #include "stdafx.h"
-#pragma hdrstop
+#pragma hdrstop // huh?
+#include "xrCore/Threading/Lock.hpp"
 
 struct auth_options
 {
@@ -14,23 +15,19 @@ void CLocatorAPI::auth_generate(xr_vector<shared_str>& ignore, xr_vector<shared_
     _o->ignore = ignore;
     _o->important = important;
 
-#if 1
     FS.auth_runtime(_o);
-#else
-    thread_spawn(auth_entry, "checksum", 0, _o);
-#endif
 }
 
 u64 CLocatorAPI::auth_get()
 {
-    m_auth_lock.Enter();
-    m_auth_lock.Leave();
+    m_auth_lock->Enter(); // huh? What's the point of enter+leave, except slow things down?
+    m_auth_lock->Leave();
     return m_auth_code;
 }
 
 void CLocatorAPI::auth_runtime(void* params)
 {
-    m_auth_lock.Enter();
+	m_auth_lock->Enter();
     auth_options* _o = (auth_options*)params;
 
     CMemoryWriter writer;
@@ -55,13 +52,13 @@ void CLocatorAPI::auth_runtime(void* params)
     if (!b_extern_auth)
 #endif // DEBUG
     {
-        for (files_it it = m_files.begin(); it != m_files.end(); ++it)
+        for (auto it = m_files.begin(); it != m_files.end(); ++it)
         {
             const file& f = *it;
 
             // test for skip
             BOOL bSkip = FALSE;
-            for (u32 s = 0; s < _o->ignore.size(); s++)
+            for (size_t s = 0; s < _o->ignore.size(); s++)
             {
                 if (strstr(f.name, _o->ignore[s].c_str()))
                     bSkip = TRUE;
@@ -71,7 +68,7 @@ void CLocatorAPI::auth_runtime(void* params)
                 continue;
 
             // test for important
-            for (u32 s = 0; s < _o->important.size(); s++)
+            for (size_t s = 0; s < _o->important.size(); s++)
             {
                 if ((f.size_real != 0) && strstr(f.name, _o->important[s].c_str()))
                 {
@@ -106,10 +103,10 @@ void CLocatorAPI::auth_runtime(void* params)
     {
         string64 c_auth_code;
         sscanf(strstr(Core.Params, "asdf ") + 5, "%[^ ] ", c_auth_code);
-        m_auth_code = _atoi64(c_auth_code);
+        m_auth_code = atoll(c_auth_code);
     }
 #endif // DEBUG
     xr_delete(_o);
 
-    m_auth_lock.Leave();
+	m_auth_lock->Leave();
 }

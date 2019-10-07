@@ -1,6 +1,6 @@
 #include "stdafx.h"
-#include "xrtheora_surface.h"
-#include "xrtheora_stream.h"
+#include "xrTheora_Surface.h"
+#include "xrTheora_Stream.h"
 
 CTheoraSurface::CTheoraSurface()
 {
@@ -151,8 +151,8 @@ BOOL CTheoraSurface::Load(const char* fname)
 // u32 v_need = CAP_VERSION(2,0);
 // bShaderYUV2RGB = (v_dev>=v_need);
 #ifndef _EDITOR
-        R_ASSERT(GlobalEnv.Render);
-        bShaderYUV2RGB = GlobalEnv.Render->HWSupportsShaderYUV2RGB();
+        R_ASSERT(GEnv.Render);
+        bShaderYUV2RGB = GEnv.Render->HWSupportsShaderYUV2RGB();
 #else // _EDITOR
         bShaderYUV2RGB = false;
 #endif // _EDITOR

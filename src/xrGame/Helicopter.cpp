@@ -1,17 +1,21 @@
 #include "pch_script.h"
 #include "helicopter.h"
-#include "xrserver_objects_alife.h"
+#include "xrServer_Objects_ALife.h"
 #include "xrPhysics/PhysicsShell.h"
 #include "Level.h"
 #include "ai_sounds.h"
 #include "Include/xrRender/Kinematics.h"
 #include "Include/xrRender/KinematicsAnimated.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "game_object_space.h"
 #include "script_game_object.h"
 #include "xrEngine/LightAnimLibrary.h"
+#include "xrUICore/ui_base.h"
 
-#include "ui_base.h"
+#ifdef DEBUG
+#include "xrEngine/GameFont.h"
+#endif
+
 // 50fps fixed
 float STEP = 0.02f;
 
@@ -217,7 +221,7 @@ BOOL CHelicopter::net_Spawn(CSE_Abstract* DC)
     m_stepRemains = 0.0f;
 
     // lighting
-    m_light_render = GlobalEnv.Render->light_create();
+    m_light_render = GEnv.Render->light_create();
     m_light_render->set_shadow(false);
     m_light_render->set_type(IRender_Light::POINT);
     m_light_render->set_range(m_light_range);
@@ -286,7 +290,7 @@ void CHelicopter::MoveStep()
         dir.normalize_safe();
         pathDir = dir;
         dir.getHP(desired_H, desired_P);
-        float speed_ = _min(m_movement.GetSpeedInDestPoint(), GetMaxVelocity());
+        float speed_ = std::min(m_movement.GetSpeedInDestPoint(), GetMaxVelocity());
 
         static float ang = pSettings->r_float(cNameSect(), "magic_angle");
         if (m_movement.curLinearSpeed > GetMaxVelocity() || angle_difference(m_movement.currPathH, desired_H) > ang)

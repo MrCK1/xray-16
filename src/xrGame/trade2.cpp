@@ -1,15 +1,15 @@
 #include "pch_script.h"
 #include "trade.h"
-#include "actor.h"
+#include "Actor.h"
 #include "ai/stalker/ai_stalker.h"
 #include "ai/trader/ai_trader.h"
-#include "artefact.h"
-#include "inventory.h"
-#include "xrmessages.h"
+#include "Artefact.h"
+#include "Inventory.h"
+#include "xrMessages.h"
 #include "character_info.h"
 #include "relation_registry.h"
 #include "Level.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "script_game_object.h"
 #include "game_object_space.h"
 #include "trade_parameters.h"
@@ -18,7 +18,7 @@ bool CTrade::CanTrade()
 {
     CEntity* pEntity;
 
-    m_nearest.clear_not_free();
+    m_nearest.clear();
     Level().ObjectSpace.GetNearest(m_nearest, pThis.base->Position(), 2.f, NULL);
     if (!m_nearest.empty())
     {
@@ -63,11 +63,11 @@ bool CTrade::CanTrade()
     return true;
 }
 
-void CTrade::TransferItem(CInventoryItem* pItem, bool bBuying)
+void CTrade::TransferItem(CInventoryItem* pItem, bool bBuying, bool bFree)
 {
     // сумма сделки учитывая ценовой коэффициент
     // актер цену не говорит никогда, все делают за него
-    u32 dwTransferMoney = GetItemPrice(pItem, bBuying);
+    u32 dwTransferMoney = GetItemPrice(pItem, bBuying, bFree);
 
     if (bBuying)
     {
@@ -84,7 +84,7 @@ void CTrade::TransferItem(CInventoryItem* pItem, bool bBuying)
     CGameObject* O2 = smart_cast<CGameObject*>(pThis.inv_owner);
 
     if (!bBuying)
-        swap(O1, O2);
+        std::swap(O1, O2);
 
     NET_Packet P;
     O1->u_EventGen(P, GE_TRADE_SELL, O1->ID());
@@ -136,8 +136,11 @@ CInventory& CTrade::GetTradeInv(SInventoryOwner owner)
 CTrade* CTrade::GetPartnerTrade() { return pPartner.inv_owner->GetTrade(); }
 CInventory* CTrade::GetPartnerInventory() { return &GetTradeInv(pPartner); }
 CInventoryOwner* CTrade::GetPartner() { return pPartner.inv_owner; }
-u32 CTrade::GetItemPrice(PIItem pItem, bool b_buying)
+u32 CTrade::GetItemPrice(PIItem pItem, bool b_buying, bool bFree)
 {
+    if (bFree)
+        return 0;
+
     CArtefact* pArtefact = smart_cast<CArtefact*>(pItem);
 
     // computing base_cost
@@ -222,14 +225,16 @@ u32 CTrade::GetItemPrice(PIItem pItem, bool b_buying)
 
     // total price calculation
     u32 result = iFloor(base_cost * condition_factor * action_factor * deficit_factor);
+
     // use some script discounts
     luabind::functor<float> func;
     if (b_buying)
-        R_ASSERT(ai().script_engine().functor("trade_manager.get_buy_discount", func));
+        GEnv.ScriptEngine->functor("trade_manager.get_buy_discount", func);
     else
-        R_ASSERT(ai().script_engine().functor("trade_manager.get_sell_discount", func));
+        GEnv.ScriptEngine->functor("trade_manager.get_sell_discount", func);
 
-    result = iFloor(result * func(smart_cast<const CGameObject*>(pThis.inv_owner)->ID()));
+    if (func)
+        result = iFloor(result * func(smart_cast<const CGameObject*>(pThis.inv_owner)->ID()));
     // if(result>500)
     //	result		= iFloor(result/10+0.5f)*10;
 

@@ -4,6 +4,9 @@
 #include "alife_space.h"
 #include "gametype_chooser.h"
 #include "player_account.h"
+#include "xrCommon/xr_deque.h"
+#include "xrCommon/xr_vector.h"
+#include "xrEngine/EngineAPI.h"
 
 #pragma pack(push, 1)
 
@@ -18,13 +21,14 @@ struct RPoint
     bool bBlocked;
     u16 BlockedByID;
     u32 BlockTime;
-    RPoint()
+    RPoint() : BlockedByID(0), BlockTime(0)
     {
         P.set(.0f, 0.f, .0f);
         A.set(.0f, 0.f, .0f);
         TimeToUnfreeze = 0;
         bBlocked = false;
     }
+
     bool operator==(const u16& ID) const { return (bBlocked && BlockedByID == ID); }
 };
 
@@ -49,7 +53,6 @@ struct Bonus_Money_Struct
 
 struct game_PlayerState
 {
-    // string64	name;
     u8 team;
 
     // for statistics
@@ -81,10 +84,10 @@ struct game_PlayerState
     u32 DeathTime;
     s16 money_delta;
     u8 m_bCurrentVoteAgreed;
-    DEF_DEQUE(OLD_GAME_ID, u16);
+    using OLD_GAME_ID = xr_deque<u16>;
     OLD_GAME_ID mOldIDs;
     s32 money_added;
-    DEF_VECTOR(MONEY_BONUS, Bonus_Money_Struct);
+    using MONEY_BONUS = xr_vector<Bonus_Money_Struct>;
     MONEY_BONUS m_aBonusMoney;
     bool m_bPayForSpawn;
     u32 m_online_time;
@@ -96,6 +99,7 @@ struct game_PlayerState
     // if account_info == NULL then constructor call load_account method.
     // so it MUST be use ONLY for local_player !
     explicit game_PlayerState(NET_Packet* account_info);
+    game_PlayerState() : game_PlayerState(nullptr) {}
     ~game_PlayerState();
 
     virtual void clear();
@@ -103,7 +107,7 @@ struct game_PlayerState
     void setFlag(u16 f);
     void resetFlag(u16 f);
     LPCSTR getName() const { return m_account.name().c_str(); }
-    // void	setName					(LPCSTR s){xr_strcpy(name,s);}
+    void setName(pcstr s) { m_account.set_player_name(s); }
     void SetGameID(u16 NewID);
     bool HasOldID(u16 ID);
     bool IsSkip() const { return testFlag(GAME_PLAYER_FLAG_SKIP); }
@@ -115,11 +119,11 @@ struct game_PlayerState
 #endif
     //---------------------------------------
 
-    DEF_VECTOR(PLAYER_ITEMS_LIST, u16);
+    using PLAYER_ITEMS_LIST = xr_vector<u16>;
 
     PLAYER_ITEMS_LIST pItemList;
 
-    DEF_VECTOR(SPAWN_POINTS_LIST, s16);
+    using SPAWN_POINTS_LIST = xr_vector<s16>;
 
     SPAWN_POINTS_LIST pSpawnPointsList;
     s16 m_s16LastSRoint;
@@ -172,6 +176,8 @@ public:
 IC IGameState::~IGameState() {}
 class game_GameState : public FactoryObjectBase, public virtual IGameState
 {
+    friend void game_GameState_script_register(lua_State* luaState);
+
 protected:
     EGameIDs m_type;
     u16 m_phase;

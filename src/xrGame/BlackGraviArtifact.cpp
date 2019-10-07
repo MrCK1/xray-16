@@ -4,15 +4,15 @@
 // такой же как и обычный, но при получении хита
 ///////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "BlackGraviArtifact.h"
 #include "xrPhysics/PhysicsShell.h"
 #include "entity_alive.h"
 #include "ParticlesObject.h"
-#include "phmovementcontrol.h"
-#include "xrmessages.h"
-#include "physicsshellholder.h"
-#include "explosive.h"
+#include "PHMovementControl.h"
+#include "xrMessages.h"
+#include "PhysicsShellHolder.h"
+#include "Explosive.h"
 #include "xrPhysics/IPHWorld.h"
 #include "CharacterPhysicsSupport.h"
 // extern CPHWorld*	ph_world;
@@ -42,7 +42,7 @@ BOOL CBlackGraviArtefact::net_Spawn(CSE_Abstract* DC)
         return FALSE;
 
     CParticlesObject* pStaticPG;
-    pStaticPG = CParticlesObject::Create("anomaly\\galantine", FALSE);
+    pStaticPG = CParticlesObject::Create("anomaly" DELIMITER "galantine", FALSE);
     Fmatrix pos;
     // pos.rotateY(1.57);
     // pos.mulA(pos);
@@ -66,7 +66,7 @@ void CBlackGraviArtefact::net_Relcase(IGameObject* O)
 {
     inherited::net_Relcase(O);
     // for vector
-    GAME_OBJECT_LIST_it I =
+    auto I =
         std::remove_if(m_GameObjectList.begin(), m_GameObjectList.end(), SRP(smart_cast<CPhysicsShellHolder*>(O)));
     m_GameObjectList.erase(I, m_GameObjectList.end());
     // for list
@@ -166,7 +166,7 @@ void CBlackGraviArtefact::GraviStrike()
 
     rq_storage.r_clear();
 
-    for (GAME_OBJECT_LIST_it it = m_GameObjectList.begin(); m_GameObjectList.end() != it; ++it)
+    for (auto it = m_GameObjectList.begin(); m_GameObjectList.end() != it; ++it)
     {
         CPhysicsShellHolder* pGameObject = *it;
 

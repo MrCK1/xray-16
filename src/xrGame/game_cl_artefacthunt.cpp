@@ -1,19 +1,19 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "game_cl_artefacthunt.h"
 #include "xrMessages.h"
 #include "Level.h"
 #include "UIGameAHunt.h"
 #include "map_manager.h"
 #include "Common/LevelGameDef.h"
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
-#include "actor.h"
+#include "Actor.h"
 #include "ui/UIMainIngameWnd.h"
 #include "ui/UISkinSelector.h"
 #include "ui/UIPdaWnd.h"
 #include "ui/UIMapDesc.h"
 #include "ui/UIMessageBoxEx.h"
-#include "ui/UIStatic.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "xr_level_controller.h"
 #include "Artefact.h"
 #include "map_location.h"
@@ -163,7 +163,7 @@ void game_cl_ArtefactHunt::net_import_state(NET_Packet& P)
 
 void game_cl_ArtefactHunt::TranslateGameMessage(u32 msg, NET_Packet& P)
 {
-    CStringTable st;
+    CStringTable& st = StringTable();
     string512 Text;
     string512 tmp;
     //	LPSTR	Color_Teams[3]		= {"%c[255,255,255,255]", "%c[255,64,255,64]", "%c[255,64,64,255]"};
@@ -293,7 +293,7 @@ void game_cl_ArtefactHunt::SetGameUI(CUIGameCustom* uigame)
 
 CUIGameCustom* game_cl_ArtefactHunt::createGameUI()
 {
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return NULL;
 
     CLASS_ID clsid = CLSID_GAME_UI_ARTEFACTHUNT;
@@ -349,12 +349,11 @@ void game_cl_ArtefactHunt::GetMapEntities(xr_vector<SZoneMapEntityData>& dst)
 
 void game_cl_ArtefactHunt::shedule_Update(u32 dt)
 {
-    CStringTable st;
     string1024 msg;
 
     inherited::shedule_Update(dt);
 
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return;
 
     if (!m_game_ui)
@@ -391,7 +390,7 @@ void game_cl_ArtefactHunt::shedule_Update(u32 dt)
                 {
                     if (!(pCurBuyMenu && pCurBuyMenu->IsShown()) && !(pCurSkinMenu && pCurSkinMenu->IsShown()))
                     {
-                        xr_sprintf(msg, *st.translate("mp_press_to_buy"), "B");
+                        xr_sprintf(msg, *StringTable().translate("mp_press_to_buy"), "B");
                         if (m_game_ui)
                             m_game_ui->SetBuyMsgCaption(msg);
                     };
@@ -458,7 +457,7 @@ void game_cl_ArtefactHunt::shedule_Update(u32 dt)
                     dTime = iCeil(float(dReinforcementTime - CurTime) / 1000);
 
                 string128 _buff;
-                m_game_ui->m_pReinforcementInidcator->SetText(itoa(dTime, _buff, 10));
+                m_game_ui->m_pReinforcementInidcator->SetText(xr_itoa(dTime, _buff, 10));
             }
             else
                 m_game_ui->m_pReinforcementInidcator->SetText("0");
@@ -579,20 +578,16 @@ bool game_cl_ArtefactHunt::CanBeReady()
     return true;
 };
 
-char* game_cl_ArtefactHunt::getTeamSection(int Team)
+pcstr game_cl_ArtefactHunt::getTeamSection(int Team)
 {
     switch (Team)
     {
-    case 1: { return "artefacthunt_team1";
-    }
-    break;
-    case 2: { return "artefacthunt_team2";
-    }
-    break;
+    case 1: return "artefacthunt_team1";
+    case 2: return "artefacthunt_team2";
     default: NODEFAULT;
-    };
+    }
 #ifdef DEBUG
-    return NULL;
+    return nullptr;
 #endif
 };
 
@@ -681,7 +676,6 @@ void game_cl_ArtefactHunt::UpdateMapLocations()
 
 bool game_cl_ArtefactHunt::NeedToSendReady_Spectator(int key, game_PlayerState* ps)
 {
-    CStringTable st;
     bool res = (GAME_PHASE_PENDING == Phase() && kWPN_FIRE == key) ||
         ((kJUMP == key) && GAME_PHASE_INPROGRESS == Phase() && CanBeReady());
 
@@ -696,7 +690,7 @@ bool game_cl_ArtefactHunt::NeedToSendReady_Spectator(int key, game_PlayerState* 
     {
         string1024 BuySpawnText;
         xr_sprintf(
-            BuySpawnText, *st.translate("mp_press_yes2pay"), abs(local_player->money_for_round), abs(m_iSpawn_Cost));
+            BuySpawnText, *StringTable().translate("mp_press_yes2pay"), abs(local_player->money_for_round), abs(m_iSpawn_Cost));
         m_game_ui->m_pBuySpawnMsgBox->SetText(BuySpawnText);
 
         if (m_bTeamSelected && m_bSkinSelected)

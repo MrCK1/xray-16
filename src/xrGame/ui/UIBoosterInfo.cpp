@@ -1,6 +1,6 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIBoosterInfo.h"
-#include "UIStatic.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "Common/object_broker.h"
 #include "EntityCondition.h"
 #include "Actor.h"
@@ -18,6 +18,7 @@ CUIBoosterInfo::CUIBoosterInfo()
     m_booster_satiety = NULL;
     m_booster_anabiotic = NULL;
     m_booster_time = NULL;
+    m_Prop_line = nullptr;
 }
 
 CUIBoosterInfo::~CUIBoosterInfo()
@@ -37,8 +38,8 @@ LPCSTR boost_influence_caption[] = {"ui_inv_health", "ui_inv_power", "ui_inv_rad
 void CUIBoosterInfo::InitFromXml(CUIXml& xml)
 {
     LPCSTR base = "booster_params";
-    XML_NODE* stored_root = xml.GetLocalRoot();
-    XML_NODE* base_node = xml.NavigateToNode(base, 0);
+    XML_NODE stored_root = xml.GetLocalRoot();
+    XML_NODE base_node = xml.NavigateToNode(base, 0);
     if (!base_node)
         return;
 
@@ -56,7 +57,7 @@ void CUIBoosterInfo::InitFromXml(CUIXml& xml)
         m_booster_items[i]->Init(xml, ef_boosters_section_names[i]);
         m_booster_items[i]->SetAutoDelete(false);
 
-        LPCSTR name = CStringTable().translate(boost_influence_caption[i]).c_str();
+        LPCSTR name = StringTable().translate(boost_influence_caption[i]).c_str();
         m_booster_items[i]->SetCaption(name);
 
         xml.SetLocalRoot(base_node);
@@ -65,21 +66,21 @@ void CUIBoosterInfo::InitFromXml(CUIXml& xml)
     m_booster_satiety = new UIBoosterInfoItem();
     m_booster_satiety->Init(xml, "boost_satiety");
     m_booster_satiety->SetAutoDelete(false);
-    LPCSTR name = CStringTable().translate("ui_inv_satiety").c_str();
+    LPCSTR name = StringTable().translate("ui_inv_satiety").c_str();
     m_booster_satiety->SetCaption(name);
     xml.SetLocalRoot(base_node);
 
     m_booster_anabiotic = new UIBoosterInfoItem();
     m_booster_anabiotic->Init(xml, "boost_anabiotic");
     m_booster_anabiotic->SetAutoDelete(false);
-    name = CStringTable().translate("ui_inv_survive_surge").c_str();
+    name = StringTable().translate("ui_inv_survive_surge").c_str();
     m_booster_anabiotic->SetCaption(name);
     xml.SetLocalRoot(base_node);
 
     m_booster_time = new UIBoosterInfoItem();
     m_booster_time->Init(xml, "boost_time");
     m_booster_time->SetAutoDelete(false);
-    name = CStringTable().translate("ui_inv_effect_time").c_str();
+    name = StringTable().translate("ui_inv_effect_time").c_str();
     m_booster_time->SetCaption(name);
 
     xml.SetLocalRoot(stored_root);
@@ -88,7 +89,8 @@ void CUIBoosterInfo::InitFromXml(CUIXml& xml)
 void CUIBoosterInfo::SetInfo(shared_str const& section)
 {
     DetachAll();
-    AttachChild(m_Prop_line);
+    if (m_Prop_line)
+        AttachChild(m_Prop_line);
 
     CActor* actor = smart_cast<CActor*>(Level().CurrentViewEntity());
     if (!actor)
@@ -96,11 +98,12 @@ void CUIBoosterInfo::SetInfo(shared_str const& section)
         return;
     }
 
-    CEntityCondition::BOOSTER_MAP boosters = actor->conditions().GetCurBoosterInfluences();
+    //const auto& boosters = actor->conditions().GetCurBoosterInfluences();
 
-    float val = 0.0f, max_val = 1.0f;
+    float val = 0.0f, max_val = 1.0f, h = 0.0f;
     Fvector2 pos;
-    float h = m_Prop_line->GetWndPos().y + m_Prop_line->GetWndSize().y;
+    if (m_Prop_line)
+        h = m_Prop_line->GetWndPos().y + m_Prop_line->GetWndSize().y;
 
     for (u32 i = 0; i < eBoostExplImmunity; ++i)
     {
@@ -207,7 +210,7 @@ void UIBoosterInfoItem::Init(CUIXml& xml, LPCSTR section)
     m_show_sign = (xml.ReadAttribInt("value", 0, "show_sign", 1) == 1);
 
     LPCSTR unit_str = xml.ReadAttrib("value", 0, "unit_str", "");
-    m_unit_str._set(CStringTable().translate(unit_str));
+    m_unit_str._set(StringTable().translate(unit_str));
 
     LPCSTR texture_minus = xml.Read("texture_minus", 0, "");
     if (texture_minus && xr_strlen(texture_minus))

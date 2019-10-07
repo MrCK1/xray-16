@@ -6,7 +6,7 @@
 //	Description : Feelings for monster "Stalker"
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "ai_stalker.h"
 #include "inventory_item.h"
 #include "memory_manager.h"
@@ -32,12 +32,12 @@ bool CAI_Stalker::feel_vision_isRelevant(IGameObject* O)
     return (true);
 }
 
-void CAI_Stalker::renderable_Render()
+void CAI_Stalker::renderable_Render(IRenderable* root)
 {
-    inherited::renderable_Render();
+    inherited::renderable_Render(root);
 
     if (!already_dead())
-        CInventoryOwner::renderable_Render();
+        CInventoryOwner::renderable_Render(root);
 
 #ifdef DEBUG
     if (g_Alive())

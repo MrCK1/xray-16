@@ -5,24 +5,25 @@
 #include "xrPhysics/PhysicsShell.h"
 #include "ai_space.h"
 #include "CustomMonster.h"
-#include "physicobject.h"
+#include "PhysicObject.h"
 #include "HangingLamp.h"
 #include "xrPhysics/PhysicsShell.h"
 #include "game_sv_single.h"
 #include "xrAICore/Navigation/level_graph.h"
 #include "ph_shell_interface.h"
 #include "script_game_object.h"
-#include "xrserver_objects_alife.h"
+#include "xrServer_Objects_ALife.h"
 #include "xrServer_Objects_ALife_Items.h"
 #include "game_cl_base.h"
 #include "object_factory.h"
 #include "Include/xrRender/Kinematics.h"
+#include "xrAICore/Navigation/ai_object_location.h"
 #include "xrAICore/Navigation/ai_object_location_impl.h"
 #include "xrAICore/Navigation/game_graph.h"
 #include "ai_debug.h"
 #include "xrEngine/IGame_Level.h"
 #include "Level.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "xrPhysics/MathUtils.h"
 #include "game_cl_base_weapon_usage_statistic.h"
 #include "game_cl_mp.h"
@@ -33,17 +34,20 @@
 #include "animation_movement_controller.h"
 #include "xrEngine/xr_collide_form.h"
 #include "script_game_object.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "game_object_space.h"
 #include "doors_door.h"
 #include "doors.h"
+#include "xrNetServer/NET_Messages.h"
 
+#ifndef LINUX // FIXME!!!
 #pragma warning(push)
 #pragma warning(disable : 4995)
 #include <intrin.h>
 #pragma warning(pop)
 
 #pragma intrinsic(_InterlockedCompareExchange)
+#endif
 
 extern MagicBox3 MagicMinBox(int iQuantity, const Fvector* akPoint);
 
@@ -51,8 +55,6 @@ extern MagicBox3 MagicMinBox(int iQuantity, const Fvector* akPoint);
 #include "debug_renderer.h"
 #include "PHDebug.h"
 #endif
-
-ENGINE_API bool g_dedicated_server;
 
 static const float base_spu_epsP = 0.05f;
 static const float base_spu_epsR = 0.05f;
@@ -81,7 +83,7 @@ CGameObject::CGameObject() : SpatialBase(g_SpatialSpace), scriptBinder(this)
     m_bCrPr_Activated = false;
     m_dwCrPr_ActivationStep = 0;
     m_spawn_time = 0;
-    m_ai_location = !g_dedicated_server ? new CAI_ObjectLocation() : 0;
+    m_ai_location = !GEnv.isDedicatedServer ? new CAI_ObjectLocation() : 0;
     m_server_flags.one();
 
     m_callbacks = new CALLBACK_MAP();
@@ -110,8 +112,13 @@ void CGameObject::MakeMeCrow()
         return;
     u32 const device_frame_id = Device.dwFrame;
     u32 const object_frame_id = dwFrame_AsCrow;
+#ifndef LINUX
     if ((u32)_InterlockedCompareExchange((long*)&dwFrame_AsCrow, device_frame_id, object_frame_id) == device_frame_id)
+#else
+     if (__sync_val_compare_and_swap(&dwFrame_AsCrow, object_frame_id, device_frame_id) == device_frame_id)
+#endif
         return;
+
     VERIFY(dwFrame_AsCrow == device_frame_id);
     Props.crow = 1;
     g_pGameLevel->Objects.o_crow(this);
@@ -130,7 +137,7 @@ void CGameObject::cNameVisual_set(shared_str N)
     {
         IRenderVisual* old_v = renderable.visual;
         NameVisual = N;
-        renderable.visual = GlobalEnv.Render->model_Create(*N);
+        renderable.visual = GEnv.Render->model_Create(*N);
         IKinematics* old_k = old_v ? old_v->dcast_PKinematics() : NULL;
         IKinematics* new_k = renderable.visual->dcast_PKinematics();
         /*
@@ -144,11 +151,11 @@ void CGameObject::cNameVisual_set(shared_str N)
             new_k->SetUpdateCallback(old_k->GetUpdateCallback());
             new_k->SetUpdateCallbackParam(old_k->GetUpdateCallbackParam());
         }
-        GlobalEnv.Render->model_Delete(old_v);
+        GEnv.Render->model_Delete(old_v);
     }
     else
     {
-        GlobalEnv.Render->model_Delete(renderable.visual);
+        GEnv.Render->model_Delete(renderable.visual);
         NameVisual = 0;
     }
     OnChangeVisual();
@@ -247,6 +254,8 @@ void CGameObject::Load(LPCSTR section)
     }
 }
 
+void CGameObject::PostLoad(LPCSTR section) {}
+
 void CGameObject::init()
 {
     m_lua_game_object = 0;
@@ -258,11 +267,11 @@ void CGameObject::init()
 void CGameObject::reinit()
 {
     m_visual_callback.clear();
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         ai_location().reinit();
 
     // clear callbacks
-    for (CALLBACK_MAP_IT it = m_callbacks->begin(); it != m_callbacks->end(); ++it)
+    for (auto it = m_callbacks->begin(); it != m_callbacks->end(); ++it)
         it->second.clear();
 }
 
@@ -455,7 +464,13 @@ BOOL CGameObject::net_Spawn(CSE_Abstract* DC)
     }
     else
     {
-        R_ASSERT(Level().Objects.net_Find(E->ID) == NULL);
+        //Alundaio:
+        //R_ASSERT(Level().Objects.net_Find(E->ID) == nullptr);
+        if (Level().Objects.net_Find(E->ID) != nullptr)
+        {
+            GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CGameObject:net_Spawn() | Level().Objects.net_Find(E->ID) != nullptr (This mean object already exist on level by this ID) ID=%s s_name=%s", E->ID, E->s_name.c_str());
+            return false;
+        }
     }
 
     setID(E->ID);
@@ -466,7 +481,7 @@ BOOL CGameObject::net_Spawn(CSE_Abstract* DC)
     XFORM().setXYZ(E->o_Angle);
     Position().set(E->o_Position);
 #ifdef DEBUG
-    if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && stricmp(PH_DBG_ObjectTrackName(), *cName()) == 0)
+    if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && xr_stricmp(PH_DBG_ObjectTrackName(), *cName()) == 0)
     {
         Msg("CGameObject::net_Spawn obj %s Position set from CSE_Abstract %f,%f,%f", PH_DBG_ObjectTrackName(),
             Position().x, Position().y, Position().z);
@@ -479,8 +494,8 @@ BOOL CGameObject::net_Spawn(CSE_Abstract* DC)
     {
 #pragma warning(push)
 #pragma warning(disable : 4238)
-        m_ini_file = new CInifile(
-            &IReader((void*)(*(O->m_ini_string)), O->m_ini_string.size()), FS.get_path("$game_config$")->m_Path);
+        IReader reader((void*)(*(O->m_ini_string)), O->m_ini_string.size());
+        m_ini_file = new CInifile(&reader, FS.get_path("$game_config$")->m_Path);
 #pragma warning(pop)
     }
 
@@ -513,14 +528,14 @@ BOOL CGameObject::net_Spawn(CSE_Abstract* DC)
     }
 
     reload(*cNameSect());
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         scriptBinder.reload(*cNameSect());
 
     reinit();
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         scriptBinder.reinit();
 #ifdef DEBUG
-    if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && stricmp(PH_DBG_ObjectTrackName(), *cName()) == 0)
+    if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && xr_stricmp(PH_DBG_ObjectTrackName(), *cName()) == 0)
     {
         Msg("CGameObject::net_Spawn obj %s After Script Binder reinit %f,%f,%f", PH_DBG_ObjectTrackName(), Position().x,
             Position().y, Position().z);
@@ -599,7 +614,7 @@ BOOL CGameObject::net_Spawn(CSE_Abstract* DC)
     m_bObjectRemoved = false;
     spawn_supplies();
 #ifdef DEBUG
-    if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && stricmp(PH_DBG_ObjectTrackName(), *cName()) == 0)
+    if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && xr_stricmp(PH_DBG_ObjectTrackName(), *cName()) == 0)
     {
         Msg("CGameObject::net_Spawn obj %s Before CScriptBinder::net_Spawn %f,%f,%f", PH_DBG_ObjectTrackName(),
             Position().x, Position().y, Position().z);
@@ -610,7 +625,7 @@ BOOL CGameObject::net_Spawn(CSE_Abstract* DC)
 #endif
 
 #ifdef DEBUG
-    if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && stricmp(PH_DBG_ObjectTrackName(), *cName()) == 0)
+    if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && xr_stricmp(PH_DBG_ObjectTrackName(), *cName()) == 0)
     {
         Msg("CGameObject::net_Spawn obj %s Before CScriptBinder::net_Spawn %f,%f,%f", PH_DBG_ObjectTrackName(),
             Position().x, Position().y, Position().z);
@@ -675,7 +690,7 @@ void CGameObject::net_Load(IReader& ireader)
 #endif
 // ----------------------------------------------------------
 #ifdef DEBUG
-    if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && stricmp(PH_DBG_ObjectTrackName(), *cName()) == 0)
+    if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && xr_stricmp(PH_DBG_ObjectTrackName(), *cName()) == 0)
     {
         Msg("CGameObject::net_Load obj %s (loaded) %f,%f,%f", PH_DBG_ObjectTrackName(), Position().x, Position().y,
             Position().z);
@@ -703,54 +718,59 @@ void CGameObject::spawn_supplies()
     for (u32 k = 0, j; spawn_ini()->r_line("spawn", k, &N, &V); k++)
     {
         VERIFY(xr_strlen(N));
-        j = 1;
-        p = 1.f;
-
-        float f_cond = 1.0f;
-        if (V && xr_strlen(V))
+        if (pSettings->section_exist(N)) //Alundaio: Validate section exists
         {
-            int n = _GetItemCount(V);
-            string16 temp;
-            if (n > 0)
-                j = atoi(_GetItem(V, 0, temp)); // count
+            j = 1;
+            p = 1.f;
 
-            if (NULL != strstr(V, "prob="))
-                p = (float)atof(strstr(V, "prob=") + 5);
-            if (fis_zero(p))
-                p = 1.f;
-            if (!j)
-                j = 1;
-            if (NULL != strstr(V, "cond="))
-                f_cond = (float)atof(strstr(V, "cond=") + 5);
-            bScope = (NULL != strstr(V, "scope"));
-            bSilencer = (NULL != strstr(V, "silencer"));
-            bLauncher = (NULL != strstr(V, "launcher"));
-        }
-        for (u32 i = 0; i < j; ++i)
-            if (::Random.randF(1.f) < p)
+            float f_cond = 1.0f;
+            if (V && xr_strlen(V))
             {
-                CSE_Abstract* A = Level().spawn_item(N, Position(), ai_location().level_vertex_id(), ID(), true);
+                int n = _GetItemCount(V);
+                string16 temp;
+                if (n > 0)
+                    j = atoi(_GetItem(V, 0, temp)); // count
 
-                CSE_ALifeInventoryItem* pSE_InventoryItem = smart_cast<CSE_ALifeInventoryItem*>(A);
-                if (pSE_InventoryItem)
-                    pSE_InventoryItem->m_fCondition = f_cond;
-
-                CSE_ALifeItemWeapon* W = smart_cast<CSE_ALifeItemWeapon*>(A);
-                if (W)
-                {
-                    if (W->m_scope_status == ALife::eAddonAttachable)
-                        W->m_addon_flags.set(CSE_ALifeItemWeapon::eWeaponAddonScope, bScope);
-                    if (W->m_silencer_status == ALife::eAddonAttachable)
-                        W->m_addon_flags.set(CSE_ALifeItemWeapon::eWeaponAddonSilencer, bSilencer);
-                    if (W->m_grenade_launcher_status == ALife::eAddonAttachable)
-                        W->m_addon_flags.set(CSE_ALifeItemWeapon::eWeaponAddonGrenadeLauncher, bLauncher);
-                }
-
-                NET_Packet P;
-                A->Spawn_Write(P, TRUE);
-                Level().Send(P, net_flags(TRUE));
-                F_entity_Destroy(A);
+                if (NULL != strstr(V, "prob="))
+                    p = (float)atof(strstr(V, "prob=") + 5);
+                if (fis_zero(p))
+                    p = 1.f;
+                if (!j)
+                    j = 1;
+                if (NULL != strstr(V, "cond="))
+                    f_cond = (float)atof(strstr(V, "cond=") + 5);
+                bScope = (NULL != strstr(V, "scope"));
+                bSilencer = (NULL != strstr(V, "silencer"));
+                bLauncher = (NULL != strstr(V, "launcher"));
             }
+            for (u32 i = 0; i < j; ++i)
+            {
+                if (::Random.randF(1.f) < p)
+                {
+                    CSE_Abstract* A = Level().spawn_item(N, Position(), ai_location().level_vertex_id(), ID(), true);
+
+                    CSE_ALifeInventoryItem* pSE_InventoryItem = smart_cast<CSE_ALifeInventoryItem*>(A);
+                    if (pSE_InventoryItem)
+                        pSE_InventoryItem->m_fCondition = f_cond;
+
+                    CSE_ALifeItemWeapon* W = smart_cast<CSE_ALifeItemWeapon*>(A);
+                    if (W)
+                    {
+                        if (W->m_scope_status == ALife::eAddonAttachable)
+                            W->m_addon_flags.set(CSE_ALifeItemWeapon::eWeaponAddonScope, bScope);
+                        if (W->m_silencer_status == ALife::eAddonAttachable)
+                            W->m_addon_flags.set(CSE_ALifeItemWeapon::eWeaponAddonSilencer, bSilencer);
+                        if (W->m_grenade_launcher_status == ALife::eAddonAttachable)
+                            W->m_addon_flags.set(CSE_ALifeItemWeapon::eWeaponAddonGrenadeLauncher, bLauncher);
+                    }
+
+                    NET_Packet P;
+                    A->Spawn_Write(P, TRUE);
+                    Level().Send(P, net_flags(TRUE));
+                    F_entity_Destroy(A);
+                }
+            }
+        }
     }
 }
 
@@ -924,7 +944,7 @@ void CGameObject::dbg_DrawSkeleton()
     Skeleton->_dbg_refresh();
 
     const CCF_Skeleton::ElementVec& Elements = Skeleton->_GetElements();
-    for (CCF_Skeleton::ElementVec::const_iterator I = Elements.begin(); I != Elements.end(); I++)
+    for (CCF_Skeleton::ElementVec::const_iterator I = Elements.begin(); I != Elements.end(); ++I)
     {
         if (!I->valid())
             continue;
@@ -1053,13 +1073,12 @@ Fvector CGameObject::get_last_local_point_on_mesh(Fvector const& local_point, u1
     return result;
 }
 
-void CGameObject::renderable_Render()
+void CGameObject::renderable_Render(IRenderable* root)
 {
     //
     MakeMeCrow();
     // ~
-    GlobalEnv.Render->set_Transform(&XFORM());
-    GlobalEnv.Render->add_Visual(Visual());
+    GEnv.Render->add_Visual(root, Visual(), XFORM());
     Visual()->getVisData().hom_frame = Device.dwFrame;
 }
 
@@ -1088,7 +1107,7 @@ void CGameObject::u_EventGen(NET_Packet& P, u32 type, u32 dest)
 }
 
 void CGameObject::u_EventSend(NET_Packet& P, u32 dwFlags) { Level().Send(P, dwFlags); }
-#include "bolt.h"
+#include "Bolt.h"
 
 BOOL CGameObject::UsedAI_Locations() { return (m_server_flags.test(CSE_ALifeObject::flUsedAI_Locations)); }
 BOOL CGameObject::TestServerFlag(u32 Flag) const { return (m_server_flags.test(Flag)); }
@@ -1129,7 +1148,7 @@ void VisualCallback(IKinematics* tpKinematics)
     CGameObject* game_object =
         smart_cast<CGameObject*>(static_cast<IGameObject*>(tpKinematics->GetUpdateCallbackParam()));
     VERIFY(game_object);
-    for (auto cb : game_object->visual_callbacks())
+    for (const auto& cb : game_object->visual_callbacks())
         cb(tpKinematics);
 }
 
@@ -1186,7 +1205,7 @@ void CGameObject::shedule_Update(u32 dt)
     else if (Device.vCameraPosition.distance_to_sqr(Position()) < CROW_RADIUS*CROW_RADIUS) MakeMeCrow ();
     */
     // ~
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         scriptBinder.shedule_Update(dt);
 }
 
@@ -1246,7 +1265,7 @@ u32 CGameObject::ef_detector_type() const
 
 void CGameObject::net_Relcase(IGameObject* O)
 {
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         scriptBinder.net_Relcase(O);
 }
 
@@ -1377,6 +1396,9 @@ void CGameObject::UpdateCL()
     m_previous_matrix = XFORM();
 }
 
+void CGameObject::PreUpdateCL() { m_client_updated = false; }
+void CGameObject::PostUpdateCL(bool /*bUpdateCL_disabled*/) { m_client_updated = true;}
+
 void CGameObject::on_matrix_change(const Fmatrix& previous) { obstacle().on_move(); }
 #ifdef DEBUG
 
@@ -1393,7 +1415,7 @@ void render_box(
         return;
 
     Fmatrix matrix;
-    Fvector* points = (Fvector*)_alloca(visible_bone_count * 8 * sizeof(Fvector));
+    Fvector* points = (Fvector*)xr_alloca(visible_bone_count * 8 * sizeof(Fvector));
     Fvector* I = points;
     for (u16 i = 0; i < bone_count; ++i)
     {

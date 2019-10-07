@@ -1,12 +1,12 @@
-#include "stdafx.h"
-#include "actor.h"
-#include "customdetector.h"
-#include "weapon.h"
-#include "artefact.h"
-#include "scope.h"
-#include "silencer.h"
-#include "grenadelauncher.h"
-#include "inventory.h"
+#include "StdAfx.h"
+#include "Actor.h"
+#include "CustomDetector.h"
+#include "Weapon.h"
+#include "Artefact.h"
+#include "Scope.h"
+#include "Silencer.h"
+#include "GrenadeLauncher.h"
+#include "Inventory.h"
 #include "Level.h"
 #include "xr_level_controller.h"
 #include "FoodItem.h"
@@ -70,10 +70,10 @@ void CActor::OnEvent(NET_Packet& P, u16 type)
         {
             if (IsGameTypeSingle())
             {
-                NET_Packet P;
-                u_EventGen(P, GE_OWNERSHIP_REJECT, ID());
-                P.w_u16(u16(Obj->ID()));
-                u_EventSend(P);
+                NET_Packet P2;
+                u_EventGen(P2, GE_OWNERSHIP_REJECT, ID());
+                P2.w_u16(u16(Obj->ID()));
+                u_EventSend(P2);
             }
             else
             {

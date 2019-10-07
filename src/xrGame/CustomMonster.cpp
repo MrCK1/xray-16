@@ -6,14 +6,14 @@
 #include "ai_debug.h"
 #include "CustomMonster.h"
 #include "ai_space.h"
-#include "ai/monsters/BaseMonster/base_monster.h"
-#include "xrserver_objects_alife_monsters.h"
-#include "xrserver.h"
+#include "ai/monsters/basemonster/base_monster.h"
+#include "xrServer_Objects_ALife_Monsters.h"
+#include "xrServer.h"
 #include "seniority_hierarchy_holder.h"
 #include "team_hierarchy_holder.h"
 #include "squad_hierarchy_holder.h"
 #include "group_hierarchy_holder.h"
-#include "customzone.h"
+#include "CustomZone.h"
 #include "Include/xrRender/Kinematics.h"
 #include "detail_path_manager.h"
 #include "memory_manager.h"
@@ -27,7 +27,7 @@
 #include "xrAICore/Navigation/level_graph.h"
 #include "xrAICore/Navigation/game_graph.h"
 #include "movement_manager.h"
-#include "entitycondition.h"
+#include "EntityCondition.h"
 #include "sound_player.h"
 #include "Level.h"
 #include "level_debug.h"
@@ -41,7 +41,7 @@
 #include "ai/monsters/snork/snork.h"
 #include "ai/monsters/burer/burer.h"
 #include "GamePersistent.h"
-#include "actor.h"
+#include "Actor.h"
 #include "alife_simulator.h"
 #include "alife_object_registry.h"
 #include "client_spawn_manager.h"
@@ -117,10 +117,10 @@ CCustomMonster::~CCustomMonster()
 
 #ifdef DEBUG
     Msg("dumping client spawn manager stuff for object with id %d", ID());
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         Level().client_spawn_manager().dump(ID());
 #endif // DEBUG
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         Level().client_spawn_manager().clear(ID());
 }
 
@@ -624,7 +624,7 @@ void CCustomMonster::update_range_fov(float& new_range, float& new_fov, float st
     // 300=standart, 50=super-fog
 
     new_fov = start_fov;
-    new_range = start_range * (_min(m_far_plane_factor * current_far_plane, standard_far_plane) / standard_far_plane) *
+    new_range = start_range * (std::min(m_far_plane_factor * current_far_plane, standard_far_plane) / standard_far_plane) *
         (1.f / (1.f + m_fog_density_factor * current_fog_density));
 }
 
@@ -784,7 +784,7 @@ BOOL CCustomMonster::net_Spawn(CSE_Abstract* DC)
 }
 
 #ifdef DEBUG
-void CCustomMonster::OnHUDDraw(CCustomHUD* hud) {}
+void CCustomMonster::OnHUDDraw(CCustomHUD* /*hud*/, IRenderable* /*root*/) {}
 #endif
 
 void CCustomMonster::Exec_Action(float /**dt/**/) {}
@@ -899,8 +899,8 @@ float CCustomMonster::feel_vision_mtl_transp(IGameObject* O, u32 element)
     return (memory().visual().feel_vision_mtl_transp(O, element));
 }
 
-void CCustomMonster::feel_sound_new(
-    IGameObject* who, int type, CSound_UserDataPtr user_data, const Fvector& position, float power)
+void CCustomMonster::feel_sound_new(IGameObject* who, int type, const CSound_UserDataPtr& user_data,
+    const Fvector& position, float power)
 {
     // Lain: added
     if (!g_Alive())
@@ -1063,7 +1063,7 @@ void draw_visiblity_rays(CCustomMonster* self, const IGameObject* object, collid
 
 void CCustomMonster::OnRender()
 {
-    GlobalEnv.DRender->OnFrameEnd();
+    GEnv.DRender->OnFrameEnd();
     // RCache.OnFrameEnd				();
 
     {

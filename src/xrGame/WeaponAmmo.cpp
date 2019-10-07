@@ -1,11 +1,11 @@
-#include "stdafx.h"
-#include "weaponammo.h"
+#include "StdAfx.h"
+#include "WeaponAmmo.h"
 #include "xrPhysics/PhysicsShell.h"
-#include "xrserver_objects_alife_items.h"
+#include "xrServer_Objects_ALife_Items.h"
 #include "Actor_Flags.h"
-#include "inventory.h"
-#include "weapon.h"
-#include "level_bullet_manager.h"
+#include "Inventory.h"
+#include "Weapon.h"
+#include "Level_Bullet_Manager.h"
 #include "ai_space.h"
 #include "xrEngine/GameMtlLib.h"
 #include "Level.h"
@@ -31,7 +31,7 @@ void CCartridge::Load(LPCSTR section, u8 LocalAmmoType)
     //.	param_s.kCritical			= pSettings->r_float(section, "k_hit_critical");
     param_s.kImpulse = pSettings->r_float(section, "k_impulse");
     // m_kPierce				= pSettings->r_float(section, "k_pierce");
-    param_s.kAP = pSettings->r_float(section, "k_ap");
+    param_s.kAP = READ_IF_EXISTS(pSettings, r_float, section, "k_ap", 0.0f);
     param_s.u8ColorID = READ_IF_EXISTS(pSettings, r_u8, section, "tracer_color_ID", 0);
 
     if (pSettings->line_exist(section, "k_air_resistance"))
@@ -61,13 +61,29 @@ void CCartridge::Load(LPCSTR section, u8 LocalAmmoType)
     if (pSettings->line_exist(section, "can_be_unlimited"))
         m_flags.set(cfCanBeUnlimited, pSettings->r_bool(section, "can_be_unlimited"));
 
-    m_flags.set(cfExplosive, pSettings->r_bool(section, "explosive"));
+    m_flags.set(cfExplosive,  READ_IF_EXISTS(pSettings, r_bool, section, "explosive", false));
 
     bullet_material_idx = GMLib.GetMaterialIdx(WEAPON_MATERIAL_NAME);
     VERIFY(u16(-1) != bullet_material_idx);
     VERIFY(param_s.fWallmarkSize > 0);
 
-    m_InvShortName = CStringTable().translate(pSettings->r_string(section, "inv_name_short"));
+    m_InvShortName = StringTable().translate(pSettings->r_string(section, "inv_name_short"));
+}
+
+float CCartridge::Weight() const
+{
+    auto s = m_ammoSect.c_str();
+    float res = 0;
+    if (s)
+    {
+        float box = pSettings->r_float(s, "box_size");
+        if (box > 0)
+        {
+            float w = pSettings->r_float(s, "inv_weight");
+            res = w / box;
+        }
+    }
+    return res;
 }
 
 CWeaponAmmo::CWeaponAmmo(void) {}
@@ -82,7 +98,7 @@ void CWeaponAmmo::Load(LPCSTR section)
     //.	cartridge_param.kCritical	= pSettings->r_float(section, "k_hit_critical");
     cartridge_param.kImpulse = pSettings->r_float(section, "k_impulse");
     // m_kPierce				= pSettings->r_float(section, "k_pierce");
-    cartridge_param.kAP = pSettings->r_float(section, "k_ap");
+    cartridge_param.kAP = READ_IF_EXISTS(pSettings, r_float, section, "k_ap", 0.0f);
     cartridge_param.u8ColorID = READ_IF_EXISTS(pSettings, r_u8, section, "tracer_color_ID", 0);
 
     if (pSettings->line_exist(section, "k_air_resistance"))
@@ -161,10 +177,10 @@ bool CWeaponAmmo::Get(CCartridge& cartridge)
     return true;
 }
 
-void CWeaponAmmo::renderable_Render()
+void CWeaponAmmo::renderable_Render(IRenderable* root)
 {
     if (!m_ready_to_destroy)
-        inherited::renderable_Render();
+        inherited::renderable_Render(root);
 }
 
 void CWeaponAmmo::UpdateCL()
@@ -215,11 +231,13 @@ CInventoryItem* CWeaponAmmo::can_make_killing(const CInventory* inventory) const
 
 float CWeaponAmmo::Weight() const
 {
-    float res = inherited::Weight();
-
-    res *= (float)m_boxCurr / (float)m_boxSize;
-
-    return res;
+    if (m_boxSize > 0)
+    {
+        float res = inherited::Weight();
+        res *= (float)m_boxCurr / (float)m_boxSize;
+        return res;
+    }
+    return 0.f;
 }
 
 u32 CWeaponAmmo::Cost() const

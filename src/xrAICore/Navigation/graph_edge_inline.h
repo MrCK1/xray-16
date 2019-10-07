@@ -23,11 +23,11 @@ IC CSGraphEdge::CEdgeBase(const _edge_weight_type& weight, _vertex_type* vertex)
 }
 
 TEMPLATE_SPECIALIZATION
-IC typename const CSGraphEdge::_edge_weight_type& CSGraphEdge::weight() const { return (m_weight); }
+IC const _edge_weight_type& CSGraphEdge::weight() const { return (m_weight); }
 TEMPLATE_SPECIALIZATION
-IC typename CSGraphEdge::_vertex_type* CSGraphEdge::vertex() const { return (m_vertex); }
+IC _vertex_type* CSGraphEdge::vertex() const { return (m_vertex); }
 TEMPLATE_SPECIALIZATION
-IC const typename CSGraphEdge::_vertex_id_type& CSGraphEdge::vertex_id() const { return (vertex()->vertex_id()); }
+IC const typename _vertex_type::vertex_id_type& CSGraphEdge::vertex_id() const { return (vertex()->vertex_id()); }
 #undef TEMPLATE_SPECIALIZATION
 #undef CSGraphEdge
 
@@ -44,14 +44,14 @@ IC const typename CSGraphEdge::_vertex_id_type& CSGraphEdge::vertex_id() const {
 TEMPLATE_SPECIALIZATION
 IC CSGraphEdge::CEdge(const _edge_weight_type& weight, _vertex_type* vertex) : inherited(weight, vertex) {}
 TEMPLATE_SPECIALIZATION
-IC bool CSGraphEdge::operator==(const _vertex_id_type& vertex_id) const { return (vertex()->vertex_id() == vertex_id); }
+IC bool CSGraphEdge::operator==(const typename _vertex_type::vertex_id_type& vertex_id) const { return (this->vertex()->vertex_id() == vertex_id); }
 TEMPLATE_SPECIALIZATION
 IC bool CSGraphEdge::operator==(const CEdge& obj) const
 {
-    if (weight() != obj.weight())
+    if (this->weight() != obj.weight())
         return (false);
 
-    return (vertex()->vertex_id() == obj.vertex()->vertex_id());
+    return (this->vertex()->vertex_id() == obj.vertex()->vertex_id());
 }
 
 TEMPLATE_SPECIALIZATION
@@ -74,14 +74,14 @@ IC _edge_data_type& CSGraphEdge::data() { return (m_data); }
 TEMPLATE_SPECIALIZATION
 IC CSGraphEdge::CEdge(const _edge_weight_type& weight, _vertex_type* vertex) : inherited(weight, vertex) {}
 TEMPLATE_SPECIALIZATION
-IC bool CSGraphEdge::operator==(const _vertex_id_type& vertex_id) const { return (vertex()->vertex_id() == vertex_id); }
+IC bool CSGraphEdge::operator==(const typename _vertex_type::vertex_id_type& vertex_id) const { return (this->vertex()->vertex_id() == vertex_id); }
 TEMPLATE_SPECIALIZATION
 IC bool CSGraphEdge::operator==(const CEdge& obj) const
 {
-    if (weight() != obj.weight())
+    if (this->weight() != obj.weight())
         return (false);
 
-    return (vertex()->vertex_id() == obj.vertex()->vertex_id());
+    return (this->vertex()->vertex_id() == obj.vertex()->vertex_id());
 }
 
 #undef TEMPLATE_SPECIALIZATION

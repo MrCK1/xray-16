@@ -1,22 +1,22 @@
 #include "pch_script.h"
 #include "entity_alive.h"
-#include "inventoryowner.h"
-#include "inventory.h"
-#include "xrPhysics/physicsshell.h"
+#include "InventoryOwner.h"
+#include "Inventory.h"
+#include "xrPhysics/PhysicsShell.h"
 #include "xrEngine/GameMtlLib.h"
-#include "phmovementcontrol.h"
-#include "wound.h"
-#include "xrmessages.h"
+#include "PHMovementControl.h"
+#include "Wound.h"
+#include "xrMessages.h"
 #include "Level.h"
 #include "Include/xrRender/Kinematics.h"
 #include "relation_registry.h"
 #include "monster_community.h"
-#include "entitycondition.h"
+#include "EntityCondition.h"
 #include "script_game_object.h"
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
 #include "CharacterPhysicsSupport.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "game_object_space.h"
 #include "material_manager.h"
 #include "game_base_space.h"
@@ -45,12 +45,15 @@ float CEntityAlive::m_fStartBurnWoundSize = 0.3f;
 //размер раны, чтоб остановить партиклы
 float CEntityAlive::m_fStopBurnWoundSize = 0.1f;
 
-STR_VECTOR* CEntityAlive::m_pFireParticlesVector = NULL;
+STR_VECTOR* CEntityAlive::m_pFireParticlesVector = nullptr;
 
 /////////////////////////////////////////////
 // CEntityAlive
 /////////////////////////////////////////////
-CEntityAlive::CEntityAlive() : m_hit_bone_surface_areas_actual(false)
+CEntityAlive::CEntityAlive()
+    : m_bMobility(false), m_fAccuracy(0), m_fIntelligence(0),
+      m_entity_condition(nullptr), m_ef_creature_type(0),
+      m_hit_bone_surface_areas_actual(false)
 {
     monster_community = new MONSTER_COMMUNITY();
 
@@ -122,7 +125,7 @@ void CEntityAlive::LoadBloodyWallmarks(LPCSTR section)
     /*
     for (int k=0; k<cnt; ++k)
     {
-        s.create ("effects\\wallmark",_GetItem(wallmarks_name,k,tmp));
+        s.create ("effects" DELIMITER "wallmark",_GetItem(wallmarks_name,k,tmp));
         m_pBloodDropsVector->push_back	(s);
     }
     */
@@ -413,7 +416,7 @@ void CEntityAlive::PlaceBloodWallmark(const Fvector& dir, const Fvector& start_p
             {
                 //добавить отметку на материале
                 // GlobalEnv.Render->add_StaticWallmark(wallmarkShader, end_point, wallmark_size, pTri, pVerts);
-                GlobalEnv.Render->add_StaticWallmark(pwallmarks_vector, end_point, wallmark_size, pTri, pVerts);
+                GEnv.Render->add_StaticWallmark(pwallmarks_vector, end_point, wallmark_size, pTri, pVerts);
             }
         }
     }
@@ -456,7 +459,7 @@ void CEntityAlive::UpdateFireParticles()
 
     //	WOUND_VECTOR_IT last_it;
 
-    for (WOUND_VECTOR_IT it = m_ParticleWounds.begin(); it != m_ParticleWounds.end();)
+    for (auto it = m_ParticleWounds.begin(); it != m_ParticleWounds.end();)
     {
         CWound* pWound = *it;
         float burn_size = pWound->TypeSize(ALife::eHitTypeBurn);
@@ -468,7 +471,7 @@ void CEntityAlive::UpdateFireParticles()
             it = m_ParticleWounds.erase(it);
             continue;
         }
-        it++;
+        ++it;
     }
 }
 
@@ -522,7 +525,7 @@ void CEntityAlive::UpdateBloodDrops()
 
     //	WOUND_VECTOR_IT last_it;
 
-    for (WOUND_VECTOR_IT it = m_BloodWounds.begin(); it != m_BloodWounds.end();)
+    for (auto it = m_BloodWounds.begin(); it != m_BloodWounds.end();)
     {
         CWound* pWound = *it;
         float blood_size = pWound->BloodSize();
@@ -552,7 +555,7 @@ void CEntityAlive::UpdateBloodDrops()
                     Fvector().set(0.f, -1.f, 0.f), pos, m_fBloodMarkDistance, m_fBloodDropSize, &**m_pBloodDropsVector);
             }
         }
-        it++;
+        ++it;
     }
 }
 
@@ -687,7 +690,7 @@ ICollisionHitCallback* CEntityAlive::get_collision_hit_callback()
     if (cs)
         return cs->get_collision_hit_callback();
     else
-        return false;
+        return nullptr;
 }
 
 void CEntityAlive::set_collision_hit_callback(ICollisionHitCallback* cc)
@@ -756,7 +759,7 @@ void CEntityAlive::fill_hit_bone_surface_areas() const
     VERIFY(kinematics);
     VERIFY(kinematics->LL_BoneCount());
 
-    m_hit_bone_surface_areas.clear_not_free();
+    m_hit_bone_surface_areas.clear();
 
     for (u16 i = 0, n = kinematics->LL_BoneCount(); i < n; ++i)
     {

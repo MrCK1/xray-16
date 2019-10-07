@@ -1,16 +1,16 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #ifdef DEBUG
 #include "PHDebug.h"
 #endif
 #include "alife_space.h"
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
-#include "car.h"
+#include "Car.h"
 #include "Include/xrRender/Kinematics.h"
 
 // extern CPHWorld*	ph_world;
 #include "xrPhysics/IPHWorld.h"
-CCar::SCarSound::SCarSound(CCar* car)
+CCar::SCarSound::SCarSound(CCar* car) : eCarSound(), engine_start_delay(0), time_state_start(0)
 {
     volume = 1.f;
     pcar = car;
@@ -26,10 +26,10 @@ void CCar::SCarSound::Init()
         volume = ini->r_float("car_sound", "snd_volume");
 
         snd_engine.create(ini->r_string("car_sound", "snd_name"), st_Effect, sg_SourceType); //
-        snd_engine_start.create(READ_IF_EXISTS(ini, r_string, "car_sound", "engine_start", "car\\test_car_start"),
-            st_Effect, sg_SourceType);
+        snd_engine_start.create(READ_IF_EXISTS(ini, r_string, "car_sound", "engine_start", "car" DELIMITER "test_car_start"),
+                                st_Effect, sg_SourceType);
         snd_engine_stop.create(
-            READ_IF_EXISTS(ini, r_string, "car_sound", "engine_stop", "car\\test_car_stop"), st_Effect, sg_SourceType);
+            READ_IF_EXISTS(ini, r_string, "car_sound", "engine_stop", "car" DELIMITER "test_car_stop"), st_Effect, sg_SourceType);
         float fengine_start_delay = READ_IF_EXISTS(ini, r_float, "car_sound", "engine_sound_start_dellay", 0.25f);
         engine_start_delay =
             iFloor((snd_engine_start._handle() ? iFloor(snd_engine_start.get_length_sec() * 1000.0f) : 1.f) *
@@ -153,7 +153,7 @@ void CCar::SCarSound::Stall()
     if (eCarSound == sndOff)
         return;
     SwitchState(sndStalling);
-    snd_engine.stop_deffered();
+    snd_engine.stop_deferred();
     snd_engine_stop.play(pcar);
     SetSoundPosition(snd_engine_stop);
 }
@@ -164,7 +164,7 @@ void CCar::SCarSound::Stop()
     if (eCarSound == sndOff)
         return;
     SwitchState(sndStoping);
-    snd_engine.stop_deffered();
+    snd_engine.stop_deferred();
     snd_engine_stop.play(pcar);
     SetSoundPosition(snd_engine_stop);
 }

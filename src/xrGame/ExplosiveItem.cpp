@@ -4,7 +4,7 @@
 //						балоны с газом и т.д.)
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #include "ExplosiveItem.h"
 
@@ -14,7 +14,8 @@ void CExplosiveItem::Load(LPCSTR section)
 {
     inherited::Load(section);
     CExplosive::Load(section);
-    m_flags.set(FUsingCondition, TRUE);
+    // Added by Axel, to enable optional condition use on any item
+    m_flags.set(FUsingCondition, READ_IF_EXISTS(pSettings, r_bool, section, "use_condition", true));
     CDelayedActionFuse::Initialize(
         pSettings->r_float(section, "time_to_explode"), pSettings->r_float(section, "condition_to_explode"));
     VERIFY(pSettings->line_exist(section, "set_timer_particles"));
@@ -77,7 +78,6 @@ bool CExplosiveItem::shedule_Needed()
     return (inherited::shedule_Needed() || CDelayedActionFuse::isActive());
 }
 
-void CExplosiveItem::renderable_Render() { inherited::renderable_Render(); }
 void CExplosiveItem::net_Relcase(IGameObject* O)
 {
     CExplosive::net_Relcase(O);

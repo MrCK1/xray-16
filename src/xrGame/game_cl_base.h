@@ -75,7 +75,7 @@ public:
 
     void OnGameMessage(NET_Packet& P);
 
-    virtual char* getTeamSection(int Team) { return NULL; };
+    virtual pcstr getTeamSection(int Team) { return NULL; };
     game_PlayerState* GetPlayerByGameID(u32 GameID);
     game_PlayerState* GetPlayerByOrderID(u32 id);
     ClientID GetClientIDByOrderID(u32 id);
@@ -84,6 +84,7 @@ public:
     virtual void SetGameUI(CUIGameCustom*){};
     virtual void GetMapEntities(xr_vector<SZoneMapEntityData>& dst){};
 
+    static void StartStopMenu(CUIDialogWnd* pDialog, bool bDoHideIndicators);
     virtual void shedule_Update(u32 dt);
 
     void u_EventGen(NET_Packet& P, u16 type, u16 dest);

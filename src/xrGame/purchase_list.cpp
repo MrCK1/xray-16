@@ -6,10 +6,10 @@
 //	Description : purchase list class
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "purchase_list.h"
-#include "inventoryowner.h"
-#include "gameobject.h"
+#include "InventoryOwner.h"
+#include "GameObject.h"
 #include "xrAICore/Navigation/ai_object_location.h"
 #include "Level.h"
 
@@ -23,8 +23,8 @@ void CPurchaseList::process(CInifile& ini_file, LPCSTR section, CInventoryOwner&
 
     const CGameObject& game_object = smart_cast<const CGameObject&>(owner);
     CInifile::Sect& S = ini_file.r_section(section);
-    CInifile::SectCIt I = S.Data.begin();
-    CInifile::SectCIt E = S.Data.end();
+    auto I = S.Data.cbegin();
+    auto E = S.Data.cend();
     for (; I != E; ++I)
     {
         VERIFY3((*I).second.size(), "PurchaseList : cannot handle lines in section without values", section);

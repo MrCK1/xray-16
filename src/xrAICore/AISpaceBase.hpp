@@ -1,5 +1,5 @@
 #pragma once
-#include "xrAICore/xrAICore.hpp"
+
 #include "xrCore/xrCore.h"
 
 class CGameGraph;
@@ -25,14 +25,9 @@ protected:
     void patrol_path_storage_raw(IReader& stream);
     void patrol_path_storage(IReader& stream);
     void SetGameGraph(CGameGraph* gameGraph);
-    [[deprecated("This function is deprecated. Use AISpaceBase::SetGameGraph() instead.")]] void game_graph(
-        CGameGraph* g)
-    {
-        SetGameGraph(g);
-    }
 
 public:
-    ~AISpaceBase();
+    virtual ~AISpaceBase();
     inline CGameGraph& game_graph() const;
     inline CGameGraph* get_game_graph() const;
     inline CLevelGraph& level_graph() const;

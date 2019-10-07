@@ -37,6 +37,18 @@ void CRenderTarget::phase_combine()
 
     //*** exposure-pipeline
     u32 gpu_id = Device.dwFrame % HW.Caps.iGPUNum;
+
+    if (Device.m_SecondViewport.IsSVPActive())	//--#SM+#-- +SecondVP+ Fix for screen flickering
+    {
+        // clang-format off
+        gpu_id = (Device.dwFrame - 1) % HW.Caps.iGPUNum;	// Фикс "мерцания" tonemapping (HDR) после выключения двойного рендера. 
+                                                            // Побочный эффект - при работе двойного рендера скорость изменения tonemapping (HDR) падает в два раза
+                                                            // Мерцание связано с тем, что HDR для своей работы хранит уменьшенние копии "прошлых кадров"
+                                                            // Эти кадры относительно похожи друг на друга, однако при включЄнном двойном рендере
+                                                            // в половине кадров оказывается картинка из второго рендера, и поскольку она часто может отличатся по цвету\яркости
+                                                            // то при попытке создания "плавного" перехода между ними получается эффект мерцания
+        // clang-format on
+    }
     {
         t_LUM_src->surface_set(rt_LUM_pool[gpu_id * 2 + 0]->pSurface);
         t_LUM_dest->surface_set(rt_LUM_pool[gpu_id * 2 + 1]->pSurface);
@@ -106,14 +118,32 @@ void CRenderTarget::phase_combine()
         m_v2w.invert(Device.mView);
         CEnvDescriptorMixer& envdesc = *g_pGamePersistent->Environment().CurrentEnv;
         const float minamb = 0.001f;
-        Fvector4 ambclr = {_max(envdesc.ambient.x * 2, minamb), _max(envdesc.ambient.y * 2, minamb),
-            _max(envdesc.ambient.z * 2, minamb), 0};
+        Fvector4 ambclr =
+        {
+            std::max(envdesc.ambient.x * 2.f, minamb),
+            std::max(envdesc.ambient.y * 2.f, minamb),
+            std::max(envdesc.ambient.z * 2.f, minamb),
+            0
+        };
         ambclr.mul(ps_r2_sun_lumscale_amb);
 
-        //Fvector4 envclr = { envdesc.sky_color.x*2+EPS, envdesc.sky_color.y*2+EPS,
-        //    envdesc.sky_color.z*2+EPS, envdesc.weight};
-        Fvector4 envclr = {envdesc.hemi_color.x * 2 + EPS, envdesc.hemi_color.y * 2 + EPS,
-            envdesc.hemi_color.z * 2 + EPS, envdesc.weight};
+        Fvector4 envclr;
+        if (envdesc.old_style)
+        {
+            envclr =
+            {
+                envdesc.sky_color.x * 2 + EPS, envdesc.sky_color.y * 2 + EPS,
+                envdesc.sky_color.z * 2 + EPS, envdesc.weight
+            };
+        }
+        else
+        {
+            envclr =
+            {
+                envdesc.hemi_color.x * 2 + EPS, envdesc.hemi_color.y * 2 + EPS,
+                envdesc.hemi_color.z * 2 + EPS, envdesc.weight
+            };
+        }
 
         Fvector4 fogclr = {envdesc.fog_color.x, envdesc.fog_color.y, envdesc.fog_color.z, 0};
         envclr.x *= 2 * ps_r2_sun_lumscale_hemi;
@@ -131,7 +161,7 @@ void CRenderTarget::phase_combine()
 
         // sun-params
         {
-            light* fuckingsun = (light*)RImplementation.Lights.sun_adapted._get();
+            light* fuckingsun = (light*)RImplementation.Lights.sun._get();
             Fvector L_dir, L_clr;
             float L_spec;
             L_clr.set(fuckingsun->color.r, fuckingsun->color.g, fuckingsun->color.b);
@@ -238,6 +268,14 @@ void CRenderTarget::phase_combine()
         }
     }
 
+    //FXAA
+    if (ps_r2_fxaa)
+    {
+        PIX_EVENT(FXAA);
+        phase_fxaa();
+        RCache.set_Stencil(FALSE);
+    }
+
     // PP enabled ?
     //  Render to RT texture to be able to copy RT even in windowed mode.
     BOOL PP_Complex = u_need_PP() | (BOOL)RImplementation.m_bMakeAsyncSS;
@@ -342,7 +380,9 @@ void CRenderTarget::phase_combine()
     RCache.set_Stencil(FALSE);
 
     //  if FP16-BLEND !not! supported - draw flares here, overwise they are already in the bloom target
-    /* if (!RImplementation.o.fp16_blend)*/ g_pGamePersistent->Environment().RenderFlares(); // lens-flares
+    /* if (!RImplementation.o.fp16_blend)*/
+    PIX_EVENT(LENS_FLARES);
+    g_pGamePersistent->Environment().RenderFlares(); // lens-flares
 
     //  Igor: screenshot will not have postprocess applied.
     //  TODO: fox that later
@@ -510,14 +550,32 @@ void CRenderTarget::phase_combine_volumetric()
         m_v2w.invert(Device.mView);
         CEnvDescriptorMixer& envdesc = *g_pGamePersistent->Environment().CurrentEnv;
         const float minamb = 0.001f;
-        Fvector4 ambclr = {_max(envdesc.ambient.x * 2, minamb), _max(envdesc.ambient.y * 2, minamb),
-            _max(envdesc.ambient.z * 2, minamb), 0};
+        Fvector4 ambclr =
+        {
+            std::max(envdesc.ambient.x * 2.f, minamb),
+            std::max(envdesc.ambient.y * 2.f, minamb),
+            std::max(envdesc.ambient.z * 2.f, minamb),
+            0
+        };
         ambclr.mul(ps_r2_sun_lumscale_amb);
 
-        //.     Fvector4    envclr          = { envdesc.sky_color.x*2+EPS,  envdesc.sky_color.y*2+EPS,
-        // envdesc.sky_color.z*2+EPS,   envdesc.weight                  };
-        Fvector4 envclr = {envdesc.hemi_color.x * 2 + EPS, envdesc.hemi_color.y * 2 + EPS,
-            envdesc.hemi_color.z * 2 + EPS, envdesc.weight};
+        Fvector4 envclr;
+        if (envdesc.old_style)
+        {
+            envclr =
+            {
+                envdesc.sky_color.x * 2 + EPS, envdesc.sky_color.y * 2 + EPS,
+                envdesc.sky_color.z * 2 + EPS, envdesc.weight
+            };
+        }
+        else
+        {
+            envclr =
+            {
+                envdesc.hemi_color.x * 2 + EPS, envdesc.hemi_color.y * 2 + EPS,
+                envdesc.hemi_color.z * 2 + EPS, envdesc.weight
+            };
+        }
 
         Fvector4 fogclr = {envdesc.fog_color.x, envdesc.fog_color.y, envdesc.fog_color.z, 0};
         envclr.x *= 2 * ps_r2_sun_lumscale_hemi;
@@ -527,7 +585,7 @@ void CRenderTarget::phase_combine_volumetric()
 
         // sun-params
         {
-            light* fuckingsun = (light*)RImplementation.Lights.sun_adapted._get();
+            light* fuckingsun = (light*)RImplementation.Lights.sun._get();
             Fvector L_dir, L_clr;
             float L_spec;
             L_clr.set(fuckingsun->color.r, fuckingsun->color.g, fuckingsun->color.b);

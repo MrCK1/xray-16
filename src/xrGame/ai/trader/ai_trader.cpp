@@ -8,18 +8,18 @@
 
 #include "pch_script.h"
 #include "ai_trader.h"
-#include "Trade.h"
+#include "trade.h"
 #include "script_entity_action.h"
 #include "script_game_object.h"
 #include "Inventory.h"
-#include "xrServerEntities/xrserver_objects_alife_monsters.h"
+#include "xrServerEntities/xrServer_Objects_ALife_Monsters.h"
 #include "Artefact.h"
 #include "xrServer.h"
 #include "relation_registry.h"
 #include "Common/object_broker.h"
 #include "sound_player.h"
 #include "Level.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "game_object_space.h"
 #include "trader_animation.h"
 #include "xrServerEntities/clsid_game.h"
@@ -181,10 +181,10 @@ void CAI_Trader::OnEvent(NET_Packet& P, u16 type)
         }
         else
         {
-            NET_Packet P;
-            u_EventGen(P, GE_OWNERSHIP_REJECT, ID());
-            P.w_u16(u16(Obj->ID()));
-            u_EventSend(P);
+            NET_Packet P2;
+            u_EventGen(P2, GE_OWNERSHIP_REJECT, ID());
+            P2.w_u16(u16(Obj->ID()));
+            u_EventSend(P2);
         }
         break;
     case GE_TRADE_SELL:

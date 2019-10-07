@@ -1,10 +1,10 @@
 #include "StdAfx.h"
 #include "UIMMShniaga.h"
-#include "UICursor.h"
-#include "UIStatic.h"
-#include "UIScrollView.h"
+#include "xrUICore/Cursor/UICursor.h"
+#include "xrUICore/Static/UIStatic.h"
+#include "xrUICore/ScrollView/UIScrollView.h"
 #include "UIXmlInit.h"
-#include "MMsound.h"
+#include "MMSound.h"
 #include "game_base_space.h"
 #include "Level.h"
 #include "Common/object_broker.h"
@@ -14,8 +14,34 @@
 #include "login_manager.h"
 #include "MainMenu.h"
 #include "xrGameSpy/GameSpy_Full.h"
+#include "UIHelper.h"
 
 extern string_path g_last_saved_game;
+
+CUIMMMagnifer::CUIMMMagnifer() : m_bPP(false) {}
+CUIMMMagnifer::~CUIMMMagnifer()
+{
+    if (GetPPMode())
+        MainMenu()->UnregisterPPDraw(this);
+}
+
+void CUIMMMagnifer::SetPPMode()
+{
+    m_bPP = true;
+    MainMenu()->RegisterPPDraw(this);
+    Show(false);
+};
+
+void CUIMMMagnifer::ResetPPMode()
+{
+    if (GetPPMode())
+    {
+        MainMenu()->UnregisterPPDraw(this);
+        m_bPP = false;
+    }
+}
+
+////////////////////////////////////////////
 
 CUIMMShniaga::CUIMMShniaga()
 {
@@ -25,7 +51,7 @@ CUIMMShniaga::CUIMMShniaga()
     AttachChild(m_view);
     m_shniaga = new CUIStatic();
     AttachChild(m_shniaga);
-    m_magnifier = new CUIStatic();
+    m_magnifier = new CUIMMMagnifer();
     m_shniaga->AttachChild(m_magnifier);
     m_magnifier->SetPPMode();
     m_mag_pos = 0;
@@ -55,8 +81,6 @@ CUIMMShniaga::~CUIMMShniaga()
     delete_data(m_buttons_new_network);
 }
 
-extern CActor* g_actor;
-
 void CUIMMShniaga::InitShniaga(CUIXml& xml_doc, LPCSTR path)
 {
     string256 _path;
@@ -67,6 +91,19 @@ void CUIMMShniaga::InitShniaga(CUIXml& xml_doc, LPCSTR path)
     m_mag_pos = m_magnifier->GetWndPos().x;
     strconcat(sizeof(_path), _path, path, ":shniaga");
     CUIXmlInit::InitStatic(xml_doc, _path, 0, m_shniaga);
+
+    strconcat(sizeof(_path), _path, path, ":shniaga:left_anim");
+    m_anims[0] = UIHelper::CreateStatic(xml_doc, _path, m_shniaga, false);
+
+    strconcat(sizeof(_path), _path, path, ":shniaga:right_anim");
+    m_anims[1] = UIHelper::CreateStatic(xml_doc, _path, m_shniaga, false);
+
+    strconcat(sizeof(_path), _path, path, ":shniaga:left_grating");
+    m_gratings[0] = UIHelper::CreateStatic(xml_doc, _path, m_shniaga, false);
+
+    strconcat(sizeof(_path), _path, path, ":shniaga:right_grating");
+    m_gratings[1] = UIHelper::CreateStatic(xml_doc, _path, m_shniaga, false);
+
     strconcat(sizeof(_path), _path, path, ":buttons_region");
     CUIXmlInit::InitScrollView(xml_doc, _path, 0, m_view);
     strconcat(sizeof(_path), _path, path, ":shniaga:magnifire:y_offset");
@@ -86,7 +123,7 @@ void CUIMMShniaga::InitShniaga(CUIXml& xml_doc, LPCSTR path)
         if (GameID() == eGameIDSingle)
         {
             VERIFY(Actor());
-            if (g_actor && !Actor()->g_Alive())
+            if (Actor() && !Actor()->g_Alive())
                 CreateList(m_buttons, xml_doc, "menu_main_single_dead");
             else
                 CreateList(m_buttons, xml_doc, "menu_main_single");
@@ -94,7 +131,7 @@ void CUIMMShniaga::InitShniaga(CUIXml& xml_doc, LPCSTR path)
         else
             CreateList(m_buttons, xml_doc, "menu_main_mm");
     }
-    CreateList(m_buttons_new_network, xml_doc, "menu_network_game");
+    CreateList(m_buttons_new_network, xml_doc, "menu_network_game", false);
 
     ShowMain();
 
@@ -103,21 +140,30 @@ void CUIMMShniaga::InitShniaga(CUIXml& xml_doc, LPCSTR path)
 }
 
 void CUIMMShniaga::OnDeviceReset() {}
-extern CActor* g_actor;
 
-void CUIMMShniaga::CreateList(xr_vector<CUITextWnd*>& lst, CUIXml& xml_doc, LPCSTR path)
+void CUIMMShniaga::CreateList(xr_vector<CUITextWnd*>& lst, CUIXml& xml_doc, LPCSTR path, bool required /*= true*/)
 {
-    CGameFont* pF;
     u32 color;
+    CGameFont* pF;
+
     float button_height = xml_doc.ReadAttribFlt("button", 0, "h");
-    R_ASSERT(button_height);
+    const float btn_height = xml_doc.ReadAttribFlt(path, 0, "btn_height");
+
+    if (button_height == 0.0f && btn_height > button_height)
+        button_height = btn_height;
+
+    R_ASSERT(button_height > 0 || !required);
 
     CUIXmlInit::InitFont(xml_doc, path, 0, color, pF);
-    R_ASSERT(pF);
+    if (!pF)
+    {
+        R_ASSERT(!required);
+        return;
+    }
 
     int nodes_num = xml_doc.GetNodesNum(path, 0, "btn");
 
-    XML_NODE* tab_node = xml_doc.NavigateToNode(path, 0);
+    XML_NODE tab_node = xml_doc.NavigateToNode(path, 0);
     xml_doc.SetLocalRoot(tab_node);
 
     CUITextWnd* st;
@@ -165,7 +211,7 @@ void CUIMMShniaga::SetPage(enum_page_id page_id, LPCSTR xml_file, LPCSTR xml_pat
     delete_data(*lst);
 
     CUIXml tmp_xml;
-    tmp_xml.Load(CONFIG_PATH, UI_PATH, xml_file);
+    tmp_xml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, xml_file);
     CreateList(*lst, tmp_xml, xml_path);
 }
 
@@ -300,6 +346,17 @@ void CUIMMShniaga::Update()
     if (m_start_time > Device.dwTimeContinual - m_run_time)
     {
         Fvector2 pos = m_shniaga->GetWndPos();
+
+        if (m_anims[0])
+        {
+            float l = 2 * PI * m_anims[0]->GetHeight() / 2;
+            int n = iFloor(pos.y / l);
+            float a = 2 * PI * (pos.y - l * n) / l;
+            m_anims[0]->SetHeading(-a);
+            if (m_anims[1])
+                m_anims[1]->SetHeading(a);
+        }
+
         pos.y = this->pos(m_origin, m_destination, Device.dwTimeContinual - m_start_time);
         m_shniaga->SetWndPos(pos);
     }
@@ -337,24 +394,22 @@ void CUIMMShniaga::OnBtnClick()
         GetMessageTarget()->SendMessage(m_selected, BUTTON_CLICKED);
 }
 
-#include <dinput.h>
-
 bool CUIMMShniaga::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
     if (WINDOW_KEY_PRESSED == keyboard_action)
     {
         switch (dik)
         {
-        case DIK_UP:
+        case SDL_SCANCODE_UP:
             if (m_selected_btn > 0)
                 SelectBtn(m_selected_btn - 1);
             return true;
-        case DIK_DOWN:
+        case SDL_SCANCODE_DOWN:
             if (m_selected_btn < BtnCount() - 1)
                 SelectBtn(m_selected_btn + 1);
             return true;
-        case DIK_RETURN: OnBtnClick(); return true;
-        case DIK_ESCAPE:
+        case SDL_SCANCODE_RETURN: OnBtnClick(); return true;
+        case SDL_SCANCODE_ESCAPE:
             if (m_page != epi_main)
                 ShowMain();
             return true;

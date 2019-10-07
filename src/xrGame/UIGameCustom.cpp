@@ -2,7 +2,7 @@
 #include "UIGameCustom.h"
 #include "Level.h"
 #include "ui/UIXmlInit.h"
-#include "ui/UIStatic.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "Common/object_broker.h"
 #include "string_table.h"
 
@@ -12,11 +12,14 @@
 #include "ui/UIMainIngameWnd.h"
 #include "ui/UIMessagesWindow.h"
 #include "ui/UIHudStatesWnd.h"
-#include "actor.h"
-#include "inventory.h"
+#include "Actor.h"
+#include "Inventory.h"
 #include "game_cl_base.h"
 
 #include "xrEngine/x_ray.h"
+
+#include "ui/UICellItem.h" //Alundaio
+//#include "script_game_object.h" //Alundaio
 
 EGameIDs ParseStringToGameType(const char* str);
 
@@ -100,7 +103,7 @@ void CUIGameCustom::Render()
     DoRenderDialogs();
 }
 
-StaticDrawableWrapper* CUIGameCustom::AddCustomStatic(const char* id, bool singleInstance)
+StaticDrawableWrapper* CUIGameCustom::AddCustomStatic(const char* id, bool singleInstance, float ttlDefault /*= -1.0f*/)
 {
     if (singleInstance)
     {
@@ -108,13 +111,13 @@ StaticDrawableWrapper* CUIGameCustom::AddCustomStatic(const char* id, bool singl
         if (it != CustomStatics.end())
             return *it;
     }
-    CUIXmlInit xmlInit;
+
     CustomStatics.push_back(new StaticDrawableWrapper());
     StaticDrawableWrapper* sss = CustomStatics.back();
     sss->m_static = new CUIStatic();
     sss->m_name = id;
-    xmlInit.InitStatic(*MsgConfig, id, 0, sss->m_static);
-    float ttl = MsgConfig->ReadAttribFlt(id, 0, "ttl", -1.0f);
+    CUIXmlInit::InitStatic(*MsgConfig, id, 0, sss->m_static);
+    float ttl = MsgConfig->ReadAttribFlt(id, 0, "ttl", ttlDefault);
     if (ttl > 0.0f)
         sss->m_endTime = Device.fTimeGlobal + ttl;
     return sss;
@@ -173,6 +176,35 @@ void CUIGameCustom::HideActorMenu()
         ActorMenu->HideDialog();
 }
 
+//Alundaio:
+void CUIGameCustom::UpdateActorMenu()
+{
+    if (ActorMenu->IsShown())
+    {
+        ActorMenu->UpdateActor();
+        ActorMenu->RefreshCurrentItemCell();
+    }
+}
+
+CScriptGameObject* CUIGameCustom::CurrentItemAtCell()
+{
+    CUICellItem* itm = ActorMenu->CurrentItem();
+    if (!itm->m_pData)
+        return nullptr;
+
+    PIItem IItm = static_cast<PIItem>(itm->m_pData);
+    if (!IItm)
+        return nullptr;
+
+    CGameObject* GO = smart_cast<CGameObject*>(IItm);
+
+    if (GO)
+        return GO->lua_game_object();
+
+    return nullptr;
+}
+//-Alundaio
+
 void CUIGameCustom::HideMessagesWindow()
 {
     if (m_pMessagesWnd->IsShown())
@@ -215,7 +247,7 @@ void CUIGameCustom::Load()
         return;
     R_ASSERT(!MsgConfig);
     MsgConfig = new CUIXml();
-    MsgConfig->Load(CONFIG_PATH, UI_PATH, "ui_custom_msgs.xml");
+    MsgConfig->Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "ui_custom_msgs.xml");
     R_ASSERT(!ActorMenu);
     ActorMenu = new CUIActorMenu();
     R_ASSERT(!PdaMenu);
@@ -294,10 +326,10 @@ CMapListHelper gMapListHelper;
 void CMapListHelper::LoadMapInfo(const char* cfgName, const xr_string& levelName, const char* levelVer /*= "1.0"*/)
 {
     CInifile levelCfg(cfgName);
-    shared_str shLevelName = levelName.substr(0, levelName.find('\\')).c_str();
-    shared_str shLevelVer = levelVer;
     if (levelCfg.section_exist("map_usage"))
     {
+        shared_str shLevelName = levelName.substr(0, levelName.find(_DELIMITER)).c_str();
+        shared_str shLevelVer = levelVer;
         if (levelCfg.line_exist("map_usage", "ver") && !levelVer)
             shLevelVer = levelCfg.r_string("map_usage", "ver");
         for (CInifile::Item& kv : levelCfg.r_section("map_usage").Data)
@@ -337,7 +369,7 @@ void CMapListHelper::LoadMapInfo(const char* cfgName, const xr_string& levelName
 void CMapListHelper::Load()
 {
     string_path cfgFileName;
-    FS.update_path(cfgFileName, "$game_config$", "mp\\map_list.ltx");
+    FS.update_path(cfgFileName, "$game_config$", "mp" DELIMITER "map_list.ltx");
     CInifile maplistCfg(cfgFileName);
     // read weathers set
     CInifile::Sect weatherCfg = maplistCfg.r_section("weather");
@@ -358,7 +390,7 @@ void CMapListHelper::Load()
         LoadMapInfo(cfgFileName, cfg.name);
     }
     // scan all not loaded archieves
-    LPCSTR tempRoot = "temporary_gamedata\\";
+    LPCSTR tempRoot = "temporary_gamedata" DELIMITER;
     FS_Path* levelsPath = FS.get_path("$game_levels$");
     xr_string prevRoot = levelsPath->m_Root;
     levelsPath->_set_root(tempRoot);
@@ -370,7 +402,7 @@ void CMapListHelper::Load()
         const char* levelVersion = arch.header->r_string("header", "level_ver");
         FS.LoadArchive(arch, tempRoot);
         FS.update_path(cfgFileName, "$game_levels$", levelName);
-        xr_strcat(cfgFileName, "\\level.ltx");
+        xr_strcat(cfgFileName, "" DELIMITER "level.ltx");
         LoadMapInfo(cfgFileName, levelName, levelVersion);
         FS.unload_archive(arch);
     }

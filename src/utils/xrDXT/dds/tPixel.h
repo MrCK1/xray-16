@@ -5,8 +5,6 @@
 #include <dds/tVector.h>
 #include <dds/nvErrorCodes.h>
 
-#pragma warning(disable : 4201)
-
 namespace nv
 {
 // modulo value x between [lo,hi]
@@ -788,7 +786,7 @@ public:
             tmp.r = p->r;
             p->r = p->b;
             p->b = tmp.r;
-            p++;
+            ++p;
         }
     }
 
@@ -816,7 +814,7 @@ public:
         for (size_t i = 0; i < m_width * m_height; i++)
         {
             p->dot(w);
-            p++;
+            ++p;
         }
     }
 
@@ -826,7 +824,7 @@ public:
         for (size_t i = 0; i < m_width * m_height; i++)
         {
             p->Clamp(low, hi);
-            p++;
+            ++p;
         }
     }
 
@@ -836,7 +834,7 @@ public:
         for (size_t i = 0; i < m_width * m_height; i++)
         {
             p->Wrap(low, hi);
-            p++;
+            ++p;
         }
     }
 

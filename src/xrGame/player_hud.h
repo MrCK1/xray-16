@@ -55,6 +55,19 @@ struct hud_item_measures
     Fvector m_hands_attach[2]; // pos,rot
 
     void load(const shared_str& sect_name, IKinematics* K);
+	
+    struct inertion_params
+    {
+        float m_pitch_offset_r;
+        float m_pitch_offset_n;
+        float m_pitch_offset_d;
+        float m_pitch_low_limit;
+        float m_origin_offset;
+        float m_origin_offset_aim;
+        float m_tendto_speed;
+        float m_tendto_speed_aim;
+    };
+    inertion_params m_inertion_params; //--#SM+#--	
 };
 
 struct attachable_hud_item
@@ -72,15 +85,16 @@ struct attachable_hud_item
 
     player_hud_motion_container m_hand_motions;
 
-    attachable_hud_item(player_hud* pparent) : m_parent(pparent), m_upd_firedeps_frame(u32(-1)), m_parent_hud_item(NULL)
-    {
-    }
+    attachable_hud_item(player_hud* pparent) : m_parent(pparent), m_upd_firedeps_frame(u32(-1)),
+                                               m_parent_hud_item(nullptr), m_model(nullptr),
+                                               m_attach_place_idx(0) {}
+
     ~attachable_hud_item();
     void load(const shared_str& sect_name);
     void update(bool bForce);
     void update_hud_additional(Fmatrix& trans);
     void setup_firedeps(firedeps& fd);
-    void render();
+    void render(IRenderable* root);
     void render_item_ui();
     bool render_item_ui_query();
     bool need_renderable();
@@ -109,7 +123,7 @@ public:
     void load(const shared_str& model_name);
     void load_default() { load("actor_hud_05"); };
     void update(const Fmatrix& trans);
-    void render_hud();
+    void render_hud(IRenderable* root);
     void render_item_ui();
     bool render_item_ui_query();
     u32 anim_play(u16 part, const MotionID& M, BOOL bMixIn, const CMotionDef*& md, float speed);
@@ -129,7 +143,7 @@ public:
 
     void calc_transform(u16 attach_slot_idx, const Fmatrix& offset, Fmatrix& result);
     void tune(Ivector values);
-    u32 motion_length(const MotionID& M, const CMotionDef*& md, float speed);
+    u32 motion_length(const MotionID& M, const CMotionDef*& md, float speed, IKinematicsAnimated* itemModel);
     u32 motion_length(const shared_str& anim_name, const shared_str& hud_name, const CMotionDef*& md);
     void OnMovementChanged(ACTOR_DEFS::EMoveCommand cmd);
 
@@ -139,9 +153,6 @@ private:
     bool inertion_allowed();
 
 private:
-    const Fvector& attach_rot() const;
-    const Fvector& attach_pos() const;
-
     shared_str m_sect_name;
 
     Fmatrix m_attach_offset;

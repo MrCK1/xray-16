@@ -6,13 +6,14 @@
 //	Description : Attachable item
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
-#include "physicsshellholder.h"
+#include "StdAfx.h"
+#include "PhysicsShellHolder.h"
 #include "attachable_item.h"
-#include "inventoryowner.h"
-#include "inventory.h"
+#include "InventoryOwner.h"
+#include "Inventory.h"
 #include "xrEngine/xr_input.h"
-#include "ui_base.h"
+#include "xrUICore/ui_base.h"
+#include "xrEngine/GameFont.h"
 
 #ifdef DEBUG
 CAttachableItem* CAttachableItem::m_dbgItem = NULL;
@@ -58,10 +59,9 @@ void CAttachableItem::OnH_A_Chield()
         object().setVisible(true);
 }
 
-void CAttachableItem::renderable_Render()
+void CAttachableItem::renderable_Render(IRenderable* root)
 {
-    GlobalEnv.Render->set_Transform(&object().XFORM());
-    GlobalEnv.Render->add_Visual(object().Visual());
+    GEnv.Render->add_Visual(root, object().Visual(), object().XFORM());
 }
 
 void CAttachableItem::OnH_A_Independent() { enable(false); }
@@ -111,6 +111,7 @@ bool CAttachableItem::can_be_attached() const
 
     return (true);
 }
+
 void CAttachableItem::afterAttach()
 {
     VERIFY(m_valid);
@@ -121,6 +122,11 @@ void CAttachableItem::afterDetach()
 {
     VERIFY(m_valid);
     object().processing_deactivate();
+}
+
+bool CAttachableItem::use_parent_ai_locations() const
+{
+    return !enabled();
 }
 
 #ifdef DEBUG
@@ -135,15 +141,15 @@ void attach_adjust_mode_keyb(int dik)
     if (!CAttachableItem::m_dbgItem)
         return;
 
-    bool b_move = !!(pInput->iGetAsyncKeyState(DIK_LSHIFT));
-    bool b_rot = !!(pInput->iGetAsyncKeyState(DIK_LMENU));
+    bool b_move = !!(pInput->iGetAsyncKeyState(SDL_SCANCODE_LSHIFT));
+    bool b_rot = !!(pInput->iGetAsyncKeyState(SDL_SCANCODE_LALT));
 
     int axis = -1;
-    if (pInput->iGetAsyncKeyState(DIK_Z))
+    if (pInput->iGetAsyncKeyState(SDL_SCANCODE_Z))
         axis = 0;
-    else if (pInput->iGetAsyncKeyState(DIK_X))
+    else if (pInput->iGetAsyncKeyState(SDL_SCANCODE_X))
         axis = 1;
-    if (pInput->iGetAsyncKeyState(DIK_C))
+    if (pInput->iGetAsyncKeyState(SDL_SCANCODE_C))
         axis = 2;
 
     if (!b_move && !b_rot)
@@ -151,7 +157,7 @@ void attach_adjust_mode_keyb(int dik)
 
     switch (dik)
     {
-    case DIK_LEFT:
+    case SDL_SCANCODE_LEFT:
     {
         if (b_move)
             CAttachableItem::mov(axis, ATT_ITEM_MOVE_CURR);
@@ -159,7 +165,7 @@ void attach_adjust_mode_keyb(int dik)
             CAttachableItem::rot(axis, ATT_ITEM_ROT_CURR);
     }
     break;
-    case DIK_RIGHT:
+    case SDL_SCANCODE_RIGHT:
     {
         if (b_move)
             CAttachableItem::mov(axis, -ATT_ITEM_MOVE_CURR);
@@ -167,7 +173,7 @@ void attach_adjust_mode_keyb(int dik)
             CAttachableItem::rot(axis, -ATT_ITEM_ROT_CURR);
     }
     break;
-    case DIK_PRIOR:
+    case SDL_SCANCODE_PAGEUP:
     {
         if (b_move)
             ATT_ITEM_MOVE_CURR += ATT_ITEM_MOVE_STEP;
@@ -175,7 +181,7 @@ void attach_adjust_mode_keyb(int dik)
             ATT_ITEM_ROT_CURR += ATT_ITEM_ROT_STEP;
     }
     break;
-    case DIK_NEXT:
+    case SDL_SCANCODE_PAGEDOWN:
     {
         if (b_move)
             ATT_ITEM_MOVE_CURR -= ATT_ITEM_MOVE_STEP;

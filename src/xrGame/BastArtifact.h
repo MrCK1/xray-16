@@ -4,15 +4,15 @@
 ///////////////////////////////////////////////////////////////
 
 #pragma once
-#include "artefact.h"
-#include "xrEngine/feel_touch.h"
+#include "Artefact.h"
+#include "xrEngine/Feel_Touch.h"
 
 #include "entity_alive.h"
 
 struct SGameMtl;
 struct dContact;
 
-DEFINE_VECTOR(CEntityAlive*, ALIVE_LIST, ALIVE_LIST_it);
+using ALIVE_LIST = xr_vector<CEntityAlive*>;
 
 class CBastArtefact : public CArtefact, public Feel::Touch
 {

@@ -9,12 +9,34 @@
 #ifndef AI_DEBUG_TEXT_TREE_H_INCLUDED
 #define AI_DEBUG_TEXT_TREE_H_INCLUDED
 
+IC xr_string __cdecl make_xrstr(pcstr format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    char temp[4096];
+    vsprintf(temp, format, args);
+
+    va_end(args);
+    return xr_string(temp);
+}
+
+IC xr_string __cdecl make_xrstr(bool b) { return b ? "+" : "-"; }
+IC xr_string __cdecl make_xrstr(float f) { return make_xrstr("%f", f); }
+IC xr_string __cdecl make_xrstr(s32 d) { return make_xrstr("%i", d); }
+IC xr_string __cdecl make_xrstr(u32 d) { return make_xrstr("%u", d); }
+IC xr_string __cdecl make_xrstr(s64 d) { return make_xrstr("%i", d); }
+IC xr_string __cdecl make_xrstr(u64 d) { return make_xrstr("%u", d); }
+IC xr_string __cdecl make_xrstr(Fvector3 v) { return make_xrstr("[%f][%f][%f]", v.x, v.y, v.z); }
+IC xr_string __cdecl make_xrstr(const xr_string& s) { return s; }
+
 namespace debug
 {
 class text_tree
 {
 public: // START INTERFACE
-    text_tree(char separator = ':', int group_id_ = 0) : group_id(group_id_), shown(true), separator(separator) {}
+    text_tree(char separator = ':', int group_id_ = 0) : group_id(group_id_), shown(true),
+                                                         separator(separator), num_siblings(0) {}
     void toggle_show(int group_id);
 
     // finds node by first string
@@ -79,21 +101,4 @@ void log_text_tree(text_tree& tree);
 
 } // namespace debug
 
-IC xr_string __cdecl make_xrstr(LPCSTR format, ...)
-{
-    va_list args;
-    va_start(args, format);
-
-    char temp[4096];
-    vsprintf(temp, format, args);
-
-    return xr_string(temp);
-}
-
-IC xr_string __cdecl make_xrstr(bool b) { return b ? "+" : "-"; }
-IC xr_string __cdecl make_xrstr(float f) { return make_xrstr("%f", f); }
-IC xr_string __cdecl make_xrstr(s32 d) { return make_xrstr("%i", d); }
-IC xr_string __cdecl make_xrstr(u32 d) { return make_xrstr("%u", d); }
-IC xr_string __cdecl make_xrstr(Fvector3 v) { return make_xrstr("[%f][%f][%f]", v.x, v.y, v.z); }
-IC xr_string __cdecl make_xrstr(const xr_string& s) { return s; }
 #endif // defined(AI_DEBUG_TEXT_TREE_H_INCLUDED)

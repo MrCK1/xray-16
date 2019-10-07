@@ -3,18 +3,18 @@
 //						(оружие и осколочные гранаты)
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #include "ShootingObject.h"
 
 #include "ParticlesObject.h"
 #include "WeaponAmmo.h"
 
-#include "actor.h"
-#include "spectator.h"
+#include "Actor.h"
+#include "Spectator.h"
 #include "game_cl_base.h"
 #include "Level.h"
-#include "level_bullet_manager.h"
+#include "Level_Bullet_Manager.h"
 #include "game_cl_single.h"
 
 #define HIT_POWER_EPSILON 0.05f
@@ -61,8 +61,19 @@ void CShootingObject::Load(LPCSTR section)
 
     //время затрачиваемое на выстрел
     fOneShotTime = pSettings->r_float(section, "rpm");
+    //Alundaio: Two-shot burst rpm; used for Abakan/AN-94
+    modeShotTime = READ_IF_EXISTS(pSettings, r_float, section, "rpm_mode_2", fOneShotTime);
+
     VERIFY(fOneShotTime > 0.f);
     fOneShotTime = 60.f / fOneShotTime;
+    modeShotTime = 60.f / modeShotTime;
+
+    //Cycle down RPM after first 2 shots; used for Abakan/AN-94
+    if (pSettings->line_exist(section, "cycle_down"))
+        cycleDown = pSettings->r_bool(section, "cycle_down") ? true : false;
+    else
+        cycleDown = false;
+    //Alundaio: END
 
     LoadFireParams(section);
     LoadLights(section, "");
@@ -75,8 +86,8 @@ void CShootingObject::Load(LPCSTR section)
 void CShootingObject::Light_Create()
 {
     // lights
-    light_render = GlobalEnv.Render->light_create();
-    if (GlobalEnv.Render->get_generation() == IRender::GENERATION_R2)
+    light_render = GEnv.Render->light_create();
+    if (GEnv.Render->get_generation() == IRender::GENERATION_R2)
         light_render->set_shadow(true);
     else
         light_render->set_shadow(false);
@@ -94,7 +105,7 @@ void CShootingObject::LoadFireParams(LPCSTR section)
 
     //сила выстрела и его мощьность
     s_sHitPower = pSettings->r_string_wb(section, "hit_power"); //читаем строку силы хита пули оружия
-    s_sHitPowerCritical = pSettings->r_string_wb(section, "hit_power_critical");
+    s_sHitPowerCritical = READ_IF_EXISTS(pSettings, r_string_wb, section, "hit_power_critical", s_sHitPower);
     fvHitPower[egdMaster] =
         (float)atof(_GetItem(*s_sHitPower, 0, buffer)); //первый параметр - это хит для уровня игры мастер
     fvHitPowerCritical[egdMaster] =

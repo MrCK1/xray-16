@@ -1,10 +1,10 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #pragma hdrstop
 
 #include "CameraLook.h"
-#include "xrEngine/Cameramanager.h"
+#include "xrEngine/CameraManager.h"
 #include "xr_level_controller.h"
-#include "actor.h"
+#include "Actor.h"
 
 CCameraLook::CCameraLook(IGameObject* p, u32 flags) : CCameraBase(p, flags) {}
 void CCameraLook::Load(LPCSTR section)
@@ -85,15 +85,17 @@ void CCameraLook::OnActivate(CCameraBase* old_cam)
 #include "visual_memory_manager.h"
 #include "actor_memory.h"
 
-int cam_dik = DIK_LSHIFT;
-
 Fvector CCameraLook2::m_cam_offset;
 void CCameraLook2::OnActivate(CCameraBase* old_cam) { CCameraLook::OnActivate(old_cam); }
 void CCameraLook2::Update(Fvector& point, Fvector&)
 {
+    auto [key1, key2] = GetKeysBindedTo(kCAM_AUTOAIM);
+    const bool key1State = pInput->iGetAsyncKeyState(key1);
+    const bool key2State = pInput->iGetAsyncKeyState(key2);
     if (!m_locked_enemy)
-    { // autoaim
-        if (pInput->iGetAsyncKeyState(cam_dik))
+    {
+        // autoaim
+        if (key1State || key2State)
         {
             const CVisualMemoryManager::VISIBLES& vVisibles = Actor()->memory().visual().objects();
             CVisualMemoryManager::VISIBLES::const_iterator v_it = vVisibles.begin();
@@ -123,7 +125,7 @@ void CCameraLook2::Update(Fvector& point, Fvector&)
     }
     else
     {
-        if (!pInput->iGetAsyncKeyState(cam_dik))
+        if (!key1State && !key2State)
         {
             m_locked_enemy = NULL;
             //.			Msg				("enemy is NILL");

@@ -17,7 +17,7 @@
 
 class CBlend;
 class CPatrolPath;
-enum ESoundTypes;
+enum ESoundTypes : u32;
 class rat_state_manager;
 
 namespace steering_behaviour
@@ -377,8 +377,8 @@ public:
     virtual void Think();
     virtual void SelectAnimation(const Fvector& _view, const Fvector& _move, float speed);
     virtual void Exec_Action(float dt);
-    virtual void feel_sound_new(
-        IGameObject* who, int type, CSound_UserDataPtr user_data, const Fvector& Position, float power);
+    void feel_sound_new(IGameObject* who, int type, const CSound_UserDataPtr& user_data,
+        const Fvector& Position, float power) override;
     virtual void feel_touch_new(IGameObject* O);
     virtual bool feel_touch_on_contact(IGameObject* O);
     virtual bool feel_vision_isRelevant(IGameObject*);
@@ -391,7 +391,7 @@ public:
 
     /////////////////////////////////////
     // rat as eatable item
-    virtual void OnHUDDraw(CCustomHUD* hud) { inherited::OnHUDDraw(hud); }
+    void OnHUDDraw(CCustomHUD* hud, IRenderable* root) override { inherited::OnHUDDraw(hud, root); }
     virtual void OnH_B_Chield();
     virtual void OnH_B_Independent();
     virtual void OnH_A_Independent();

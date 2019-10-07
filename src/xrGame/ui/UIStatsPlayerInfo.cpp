@@ -1,6 +1,6 @@
 #include "StdAfx.h"
 #include "UIStatsPlayerInfo.h"
-#include "UIStatic.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "game_cl_base.h"
 #include "UIStatsIcon.h"
 #include "game_cl_artefacthunt.h"
@@ -36,7 +36,7 @@ void CUIStatsPlayerInfo::InitPlayerInfo(Fvector2 pos, Fvector2 size)
     m_pBackground->SetStretchTexture(true);
     m_pBackground->SetWndPos(Fvector2().set(0, 0));
     m_pBackground->SetWndSize(size);
-    m_pBackground->InitTexture("ui\\ui_mp_frags_selection");
+    m_pBackground->InitTexture("ui" DELIMITER "ui_mp_frags_selection");
 
     xr_vector<PI_FIELD_INFO>& field_info = *m_field_info;
     for (u32 i = 0; i < field_info.size(); i++)
@@ -104,7 +104,6 @@ void CUIStatsPlayerInfo::AddField(float len, CGameFont* pF, u32 text_col, bool i
 const char* CUIStatsPlayerInfo::GetInfoByID(const char* id)
 {
     static string64 ans;
-    CStringTable st;
 
     if (0 == xr_strcmp(id, "name"))
         xr_strcpy(ans, m_pPlayerInfo->getName());
@@ -146,7 +145,7 @@ const char* CUIStatsPlayerInfo::GetInfoByID(const char* id)
     else if (0 == xr_strcmp(id, "status"))
     {
         if (m_pPlayerInfo->testFlag(GAME_PLAYER_FLAG_READY))
-            xr_strcpy(ans, *st.translate("st_mp_ready"));
+            xr_strcpy(ans, *StringTable().translate("st_mp_ready"));
         else
             xr_strcpy(ans, "");
     }

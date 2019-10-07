@@ -1,8 +1,8 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UITalkWnd.h"
 #include "UITalkDialogWnd.h"
 #include "Actor.h"
-#include "Trade.h"
+#include "trade.h"
 #include "UIGameSP.h"
 #include "PDA.h"
 #include "xrServerEntities/character_info.h"
@@ -12,9 +12,9 @@
 #include "game_cl_base.h"
 #include "string_table.h"
 #include "xr_level_controller.h"
-#include "xrEngine/cameraBase.h"
+#include "xrEngine/CameraBase.h"
 #include "UIXmlInit.h"
-#include "UI3tButton.h"
+#include "xrUICore/Buttons/UI3tButton.h"
 
 CUITalkWnd::CUITalkWnd()
 {
@@ -86,7 +86,6 @@ void CUITalkWnd::InitOthersStartDialog()
         m_pOthersDialogManager->InitDialog(m_pOurDialogManager, m_pCurrentDialog);
 
         //сказать фразу
-        CStringTable stbl;
         AddAnswer(m_pCurrentDialog->GetPhraseText("0"), m_pOthersInvOwner->Name());
         m_pOthersDialogManager->SayPhrase(m_pCurrentDialog, "0");
 
@@ -261,7 +260,7 @@ void CUITalkWnd::AskQuestion()
         {
             string128 s;
             xr_sprintf(s, "ID = [%s] of selected question is out of range of available dialogs ",
-                UITalkDialogWnd->m_ClickedQuestionID);
+                UITalkDialogWnd->m_ClickedQuestionID.c_str());
             VERIFY2(FALSE, s);
         }
 
@@ -293,7 +292,7 @@ void CUITalkWnd::AddQuestion(const shared_str& text, const shared_str& value, in
     if (text.size() == 0)
         return;
 
-    UITalkDialogWnd->AddQuestion(CStringTable().translate(text).c_str(), value.c_str(), number, b_finalizer);
+    UITalkDialogWnd->AddQuestion(StringTable().translate(text).c_str(), value.c_str(), number, b_finalizer);
 }
 
 void CUITalkWnd::AddAnswer(const shared_str& text, LPCSTR SpeakerName)
@@ -306,7 +305,7 @@ void CUITalkWnd::AddAnswer(const shared_str& text, LPCSTR SpeakerName)
     PlaySnd(text.c_str());
 
     bool i_am = (0 == xr_strcmp(SpeakerName, m_pOurInvOwner->Name()));
-    UITalkDialogWnd->AddAnswer(SpeakerName, *CStringTable().translate(text), i_am);
+    UITalkDialogWnd->AddAnswer(SpeakerName, *StringTable().translate(text), i_am);
 }
 
 void CUITalkWnd::SwitchToTrade()
@@ -345,7 +344,7 @@ bool CUITalkWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
     if (keyboard_action == WINDOW_KEY_PRESSED)
     {
-        if (is_binded(kUSE, dik) || is_binded(kQUIT, dik))
+        if (IsBinded(kUSE, dik) || IsBinded(kQUIT, dik))
         {
             if (!b_disable_break)
             {
@@ -353,7 +352,7 @@ bool CUITalkWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
                 return true;
             }
         }
-        else if (is_binded(kSPRINT_TOGGLE, dik))
+        else if (IsBinded(kSPRINT_TOGGLE, dik))
         {
             if (UITalkDialogWnd->mechanic_mode)
                 SwitchToUpgrade();
@@ -375,7 +374,7 @@ void CUITalkWnd::PlaySnd(LPCSTR text)
 
     string_path fn;
 
-    LPCSTR path = "characters_voice\\dialogs\\";
+    LPCSTR path = "characters_voice" DELIMITER "dialogs" DELIMITER;
     LPCSTR ext = ".ogg";
     u32 tsize = sizeof(fn) - xr_strlen(path) - xr_strlen(ext) - 1;
     if (text_len > tsize)
@@ -387,7 +386,7 @@ void CUITalkWnd::PlaySnd(LPCSTR text)
     strncat_s(fn, sizeof(fn), text, text_len);
     strncat_s(fn, sizeof(fn), ext, xr_strlen(ext));
 
-    //	strconcat( sizeof(fn), fn, "characters_voice\\dialogs\\", text2, ".ogg" );
+    //	strconcat( sizeof(fn), fn, "characters_voice" DELIMITER "dialogs" DELIMITER, text2, ".ogg" );
 
     StopSnd();
     if (FS.exist("$game_sounds$", fn))
@@ -416,6 +415,11 @@ void CUITalkWnd::StopSnd()
 void CUITalkWnd::AddIconedMessage(LPCSTR caption, LPCSTR text, LPCSTR texture_name, LPCSTR templ_name)
 {
     UITalkDialogWnd->AddIconedAnswer(caption, text, texture_name, templ_name);
+}
+
+void CUITalkWnd::AddIconedMessage(cpcstr text, cpcstr texture_name, Frect texture_rect, cpcstr templ_name)
+{
+    UITalkDialogWnd->AddIconedAnswer(text, texture_name, texture_rect, templ_name);
 }
 
 void CUITalkWnd::StopTalk() { HideDialog(); }

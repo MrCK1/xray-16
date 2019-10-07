@@ -6,11 +6,11 @@
 //	Description : Object factory
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "object_factory.h"
 #include "Common/object_broker.h"
 
-CObjectFactory* g_object_factory = 0;
+CObjectFactory* g_object_factory = nullptr;
 
 CObjectFactory::CObjectFactory()
 {

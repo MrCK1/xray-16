@@ -1,6 +1,6 @@
 #pragma once
 #include "UIGameLog.h"
-#include "hudsound.h"
+#include "HudSound.h"
 #include "xrServerEntities/alife_space.h"
 #include "EntityCondition.h"
 
@@ -50,7 +50,6 @@ public:
     CUIStatic* m_ind_boost_power;
     CUIStatic* m_ind_boost_rad;
 
-public:
     void ShowZoneMap(bool status);
     void DrawZoneMap();
     void UpdateZoneMap();
@@ -61,10 +60,7 @@ public:
     void OnSectorChanged(int sector);
 
     xr_vector<CUIStatic*> m_quick_slots_icons;
-    CUITextWnd* m_QuickSlotText1;
-    CUITextWnd* m_QuickSlotText2;
-    CUITextWnd* m_QuickSlotText3;
-    CUITextWnd* m_QuickSlotText4;
+    xr_vector<CUITextWnd*> m_quick_slots_texts;
 
 protected:
     // 5 статиков для отображения иконок:
@@ -126,7 +122,7 @@ public:
 
     void ReceiveNews(GAME_NEWS_DATA* news);
     void UpdateMainIndicators();
-    void UpdateBoosterIndicators(const xr_map<EBoostParams, SBooster> influences);
+    void UpdateBoosterIndicators(const CEntityCondition::BOOSTER_MAP& influences);
 
 protected:
     void UpdateQuickSlots();
@@ -139,7 +135,7 @@ protected:
     //	void				SetAmmoIcon						(const shared_str& seсt_name);
 
     // first - иконка, second - анимация
-    DEF_MAP(FlashingIcons, EFlashingIcons, CUIStatic*);
+    using FlashingIcons = xr_map<EFlashingIcons, CUIStatic*>;
     FlashingIcons m_FlashingIcons;
 
     //	CMissile*			m_pGrenade;

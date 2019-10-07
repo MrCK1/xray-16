@@ -1,11 +1,11 @@
-#include "stdafx.h"
-#include "weaponrpg7.h"
-#include "xrserver_objects_alife_items.h"
-#include "explosiverocket.h"
-#include "entity.h"
+#include "StdAfx.h"
+#include "WeaponRPG7.h"
+#include "xrServer_Objects_ALife_Items.h"
+#include "ExplosiveRocket.h"
+#include "Entity.h"
 #include "Level.h"
 #include "player_hud.h"
-#include "hudmanager.h"
+#include "HUDManager.h"
 
 CWeaponRPG7::CWeaponRPG7() {}
 CWeaponRPG7::~CWeaponRPG7() {}
@@ -59,9 +59,9 @@ BOOL CWeaponRPG7::net_Spawn(CSE_Abstract* DC)
     return l_res;
 }
 
-void CWeaponRPG7::OnStateSwitch(u32 S)
+void CWeaponRPG7::OnStateSwitch(u32 S, u32 oldState)
 {
-    inherited::OnStateSwitch(S);
+    inherited::OnStateSwitch(S, oldState);
     UpdateMissileVisibility();
 }
 
@@ -81,8 +81,8 @@ void CWeaponRPG7::ReloadMagazine()
 
 void CWeaponRPG7::SwitchState(u32 S) { inherited::SwitchState(S); }
 void CWeaponRPG7::FireStart() { inherited::FireStart(); }
-#include "inventory.h"
-#include "inventoryOwner.h"
+#include "Inventory.h"
+#include "InventoryOwner.h"
 void CWeaponRPG7::switch2_Fire()
 {
     m_iShotNum = 0;
@@ -144,7 +144,7 @@ void CWeaponRPG7::switch2_Fire()
 void CWeaponRPG7::PlayAnimReload()
 {
     VERIFY(GetState() == eReload);
-    PlayHUDMotion("anm_reload", FALSE, this, GetState());
+    PlayHUDMotion("anm_reload", "anim_reload", FALSE, this, GetState());
 }
 
 void CWeaponRPG7::OnEvent(NET_Packet& P, u16 type)

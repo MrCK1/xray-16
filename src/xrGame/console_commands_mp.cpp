@@ -1,14 +1,14 @@
-#include "stdafx.h"
-#include "xrEngine/xr_ioconsole.h"
+#include "StdAfx.h"
+#include "xrEngine/XR_IOConsole.h"
 #include "xrEngine/xr_ioc_cmd.h"
 #include "Level.h"
 #include "xrServer.h"
 #include "game_cl_base.h"
 #include "game_cl_mp.h"
-#include "actor.h"
-#include "xrServer_Object_base.h"
+#include "Actor.h"
+#include "xrServer_Object_Base.h"
 #include "RegistryFuncs.h"
-#include "gamepersistent.h"
+#include "GamePersistent.h"
 #include "MainMenu.h"
 #include "UIGameCustom.h"
 #include "game_sv_deathmatch.h"
@@ -21,6 +21,7 @@
 #include "DemoPlay_Control.h"
 #include "account_manager_console.h"
 #include "xrGameSpy/GameSpy_GP.h"
+#include "xrNetServer/NET_Messages.h"
 
 EGameIDs ParseStringToGameType(LPCSTR str);
 LPCSTR GameTypeToString(EGameIDs gt, bool bShort);
@@ -40,6 +41,7 @@ extern int g_iCorpseRemove;
 extern BOOL g_bCollectStatisticData;
 // extern	BOOL	g_bStatisticSaveAuto	;
 extern BOOL g_SV_Disable_Auth_Check;
+extern BOOL g_sv_ignore_version_mismatch;
 
 extern int g_sv_mp_iDumpStatsPeriod;
 extern BOOL g_SV_Force_Artefact_Spawn;
@@ -89,8 +91,11 @@ extern int g_sv_Pending_Wait_Time;
 extern u32 g_sv_Client_Reconnect_Time;
 int g_dwEventDelay = 0;
 
+extern u32 g_sv_max_suspicious_actions;
+extern u32 g_sv_suspicious_actions_ban_time;
+
 extern u32 g_sv_adm_menu_ban_time;
-extern xr_token g_ban_times[];
+extern const xr_token g_ban_times[];
 
 extern int g_sv_adm_menu_ping_limit;
 extern u32 g_sv_cta_dwInvincibleTime;
@@ -272,7 +277,7 @@ public:
     virtual void Execute(LPCSTR arguments)
     {
         string64 cdkey;
-        if (0 == stricmp(arguments, "clear"))
+        if (0 == xr_stricmp(arguments, "clear"))
         {
             cdkey[0] = 0;
         }
@@ -415,7 +420,7 @@ public:
         else
         {
             u32 tmp_client_id;
-            if (sscanf_s(args, "%u", &tmp_client_id) != 1)
+            if (sscanf(args, "%u", &tmp_client_id) != 1)
             {
                 Msg("! ERROR: bad command parameters.");
                 Msg("Kick player. Format: \"sv_kick_id <player session id | \'%s\'>\". To receive list of players ids "
@@ -507,7 +512,7 @@ public:
         else
         {
             u32 tmp_client_id;
-            if (sscanf_s(args_, "%u", &tmp_client_id) != 1)
+            if (sscanf(args_, "%u", &tmp_client_id) != 1)
             {
                 Msg("! ERROR: bad command parameters.");
                 Msg("Make screenshot. Format: \"make_screenshot <player session id | \'%s\'> <ban_time_in_sec>\". To "
@@ -555,7 +560,7 @@ public:
         else
         {
             u32 tmp_client_id;
-            if (sscanf_s(args_, "%u", &tmp_client_id) != 1)
+            if (sscanf(args_, "%u", &tmp_client_id) != 1)
             {
                 Msg("! ERROR: bad command parameters.");
                 Msg("Make screenshot. Format: \"make_config_dump <player session id | \'%s\'> <ban_time_in_sec>\". To "
@@ -614,7 +619,7 @@ protected:
         string32 param_name;
         param_name[0] = 0;
 
-        sscanf_s(args_string, "%16s %32s", action_name, sizeof(action_name), param_name, sizeof(param_name));
+        sscanf(args_string, "%16s %32s", action_name, param_name);
         m_action_param = param_name;
 
         if (!xr_strcmp(action_name, "roundstart"))
@@ -907,7 +912,7 @@ public:
         if (!strncmp(args_, LAST_PRINTED_PLAYER_STR, sizeof(LAST_PRINTED_PLAYER_STR) - 1))
         {
             client_id = last_printed_player;
-            if (sscanf_s(args_ + sizeof(LAST_PRINTED_PLAYER_STR), "%d", &ban_time) != 1)
+            if (sscanf(args_ + sizeof(LAST_PRINTED_PLAYER_STR), "%d", &ban_time) != 1)
             {
                 Msg("! ERROR: bad command parameters.");
                 Msg("Ban player. Format: \"sv_banplayer <player session id | \'%s\'> <ban_time_in_sec>\". To receive "
@@ -920,7 +925,7 @@ public:
         else
         {
             u32 tmp_client_id;
-            if (sscanf_s(args_, "%u %d", &tmp_client_id, &ban_time) != 2)
+            if (sscanf(args_, "%u %d", &tmp_client_id, &ban_time) != 2)
             {
                 Msg("! ERROR: bad command parameters.");
                 Msg("Ban player. Format: \"sv_banplayer <player session id | \'%s\'> <ban_time_in_sec>\". To receive "
@@ -969,7 +974,7 @@ public:
 
         char hex_digest[64];
         s32 ban_time = 0;
-        if (sscanf_s(args_, "%s %i", &hex_digest, sizeof(hex_digest), &ban_time) != 2)
+        if (sscanf(args_, "%s %i", &hex_digest, &ban_time) != 2)
         {
             Msg("! ERROR: bad command parameters.");
             Msg("Ban player. Format: \"sv_banplayer_by_digest <hex digest> <ban_time_in_sec>\". To get player hex "
@@ -1009,8 +1014,9 @@ public:
         }
         else
         {
+            // size_t ????? u32 maybe?
             size_t player_index = 0;
-            if (sscanf_s(args_, "%u", &player_index) != 1)
+            if (sscanf(args_, "%u", &player_index) != 1)
             {
                 Msg("! ERROR: bad command parameters.");
                 Msg(" Unban player. Format: \"sv_unbanplayer <banned player index | \'%s\'>. To receive list of banned "
@@ -1224,7 +1230,7 @@ public:
             exclude_raid_from_args(args, tmp_dest, sizeof(tmp_dest));
             if (xr_strlen(tmp_dest))
             {
-                sscanf_s(tmp_dest, "%s", filter_string);
+                sscanf(tmp_dest, "%s", filter_string);
                 tmp_functor.filter_string = filter_string;
             }
         }
@@ -1243,7 +1249,7 @@ public:
         bLowerCaseArgs = false;
         bEmptyArgsHandled = false;
     };
-    virtual void Status(TStatus& S)
+    virtual void GetStatus(TStatus& S)
     {
         S[0] = 0;
         if (IsGameTypeSingle())
@@ -1321,7 +1327,7 @@ public:
         exclude_raid_from_args(args, tmp_dest, sizeof(tmp_dest));
         if (xr_strlen(tmp_dest))
         {
-            sscanf_s(tmp_dest, "%s", filter_dest);
+            sscanf(tmp_dest, "%s", filter_dest);
         }
         tmp_sv_game->PrintBanList(filter_dest);
         Level().Server->Print_Banned_Addreses();
@@ -1354,8 +1360,7 @@ public:
         string256 GameType;
         GameType[0] = 0;
 
-        sscanf_s(args, "%255s %255s %255s", LevelName, sizeof(LevelName), LevelVersion, sizeof(LevelVersion), GameType,
-            sizeof(GameType));
+        sscanf(args, "%255s %255s %255s", LevelName, LevelVersion, GameType);
 
         EGameIDs GameTypeID = ParseStringToGameType(GameType);
         if (GameTypeID == eGameIDNoGame)
@@ -1448,7 +1453,7 @@ public:
         string256 LevelVersion;
         LevelName[0] = 0;
         LevelVersion[0] = 0;
-        sscanf_s(args, "%255s %255s", LevelName, sizeof(LevelName), LevelVersion, sizeof(LevelVersion));
+        sscanf(args, "%255s %255s", LevelName, LevelVersion);
 
         string1024 argsNew;
         xr_sprintf(argsNew, "%s %s %s", LevelName, LevelVersion, Level().Server->GetGameState()->type_name());
@@ -2122,8 +2127,11 @@ void register_mp_console_commands()
     CMD4(CCC_Integer, "sv_statistic_collect", &g_bCollectStatisticData, 0, 1);
     CMD1(CCC_SaveStatistic, "sv_statistic_save");
 //	CMD4(CCC_Integer,		"sv_statistic_save_auto", &g_bStatisticSaveAuto, 0, 1);
+
 #ifndef MASTER_GOLD
+    // Using CCC_AuthCheck twice, yes. It's not a mistake. 
     CMD4(CCC_AuthCheck, "sv_no_auth_check", &g_SV_Disable_Auth_Check, 0, 1);
+    CMD4(CCC_AuthCheck, "sv_ignore_version_mismatch", &g_sv_ignore_version_mismatch, 0, 1);
 #endif // MASTER_GOLD
 
     CMD4(CCC_Integer, "sv_artefact_spawn_force", &g_SV_Force_Artefact_Spawn, 0, 1);
@@ -2199,6 +2207,9 @@ void register_mp_console_commands()
     CMD1(CCC_SvChat, "chat");
 
     //-----------------
+    CMD4(CCC_Integer, "sv_max_suspicious_actions", (int*)&g_sv_max_suspicious_actions, 1, 30);
+    CMD3(CCC_Token, "sv_suspicious_actions_ban_time", &g_sv_suspicious_actions_ban_time, g_ban_times); // min
+
     CMD3(CCC_Token, "sv_adm_menu_ban_time", &g_sv_adm_menu_ban_time, g_ban_times); // min
     //	CMD4(CCC_Integer,		"sv_adm_menu_ban_time",			(int*)&g_sv_adm_menu_ban_time, 1, 60); //min
     CMD4(CCC_Integer, "sv_adm_menu_ping_limit", (int*)&g_sv_adm_menu_ping_limit, 1, 200); // min

@@ -1,6 +1,6 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "poltergeist.h"
-#include "xrServerEntities/xrmessages.h"
+#include "xrServerEntities/xrMessages.h"
 #include "xrAICore/Navigation/ai_object_location.h"
 #include "xrAICore/Navigation/level_graph.h"
 #include "Level.h"
@@ -8,7 +8,7 @@
 #include "restricted_object.h"
 #include "Actor.h"
 #include "ActorEffector.h"
-#include "ai/Monsters/ai_monster_effector.h"
+#include "ai/monsters/ai_monster_effector.h"
 
 CPolterFlame::CPolterFlame(CPoltergeist* polter) : inherited(polter) {}
 CPolterFlame::~CPolterFlame() {}
@@ -138,7 +138,7 @@ void CPolterFlame::update_schedule()
     inherited::update_schedule();
 
     // check all flames
-    for (FLAME_ELEMS_IT it = m_flames.begin(); it != m_flames.end(); it++)
+    for (auto it = m_flames.begin(); it != m_flames.end(); ++it)
     {
         SFlameElement* elem = *it;
 
@@ -225,8 +225,8 @@ void CPolterFlame::on_destroy()
 {
     inherited::on_destroy();
 
-    FLAME_ELEMS_IT I = m_flames.begin();
-    FLAME_ELEMS_IT E = m_flames.end();
+    auto I = m_flames.begin();
+    auto E = m_flames.end();
 
     // Пройти по всем объектам и проверить на хит врага
     for (; I != E; ++I)

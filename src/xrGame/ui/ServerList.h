@@ -1,13 +1,13 @@
 #pragma once
 
-#include "UIWindow.h"
+#include "xrUICore/Windows/UIWindow.h"
 
-#include "UIListBox.h"
+#include "xrUICore/ListBox/UIListBox.h"
 #include "UIListItemServer.h"
-#include "UIFrameWindow.h"
-#include "UIFrameLineWnd.h"
-#include "UIEditBox.h"
-#include "UI3tButton.h"
+#include "xrUICore/Windows/UIFrameWindow.h"
+#include "xrUICore/Windows/UIFrameLineWnd.h"
+#include "xrUICore/EditBox/UIEditBox.h"
+#include "xrUICore/Buttons/UI3tButton.h"
 #include "mixed_delegate.h"
 
 class CUIXml;
@@ -124,9 +124,7 @@ protected:
     bool m_b_local;
 
     CUIMessageBoxEx* m_message_box;
-
     CGameSpy_Browser* m_GSBrowser;
-
     shared_str m_sort_func;
     xr_vector<int> m_tmp_srv_lst;
     struct SrvItem

@@ -3,6 +3,10 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
+
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_for.h>
+
 #include "HOM.h"
 #include "occRasterizer.h"
 #include "xrEngine/GameFont.h"
@@ -13,8 +17,7 @@ float psOSSR = .001f;
 void __stdcall CHOM::MT_RENDER()
 {
     MT.Enter();
-    bool b_main_menu_is_active = (g_pGamePersistent->m_pMainMenu && g_pGamePersistent->m_pMainMenu->IsActive());
-    if (MT_frame_rendered != Device.dwFrame && !b_main_menu_is_active)
+    if (MT_frame_rendered != Device.dwFrame)
     {
         CFrustum ViewBase;
         ViewBase.CreateFromMatrix(Device.mFullTransform, FRUSTUM_P_LRTB + FRUSTUM_P_FAR);
@@ -31,8 +34,8 @@ void __stdcall CHOM::MT_RENDER()
 CHOM::CHOM() : xrc("HOM")
 {
     bEnabled = FALSE;
-    m_pModel = 0;
-    m_pTris = 0;
+    m_pModel = nullptr;
+    m_pTris = nullptr;
 #ifdef DEBUG
     Device.seqRender.Add(this, REG_PRIORITY_LOW - 1000);
 #endif
@@ -65,6 +68,9 @@ IC float Area(Fvector& v0, Fvector& v1, Fvector& v2)
 
 void CHOM::Load()
 {
+    if (strstr(Core.Params, "-no_hom") )
+        return;
+
     // Find and open file
     string_path fName;
     FS.update_path(fName, "$level$", "level.hom");
@@ -93,26 +99,28 @@ void CHOM::Load()
 
     // Create RASTER-triangles
     m_pTris = xr_alloc<occTri>(u32(CL.getTS()));
-    for (u32 it = 0; it < CL.getTS(); it++)
-    {
-        CDB::TRI& clT = CL.getT()[it];
-        occTri& rT = m_pTris[it];
-        Fvector& v0 = CL.getV()[clT.verts[0]];
-        Fvector& v1 = CL.getV()[clT.verts[1]];
-        Fvector& v2 = CL.getV()[clT.verts[2]];
-        rT.adjacent[0] = (0xffffffff == adjacency[3 * it + 0]) ? ((occTri*)(-1)) : (m_pTris + adjacency[3 * it + 0]);
-        rT.adjacent[1] = (0xffffffff == adjacency[3 * it + 1]) ? ((occTri*)(-1)) : (m_pTris + adjacency[3 * it + 1]);
-        rT.adjacent[2] = (0xffffffff == adjacency[3 * it + 2]) ? ((occTri*)(-1)) : (m_pTris + adjacency[3 * it + 2]);
-        rT.flags = clT.dummy;
-        rT.area = Area(v0, v1, v2);
-        if (rT.area < EPS_L)
+
+    FOR_START(u32, 0, CL.getTS(), it)
         {
-            Msg("! Invalid HOM triangle (%f,%f,%f)-(%f,%f,%f)-(%f,%f,%f)", VPUSH(v0), VPUSH(v1), VPUSH(v2));
+            CDB::TRI& clT = CL.getT()[it];
+            occTri& rT = m_pTris[it];
+            Fvector& v0 = CL.getV()[clT.verts[0]];
+            Fvector& v1 = CL.getV()[clT.verts[1]];
+            Fvector& v2 = CL.getV()[clT.verts[2]];
+            rT.adjacent[0] = (0xffffffff == adjacency[3 * it + 0]) ? ((occTri*)(-1)) : (m_pTris + adjacency[3 * it + 0]);
+            rT.adjacent[1] = (0xffffffff == adjacency[3 * it + 1]) ? ((occTri*)(-1)) : (m_pTris + adjacency[3 * it + 1]);
+            rT.adjacent[2] = (0xffffffff == adjacency[3 * it + 2]) ? ((occTri*)(-1)) : (m_pTris + adjacency[3 * it + 2]);
+            rT.flags = clT.dummy;
+            rT.area = Area(v0, v1, v2);
+
+            if (rT.area < EPS_L)
+                Msg("! Invalid HOM triangle (%f,%f,%f)-(%f,%f,%f)-(%f,%f,%f)", VPUSH(v0), VPUSH(v1), VPUSH(v2));
+
+            rT.plane.build(v0, v1, v2);
+            rT.skip = 0;
+            rT.center.add(v0, v1).add(v2).div(3.f);
         }
-        rT.plane.build(v0, v1, v2);
-        rT.skip = 0;
-        rT.center.add(v0, v1).add(v2).div(3.f);
-    }
+    FOR_END
 
     // Create AABB-tree
     m_pModel = new CDB::MODEL();
@@ -155,10 +163,17 @@ void CHOM::Render_DB(CFrustum& base)
 {
     // Update projection matrices on every frame to ensure valid HOM culling
     float view_dim = occ_dim_0;
+#ifndef USE_OGL
+    Fmatrix m_viewport = {view_dim / 2.f, 0.0f, 0.0f, 0.0f, 0.0f, view_dim / 2.f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        view_dim / 2.f + 0 + 0, view_dim / 2.f + 0 + 0, 0.0f, 1.0f};
+    Fmatrix m_viewport_01 = {1.f / 2.f, 0.0f, 0.0f, 0.0f, 0.0f, 1.f / 2.f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        1.f / 2.f + 0 + 0, 1.f / 2.f + 0 + 0, 0.0f, 1.0f};
+#else
     Fmatrix m_viewport = {view_dim / 2.f, 0.0f, 0.0f, 0.0f, 0.0f, -view_dim / 2.f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
         view_dim / 2.f + 0 + 0, view_dim / 2.f + 0 + 0, 0.0f, 1.0f};
     Fmatrix m_viewport_01 = {1.f / 2.f, 0.0f, 0.0f, 0.0f, 0.0f, -1.f / 2.f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
         1.f / 2.f + 0 + 0, 1.f / 2.f + 0 + 0, 0.0f, 1.0f};
+#endif // !USE_OGL
     m_xform.mul(m_viewport, Device.mFullTransform);
     m_xform_01.mul(m_viewport_01, Device.mFullTransform);
 
@@ -169,8 +184,8 @@ void CHOM::Render_DB(CFrustum& base)
         return;
 
     // Prepare
-    CDB::RESULT* it = xrc.r_begin();
-    CDB::RESULT* end = xrc.r_end();
+    auto it = xrc.r_get()->begin();
+    auto end = xrc.r_get()->end();
 
     Fvector COP = Device.vCameraPosition;
     end = std::remove_if(it, end, pred_fb(m_pTris));
@@ -185,10 +200,10 @@ void CHOM::Render_DB(CFrustum& base)
     stats.VisibleTriangleCount = 0;
 
     // Perfrom selection, sorting, culling
-    for (; it != end; it++)
+    for (auto &it : *xrc.r_get())
     {
         // Control skipping
-        occTri& T = m_pTris[it->id];
+        occTri& T = m_pTris[it.id];
         u32 next = _frame + ::Random.randI(3, 10);
 
         // Test for good occluder - should be improved :)
@@ -199,7 +214,7 @@ void CHOM::Render_DB(CFrustum& base)
         }
 
         // Access to triangle vertices
-        CDB::TRI& t = m_pModel->get_tris()[it->id];
+        CDB::TRI& t = m_pModel->get_tris()[it.id];
         Fvector* v = m_pModel->get_verts();
         src.clear();
         dst.clear();
@@ -207,7 +222,7 @@ void CHOM::Render_DB(CFrustum& base)
         src.push_back(v[t.verts[1]]);
         src.push_back(v[t.verts[2]]);
         sPoly* P = clip.ClipPoly(src, dst);
-        if (0 == P)
+        if (nullptr == P)
         {
             T.skip = next;
             continue;
@@ -217,11 +232,11 @@ void CHOM::Render_DB(CFrustum& base)
         stats.VisibleTriangleCount++;
         u32 pixels = 0;
         int limit = int(P->size()) - 1;
-        for (int v = 1; v < limit; v++)
+        for (int v2 = 1; v2 < limit; v2++)
         {
             m_xform.transform(T.raster[0], (*P)[0]);
-            m_xform.transform(T.raster[1], (*P)[v + 0]);
-            m_xform.transform(T.raster[2], (*P)[v + 1]);
+            m_xform.transform(T.raster[1], (*P)[v2 + 0]);
+            m_xform.transform(T.raster[2], (*P)[v2 + 1]);
             pixels += Raster.rasterize(&T);
         }
         if (0 == pixels)
@@ -283,21 +298,21 @@ IC BOOL _visible(Fbox& B, Fmatrix& m_xform_01)
     // Find min/max points of xformed-box
     Fvector2 min, max;
     float z;
-    if (xform_b0(min, max, z, m_xform_01, B.min.x, B.min.y, B.min.z))
+    if (xform_b0(min, max, z, m_xform_01, B.vMin.x, B.vMin.y, B.vMin.z))
         return TRUE;
-    if (xform_b1(min, max, z, m_xform_01, B.min.x, B.min.y, B.max.z))
+    if (xform_b1(min, max, z, m_xform_01, B.vMin.x, B.vMin.y, B.vMax.z))
         return TRUE;
-    if (xform_b1(min, max, z, m_xform_01, B.max.x, B.min.y, B.max.z))
+    if (xform_b1(min, max, z, m_xform_01, B.vMax.x, B.vMin.y, B.vMax.z))
         return TRUE;
-    if (xform_b1(min, max, z, m_xform_01, B.max.x, B.min.y, B.min.z))
+    if (xform_b1(min, max, z, m_xform_01, B.vMax.x, B.vMin.y, B.vMin.z))
         return TRUE;
-    if (xform_b1(min, max, z, m_xform_01, B.min.x, B.max.y, B.min.z))
+    if (xform_b1(min, max, z, m_xform_01, B.vMin.x, B.vMax.y, B.vMin.z))
         return TRUE;
-    if (xform_b1(min, max, z, m_xform_01, B.min.x, B.max.y, B.max.z))
+    if (xform_b1(min, max, z, m_xform_01, B.vMin.x, B.vMax.y, B.vMax.z))
         return TRUE;
-    if (xform_b1(min, max, z, m_xform_01, B.max.x, B.max.y, B.max.z))
+    if (xform_b1(min, max, z, m_xform_01, B.vMax.x, B.vMax.y, B.vMax.z))
         return TRUE;
-    if (xform_b1(min, max, z, m_xform_01, B.max.x, B.max.y, B.min.z))
+    if (xform_b1(min, max, z, m_xform_01, B.vMax.x, B.vMax.y, B.vMin.z))
         return TRUE;
     return Raster.test(min.x, min.y, max.x, max.y, z);
 }

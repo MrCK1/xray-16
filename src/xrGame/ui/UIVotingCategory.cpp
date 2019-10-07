@@ -1,7 +1,7 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIVotingCategory.h"
 #include "UIXmlInit.h"
-#include "UI3tButton.h"
+#include "xrUICore/Buttons/UI3tButton.h"
 #include "UIKickPlayer.h"
 #include "UIChangeMap.h"
 #include "ChangeWeatherDialog.hpp"
@@ -55,7 +55,7 @@ void CUIVotingCategory::InitVotingCategory()
     if (!xml_doc)
         xml_doc = new CUIXml();
 
-    xml_doc->Load(CONFIG_PATH, UI_PATH, "voting_category.xml");
+    xml_doc->Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "voting_category.xml");
 
     CUIXmlInit::InitWindow(*xml_doc, "category", 0, this);
 
@@ -91,27 +91,25 @@ void CUIVotingCategory::SendMessage(CUIWindow* pWnd, s16 msg, void* pData)
     }
 }
 
-#include <dinput.h>
-
 bool CUIVotingCategory::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
     CUIDialogWnd::OnKeyboardAction(dik, keyboard_action);
 
     if (WINDOW_KEY_PRESSED == keyboard_action)
     {
-        if (DIK_ESCAPE == dik)
+        if (SDL_SCANCODE_ESCAPE == dik)
         {
             OnBtnCancel();
             return true;
         }
-        if (dik >= DIK_1 && dik <= DIK_7)
-            OnBtn(dik - DIK_1);
+        if (dik >= SDL_SCANCODE_1 && dik <= SDL_SCANCODE_7)
+            OnBtn(dik - SDL_SCANCODE_1);
         return true;
     }
     return false;
 }
 
-#include "xrEngine/xr_ioconsole.h"
+#include "xrEngine/XR_IOConsole.h"
 
 void CUIVotingCategory::OnBtn(int i)
 {

@@ -1,14 +1,13 @@
-#ifndef EXTENDED_GEOM
-#define EXTENDED_GEOM
+#pragma once
 
 #ifndef dSINGLE
 #define dSINGLE
 #endif
 #include "PHObject.h"
 
-#include "Externals/ode/include/ode/common.h"
-#include "Externals/ode/include/ode/collision.h"
-#include "physicscommon.h"
+#include <ode/common.h>
+#include <ode/collision.h>
+#include "PhysicsCommon.h"
 #include "MathUtils.h"
 #ifdef DEBUG
 #include "debug_output.h"
@@ -275,6 +274,4 @@ IC void dGeomUserDataClearCashedTries(dxGeom* geom)
 }
 #ifdef DEBUG
 XRPHYSICS_API bool IsCyliderContact(const dContact& c);
-#endif
-
 #endif

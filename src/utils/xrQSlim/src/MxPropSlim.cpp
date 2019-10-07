@@ -342,7 +342,7 @@ unsigned int MxPropSlim::check_local_validity(unsigned int v, const float* vnew)
             mxv_cross3(n, f_n, d_yx); // n = ((y-x)^(v-x))^(y-x)
             mxv_unitize(n, 3);
 
-            // assert( mxv_dot(d_vx, n, 3) > -FEQ_EPS );
+            // R_ASSERT( mxv_dot(d_vx, n, 3) > -FEQ_EPS );
             if (mxv_dot(d_vnew, n, 3) < local_validity_threshold * mxv_dot(d_vx, n, 3))
                 nfailed++;
         }
@@ -394,7 +394,7 @@ void MxPropSlim::apply_mesh_penalties(edge_info* info)
 
     // Check for excess over degree bounds.
     //
-    unsigned int max_degree = _max(N1.length(), N2.length());
+    unsigned int max_degree = std::max(N1.length(), N2.length());
     if (max_degree > vertex_degree_limit)
         bias += (max_degree - vertex_degree_limit) * meshing_penalty * 0.001f;
 
@@ -416,7 +416,7 @@ void MxPropSlim::apply_mesh_penalties(edge_info* info)
     {
         double c1_min = check_local_compactness(info->v1, vnew);
         double c2_min = check_local_compactness(info->v2, vnew);
-        double c_min = _min(c1_min, c2_min);
+        double c_min = std::min(c1_min, c2_min);
 
         if (c_min < compactness_ratio)
             _scale += float((compactness_ratio - c_min) / compactness_ratio);
@@ -460,7 +460,7 @@ void MxPropSlim::compute_target_placement(edge_info* info)
         {
             e_min = ej;
             best = vj;
-            swap(info->v1, info->v2);
+            std::swap(info->v1, info->v2);
         }
 
         if (placement_policy >= MX_PLACE_ENDORMID)

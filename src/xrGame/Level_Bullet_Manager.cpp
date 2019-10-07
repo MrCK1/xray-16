@@ -2,12 +2,12 @@
 //								все пули и осколки передаются сюда
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "Level.h"
 #include "Level_Bullet_Manager.h"
 #include "game_cl_base.h"
 #include "Actor.h"
-#include "gamepersistent.h"
+#include "GamePersistent.h"
 #include "mt_config.h"
 #include "game_cl_base_weapon_usage_statistic.h"
 #include "game_cl_mp.h"
@@ -15,6 +15,7 @@
 
 #include "Include/xrRender/UIRender.h"
 #include "Include/xrRender/Kinematics.h"
+#include "xrEngine/TaskScheduler.hpp"
 
 #ifdef DEBUG
 #include "debug_renderer.h"
@@ -87,13 +88,13 @@ void SBullet::Init(const Fvector& position, const Fvector& direction, float star
 
 CBulletManager::CBulletManager()
 #if 0 // def CONFIG_PROFILE_LOCKS
-	: m_Lock(MUTEX_PROFILE_ID(CBulletManager))
+    : m_Lock(MUTEX_PROFILE_ID(CBulletManager))
 #ifdef DEBUG
-		,m_thread_id(GetCurrentThreadId())
+        ,m_thread_id(Threading::GetCurrThreadId())
 #endif // #ifdef DEBUG
 #else // #ifdef CONFIG_PROFILE_LOCKS
 #ifdef DEBUG
-    : m_thread_id(GetCurrentThreadId())
+    : m_thread_id(Threading::GetCurrThreadId())
 #endif // #ifdef DEBUG
 #endif // #ifdef CONFIG_PROFILE_LOCKS
 {
@@ -183,7 +184,10 @@ void CBulletManager::AddBullet(const Fvector& position, const Fvector& direction
     float impulse, u16 sender_id, u16 sendersweapon_id, ALife::EHitType e_hit_type, float maximum_distance,
     const CCartridge& cartridge, float const air_resistance_factor, bool SendHit, bool AimBullet)
 {
-    VERIFY(m_thread_id == GetCurrentThreadId());
+    // Always called in Primary thread
+    // Uncomment below if you will change the behaviour
+    // if (!g_mt_config.test(mtBullets))
+    VERIFY(m_thread_id == Threading::GetCurrThreadId());
 
     VERIFY(u16(-1) != cartridge.bullet_material_idx);
     //	u32 CurID					= Level().CurrentControlEntity()->ID();
@@ -206,7 +210,7 @@ void CBulletManager::AddBullet(const Fvector& position, const Fvector& direction
 
 void CBulletManager::UpdateWorkload()
 {
-    //	VERIFY						( m_thread_id == GetCurrentThreadId() );
+    VERIFY(g_mt_config.test(mtBullets) || m_thread_id == Threading::GetCurrThreadId());
 
     rq_storage.r_clear();
 
@@ -688,21 +692,21 @@ bool CBulletManager::process_bullet(collide::rq_results& storage, SBullet& bulle
     bullet.tracer_start_position = bullet.bullet_pos;
 
 #if 0 // def DEBUG
-	extern BOOL g_bDrawBulletHit;
-	if (g_bDrawBulletHit)
-	{
-		Msg	(
-			"free fly velocity: %f",
-			trajectory_velocity(
-				bullet.start_velocity,
-				gravity,
-				air_resistance,
-				fis_zero(air_resistance) ?
-				0.f :
-				(1.f/air_resistance - air_resistance_epsilon)
-			).magnitude()
-		);
-	}
+    extern BOOL g_bDrawBulletHit;
+    if (g_bDrawBulletHit)
+    {
+        Msg	(
+            "free fly velocity: %f",
+            trajectory_velocity(
+                bullet.start_velocity,
+                gravity,
+                air_resistance,
+                fis_zero(air_resistance) ?
+                0.f :
+                (1.f/air_resistance - air_resistance_epsilon)
+            ).magnitude()
+        );
+    }
 #endif
 
     Fvector const& start_position = bullet.bullet_pos;
@@ -812,10 +816,10 @@ void CBulletManager::Render()
         }
 
         if (m_bullet_points.size() > 32768)
-            m_bullet_points.clear_not_free();
+            m_bullet_points.clear();
     }
     else
-        m_bullet_points.clear_not_free();
+        m_bullet_points.clear();
 
     // 0-рикошет
     // 1-застрявание пули в материале
@@ -826,7 +830,7 @@ void CBulletManager::Render()
         FvectorIt it;
         u32 C[3] = {0xffff0000, 0xff00ff00, 0xff0000ff};
         // RCache.set_xform_world(Fidentity);
-        GlobalEnv.DRender->CacheSetXformWorld(Fidentity);
+        GEnv.DRender->CacheSetXformWorld(Fidentity);
         for (int i = 0; i < 3; ++i)
             for (it = g_hit[i].begin(); it != g_hit[i].end(); ++it)
             {
@@ -841,9 +845,9 @@ void CBulletManager::Render()
     // u32	vOffset			=	0	;
     u32 bullet_num = m_BulletsRendered.size();
 
-    GlobalEnv.UIRender->StartPrimitive((u32)bullet_num * 12, IUIRender::ptTriList, IUIRender::pttLIT);
+    GEnv.UIRender->StartPrimitive((u32)bullet_num * 12, IUIRender::ptTriList, IUIRender::pttLIT);
 
-    for (BulletVecIt it = m_BulletsRendered.begin(); it != m_BulletsRendered.end(); it++)
+    for (auto it = m_BulletsRendered.begin(); it != m_BulletsRendered.end(); ++it)
     {
         SBullet* bullet = &(*it);
         if (!bullet->flags.allow_tracer)
@@ -891,11 +895,11 @@ void CBulletManager::Render()
             bullet->bullet_pos, center, tracer_direction, length, width, bullet->m_u8ColorID, bullet->speed, bActor);
     }
 
-    GlobalEnv.UIRender->CacheSetCullMode(IUIRender::cmNONE);
-    GlobalEnv.UIRender->CacheSetXformWorld(Fidentity);
-    GlobalEnv.UIRender->SetShader(*tracers.sh_Tracer);
-    GlobalEnv.UIRender->FlushPrimitive();
-    GlobalEnv.UIRender->CacheSetCullMode(IUIRender::cmCCW);
+    GEnv.UIRender->CacheSetCullMode(IUIRender::cmNONE);
+    GEnv.UIRender->CacheSetXformWorld(Fidentity);
+    GEnv.UIRender->SetShader(*tracers.sh_Tracer);
+    GEnv.UIRender->FlushPrimitive();
+    GEnv.UIRender->CacheSetCullMode(IUIRender::cmCCW);
 }
 
 void CBulletManager::CommitRenderSet() // @ the end of frame
@@ -903,7 +907,18 @@ void CBulletManager::CommitRenderSet() // @ the end of frame
     m_BulletsRendered = m_Bullets;
     if (g_mt_config.test(mtBullets))
     {
-        Device.seqParallel.push_back(fastdelegate::FastDelegate0<>(this, &CBulletManager::UpdateWorkload));
+        if (true)
+        {
+            Device.seqParallel.push_back(
+                fastdelegate::FastDelegate0<>(this, &CBulletManager::UpdateWorkload));
+
+        }
+        else
+        {
+            TaskScheduler->AddTask("CBulletManager::UpdateWorkload",
+                { this, &CBulletManager::UpdateWorkload },
+                { &Device, &CRenderDevice::IsMTProcessingAllowed });
+        }
     }
     else
     {
@@ -938,18 +953,18 @@ void CBulletManager::CommitEvents() // @ the start of frame
         break;
         }
     }
-    m_Events.clear_and_reserve();
+    m_Events.clear();
 }
 
 void CBulletManager::RegisterEvent(
     EventType Type, BOOL _dynamic, SBullet* bullet, const Fvector& end_point, collide::rq_result& R, u16 tgt_material)
 {
 #if 0 // def DEBUG
-	if (m_Events.size() > 1000) {
-		static bool breakpoint = true;
-		if (breakpoint)
-			DEBUG_BREAK;
-	}
+    if (m_Events.size() > 1000) {
+        static bool breakpoint = true;
+        if (breakpoint)
+            DEBUG_BREAK;
+    }
 #endif // #ifdef DEBUG
 
     m_Events.push_back(_event());

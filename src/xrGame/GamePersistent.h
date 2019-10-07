@@ -7,13 +7,18 @@ class CMainMenu;
 class CUICursor;
 class CParticlesObject;
 class CUISequencer;
-class ui_core;
+class UICore;
+class AnselManager;
 
 class CGamePersistent : public IGame_Persistent, public IEventReceiver
 {
+protected:
+    using inherited = IGame_Persistent;
+
+private:
     // ambient particles
     CParticlesObject* ambient_particles;
-    u32 ambient_sound_next_time[20]; // max snd channels
+    xr_vector<u32> ambient_sound_next_time; // max snd channels
     u32 ambient_effect_next_time;
     u32 ambient_effect_stop_time;
 
@@ -24,6 +29,8 @@ class CGamePersistent : public IGame_Persistent, public IEventReceiver
     bool ambient_effect_wind_on;
 
     bool m_bPickableDOF;
+
+    AnselManager* ansel;
 
     CUISequencer* m_intro;
     EVENT eQuickLoad;
@@ -49,7 +56,6 @@ class CGamePersistent : public IGame_Persistent, public IEventReceiver
     void UpdateDof();
 
 public:
-    ui_core* m_pUI_core;
     IReader* pDemoFile;
     u32 uTime2Change;
     EVENT eDemoStart;
@@ -57,6 +63,7 @@ public:
     CGamePersistent();
     virtual ~CGamePersistent();
 
+    void PreStart(LPCSTR op) override;
     virtual void Start(LPCSTR op);
     virtual void Disconnect();
 
@@ -81,6 +88,7 @@ public:
     virtual void OnRenderPPUI_main();
     virtual void OnRenderPPUI_PP();
     virtual void LoadTitle(bool change_tip = false, shared_str map_name = "");
+    void SetLoadStageTitle(pcstr ls_title = nullptr) override;
 
     virtual bool CanBePaused();
 

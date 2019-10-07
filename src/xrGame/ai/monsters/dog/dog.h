@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ai/Monsters/BaseMonster/base_monster.h"
-#include "ai/Monsters/controlled_entity.h"
+#include "ai/monsters/basemonster/base_monster.h"
+#include "ai/monsters/controlled_entity.h"
 
 class CAI_Dog : public CBaseMonster, public CControlledEntity<CAI_Dog>
 {
@@ -23,7 +23,8 @@ public:
     virtual bool ability_can_drag() { return true; }
     virtual u32 get_attack_rebuild_time();
     virtual bool can_use_agressive_jump(const IGameObject*);
-    virtual char* get_monster_class_name() { return "dog"; }
+    pcstr get_monster_class_name() override { return "dog"; }
+
 public:
     void set_current_animation(u32 curr_anim = -1);
     void start_animation();

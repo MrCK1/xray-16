@@ -6,7 +6,7 @@
 //	Description : Script sound action class
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "script_sound_action.h"
 #include "ai_space.h"
 #include "xrScriptEngine/script_engine.hpp"
@@ -25,7 +25,7 @@ void CScriptSoundAction::SetSound(LPCSTR caSoundToPlay)
     }
     else
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "File not found \"%s\"!", l_caFileName);
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "File not found \"%s\"!", l_caFileName);
         m_bStartedToPlay = true;
         m_bCompleted = true;
     }

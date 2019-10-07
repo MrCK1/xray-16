@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "Level.h"
 #include "map_location.h"
 #include "map_manager.h"
@@ -6,6 +6,7 @@
 #include "UIMap.h"
 #include "UIMapWnd.h"
 #include "xrEngine/xr_input.h" //remove me !!!
+#include "xrCore/_fbox2.h"
 
 const u32 activeLocalMapColor = 0xffffffff; // 0xffc80000;
 const u32 inactiveLocalMapColor = 0xffffffff; // 0xff438cd1;
@@ -21,14 +22,14 @@ CUICustomMap::CUICustomMap()
 
 void CUICustomMap::Initialize(shared_str name, LPCSTR sh_name)
 {
-    CInifile* levelIni = NULL;
+    CInifile* levelIni = nullptr;
     if (name == g_pGameLevel->name())
         levelIni = g_pGameLevel->pLevel;
     else
     {
         string_path map_cfg_fn;
         string_path fname;
-        strconcat(sizeof(fname), fname, name.c_str(), "\\level.ltx");
+        strconcat(sizeof(fname), fname, name.c_str(), DELIMITER "level.ltx");
         FS.update_path(map_cfg_fn, "$game_levels$", fname);
         levelIni = new CInifile(map_cfg_fn);
     }
@@ -67,11 +68,15 @@ void CUICustomMap::Draw()
 void CUICustomMap::Init_internal(const shared_str& name, CInifile& pLtx, const shared_str& sect_name, LPCSTR sh_name)
 {
     m_name = name;
-    Fvector4 tmp;
 
-    m_texture = pLtx.r_string(sect_name, "texture");
+    m_texture = pLtx.read_if_exists<pcstr>(sect_name, "texture", "ui\\ui_nomap2");
+    if (pLtx.line_exist(m_name, "texture"))
+        m_texture = pLtx.r_string(m_name, "texture"); // Override if needed
+
+    Fvector4 tmp = pLtx.read_if_exists<Fvector4>(sect_name, "bound_rect", {-10000.0f, -10000.0f, 10000.0f, 10000.0f});
+    pLtx.read_if_exists(tmp, m_name, "bound_rect"); // Override if needed
+
     m_shader_name = sh_name;
-    tmp = pLtx.r_fvector4(sect_name, "bound_rect");
 
     if (!Heading())
     {
@@ -275,7 +280,7 @@ CUIGlobalMap::CUIGlobalMap(CUIMapWnd* pMapWnd)
 }
 
 CUIGlobalMap::~CUIGlobalMap() {}
-void CUIGlobalMap::Initialize() { Init_internal("global_map", *pGameIni, "global_map", "hud\\default"); }
+void CUIGlobalMap::Initialize() { Init_internal("global_map", *pGameIni, "global_map", "hud" DELIMITER "default"); }
 void CUIGlobalMap::Init_internal(const shared_str& name, CInifile& pLtx, const shared_str& sect_name, LPCSTR sh_name)
 {
     inherited::Init_internal(name, pLtx, sect_name, sh_name);
@@ -285,7 +290,7 @@ void CUIGlobalMap::Init_internal(const shared_str& name, CInifile& pLtx, const s
 
 void CUIGlobalMap::Update()
 {
-    for (WINDOW_LIST_it it = m_ChildWndList.begin(); m_ChildWndList.end() != it; ++it)
+    for (auto it = m_ChildWndList.begin(); m_ChildWndList.end() != it; ++it)
     {
         CUICustomMap* m = smart_cast<CUICustomMap*>(*it);
         if (!m)
@@ -385,7 +390,7 @@ void CUILevelMap::Draw()
     if (MapWnd())
     {
         float gmz = MapWnd()->GlobalMap()->GetCurrentZoom().x;
-        for (WINDOW_LIST_it it = m_ChildWndList.begin(); m_ChildWndList.end() != it; ++it)
+        for (auto it = m_ChildWndList.begin(); m_ChildWndList.end() != it; ++it)
         {
             CMapSpot* sp = smart_cast<CMapSpot*>((*it));
             if (sp)
@@ -393,15 +398,32 @@ void CUILevelMap::Draw()
                 if (sp->m_bScale)
                 {
                     Fvector2 sz = sp->m_originSize;
-                    float k = gmz;
+                    // XXX: try to remove if-else branches and use common code path
+                    if (!ShadowOfChernobylMode && !ClearSkyMode)
+                    {
+                        float k = gmz;
 
-                    if (gmz > sp->m_scale_bounds.y)
-                        k = sp->m_scale_bounds.y;
-                    else if (gmz < sp->m_scale_bounds.x)
-                        k = sp->m_scale_bounds.x;
+                        if (gmz > sp->m_scale_bounds.y)
+                            k = sp->m_scale_bounds.y;
+                        else if (gmz < sp->m_scale_bounds.x)
+                            k = sp->m_scale_bounds.x;
 
-                    sz.mul(k);
-                    sp->SetWndSize(sz);
+                        sz.mul(k);
+                        sp->SetWndSize(sz);
+                    }
+                    else
+                    {
+                        if (gmz > sp->m_scale_bounds.x && gmz < sp->m_scale_bounds.y)
+                        {
+                            float k = (gmz - sp->m_scale_bounds.x) / (sp->m_scale_bounds.y - sp->m_scale_bounds.x);
+                            sz.mul(k);
+                            sp->SetWndSize(sz);
+                        }
+                        else if (gmz > sp->m_scale_bounds.y)
+                        {
+                            sp->SetWndSize(sz);
+                        }
+                    }
                 }
                 else if (sp->m_scale_bounds.x > 0.0f)
                     sp->SetVisible(sp->m_scale_bounds.x < gmz);
@@ -446,16 +468,12 @@ void CUILevelMap::UpdateSpots()
         return;
 
     Locations& ls = Level().MapManager().Locations();
-    Locations_it it = ls.begin();
-    Locations_it it_e = ls.end();
+    auto it = ls.begin();
+    auto it_e = ls.end();
 
     for (u32 idx = 0; it != it_e; ++it, ++idx)
-    {
         if ((*it).actual && MapName() == (*it).location->GetLevelName())
-        {
             (*it).location->UpdateLevelMap(this);
-        }
-    }
 }
 
 Frect CUILevelMap::CalcWndRectOnGlobal()
@@ -556,16 +574,22 @@ void CUIMiniMap::UpdateSpots()
 {
     DetachAll();
     Locations& ls = Level().MapManager().Locations();
-    for (Locations_it it = ls.begin(); it != ls.end(); ++it)
+    for (auto it = ls.begin(); it != ls.end(); ++it)
         (*it).location->UpdateMiniMap(this);
 }
 
 void CUIMiniMap::Draw()
 {
+    if (ClearSkyMode || ShadowOfChernobylMode)
+    {
+        inherited::Draw();
+        return;
+    }
+
     u32 segments_count = 20;
 
-    GlobalEnv.UIRender->SetShader(*m_UIStaticItem.GetShader());
-    GlobalEnv.UIRender->StartPrimitive(segments_count * 3, IUIRender::ptTriList, UI().m_currentPointType);
+    GEnv.UIRender->SetShader(*m_UIStaticItem.GetShader());
+    GEnv.UIRender->StartPrimitive(segments_count * 3, IUIRender::ptTriList, UI().m_currentPointType);
 
     u32 color = m_UIStaticItem.GetTextureColor();
     float angle = GetHeading();
@@ -610,12 +634,12 @@ void CUIMiniMap::Draw()
 
     for (u32 idx = 0; idx < segments_count - 2; ++idx)
     {
-        GlobalEnv.UIRender->PushPoint(S[0 + 0].pt.x, S[0 + 0].pt.y, 0, color, S[0 + 0].uv.x, S[0 + 0].uv.y);
-        GlobalEnv.UIRender->PushPoint(S[idx + 2].pt.x, S[idx + 2].pt.y, 0, color, S[idx + 2].uv.x, S[idx + 2].uv.y);
-        GlobalEnv.UIRender->PushPoint(S[idx + 1].pt.x, S[idx + 1].pt.y, 0, color, S[idx + 1].uv.x, S[idx + 1].uv.y);
+        GEnv.UIRender->PushPoint(S[0 + 0].pt.x, S[0 + 0].pt.y, 0, color, S[0 + 0].uv.x, S[0 + 0].uv.y);
+        GEnv.UIRender->PushPoint(S[idx + 2].pt.x, S[idx + 2].pt.y, 0, color, S[idx + 2].uv.x, S[idx + 2].uv.y);
+        GEnv.UIRender->PushPoint(S[idx + 1].pt.x, S[idx + 1].pt.y, 0, color, S[idx + 1].uv.x, S[idx + 1].uv.y);
     }
 
-    GlobalEnv.UIRender->FlushPrimitive();
+    GEnv.UIRender->FlushPrimitive();
 
     //------------
     CUIWindow::Draw(); // draw childs

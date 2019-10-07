@@ -1,11 +1,10 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIMpTradeWnd.h"
 #include "UIMpItemsStoreWnd.h"
 
 #include "UICellItem.h"
 #include "UIDragDropListEx.h"
 #include "UICellCustomItems.h"
-#include <dinput.h>
 #include "game_cl_deathmatch.h"
 #include "game_cl_capture_the_artefact.h"
 
@@ -54,7 +53,7 @@ bool CUIMpTradeWnd::TryToSellItem(SBuyItemInfo* sell_itm, bool do_destroy, SBuyI
             _new_owner->SetItem(iinfo->m_cell_item);
             int accel_idx = m_store_hierarchy->CurrentLevel().GetItemIdx(iinfo->m_name_sect);
             VERIFY(accel_idx != -1);
-            iinfo->m_cell_item->SetAccelerator((accel_idx > 10) ? 0 : DIK_1 + accel_idx);
+            iinfo->m_cell_item->SetAccelerator((accel_idx > 10) ? 0 : SDL_SCANCODE_1 + accel_idx);
             iinfo->m_cell_item->SetCustomDraw(new CUICellItemTradeMenuDraw(this, iinfo));
         }
     }
@@ -215,10 +214,10 @@ bool CUIMpTradeWnd::CheckBuyPossibility(const shared_str& sect_name, u32 buy_fla
         {
             if (!b_silent)
                 xr_sprintf(info_buffer, "%s. %s. %s[%d] %s[%d]",
-                    CStringTable().translate("ui_inv_cant_buy_item").c_str(),
-                    CStringTable().translate("ui_inv_not_enought_money").c_str(),
-                    CStringTable().translate("ui_inv_has").c_str(), GetMoneyAmount(),
-                    CStringTable().translate("ui_inv_need").c_str(), _item_cost);
+                    StringTable().translate("ui_inv_cant_buy_item").c_str(),
+                    StringTable().translate("ui_inv_not_enought_money").c_str(),
+                    StringTable().translate("ui_inv_has").c_str(), GetMoneyAmount(),
+                    StringTable().translate("ui_inv_need").c_str(), _item_cost);
             b_can_buy = false;
         };
     }
@@ -226,9 +225,9 @@ bool CUIMpTradeWnd::CheckBuyPossibility(const shared_str& sect_name, u32 buy_fla
     if (b_can_buy && (buy_flags & bf_check_rank_restr) && !g_mp_restrictions.IsAvailable(sect_name))
     {
         if (!b_silent)
-            xr_sprintf(info_buffer, "%s. %s. %s[%s] %s[%s] ", CStringTable().translate("ui_inv_cant_buy_item").c_str(),
-                CStringTable().translate("ui_inv_rank_restr").c_str(), CStringTable().translate("ui_inv_has").c_str(),
-                g_mp_restrictions.GetRankName(GetRank()).c_str(), CStringTable().translate("ui_inv_need").c_str(),
+            xr_sprintf(info_buffer, "%s. %s. %s[%s] %s[%s] ", StringTable().translate("ui_inv_cant_buy_item").c_str(),
+                StringTable().translate("ui_inv_rank_restr").c_str(), StringTable().translate("ui_inv_has").c_str(),
+                g_mp_restrictions.GetRankName(GetRank()).c_str(), StringTable().translate("ui_inv_need").c_str(),
                 g_mp_restrictions.GetRankName(get_rank(sect_name)).c_str());
         b_can_buy = false;
     }
@@ -244,9 +243,9 @@ bool CUIMpTradeWnd::CheckBuyPossibility(const shared_str& sect_name, u32 buy_fla
         if (cnt_have >= cnt_restr)
         {
             if (!b_silent)
-                xr_sprintf(info_buffer, "%s. %s. %s [%d]", CStringTable().translate("ui_inv_cant_buy_item").c_str(),
-                    CStringTable().translate("ui_inv_count_restr").c_str(),
-                    CStringTable().translate("ui_inv_you_already_have").c_str(), cnt_have);
+                xr_sprintf(info_buffer, "%s. %s. %s [%d]", StringTable().translate("ui_inv_cant_buy_item").c_str(),
+                    StringTable().translate("ui_inv_count_restr").c_str(),
+                    StringTable().translate("ui_inv_you_already_have").c_str(), cnt_have);
             b_can_buy = false;
         }
     }
@@ -272,7 +271,7 @@ void CUIMpTradeWnd::RenewShopItem(const shared_str& sect_name, bool b_just_bough
         if (pitem->m_cell_item->OwnerList() != pList)
         {
             int accel_idx = m_store_hierarchy->CurrentLevel().GetItemIdx(sect_name);
-            pitem->m_cell_item->SetAccelerator((accel_idx > 9) ? 0 : DIK_1 + accel_idx);
+            pitem->m_cell_item->SetAccelerator((accel_idx > 9) ? 0 : SDL_SCANCODE_1 + accel_idx);
 
             pitem->m_cell_item->SetCustomDraw(new CUICellItemTradeMenuDraw(this, pitem));
             pList->SetItem(pitem->m_cell_item);

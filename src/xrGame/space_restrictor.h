@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "gameobject.h"
+#include "GameObject.h"
 #include "restriction_space.h"
 
 class CSpaceRestrictor : public CGameObject
@@ -41,7 +41,7 @@ private:
     mutable Fsphere m_selfbounds;
     mutable bool m_actuality;
 
-private:
+public:
     u8 m_space_restrictor_type;
 
 private:

@@ -7,9 +7,11 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #pragma once
-#include "xrAICore/xrAICore.hpp"
+
 #include "xrAICore/Navigation/game_graph_space.h"
 #include "xrAICore/Navigation/game_level_cross_table.h"
+
+constexpr cpcstr GRAPH_NAME = "game.graph";
 
 class CGameGraph
 {

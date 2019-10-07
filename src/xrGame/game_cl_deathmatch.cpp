@@ -1,25 +1,24 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "game_cl_deathmatch.h"
 #include "xrMessages.h"
 #include "UIGameDM.h"
 #include "Spectator.h"
 #include "Level.h"
 #include "xr_level_controller.h"
-#include "actor.h"
+#include "Actor.h"
 #include "ui/UIMainIngameWnd.h"
 #include "ui/UISkinSelector.h"
 #include "ui/UIPdaWnd.h"
 #include "ui/UIMapDesc.h"
 #include "ui/UIMessageBoxEx.h"
 #include "ui/UIVote.h"
-#include "dinput.h"
-#include "gamepersistent.h"
+#include "GamePersistent.h"
 #include "string_table.h"
 #include "map_manager.h"
 #include "map_location.h"
 #include "clsid_game.h"
 #include "ui/UIActorMenu.h"
-#include "weapon.h"
+#include "Weapon.h"
 
 #include "game_cl_base_weapon_usage_statistic.h"
 #include "reward_event_generator.h"
@@ -30,9 +29,9 @@
 #include "ActorCondition.h"
 
 #ifdef _new_buy_wnd
-#include "ui\UIMpTradeWnd.h"
+#include "ui/UIMpTradeWnd.h"
 #else
-#include "ui\UIBuyWnd.h"
+#include "ui/UIBuyWnd.h"
 #endif
 
 #define TEAM0_MENU "deathmatch_team0"
@@ -89,7 +88,7 @@ void game_cl_Deathmatch::SetGameUI(CUIGameCustom* uigame)
 
 CUIGameCustom* game_cl_Deathmatch::createGameUI()
 {
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return NULL;
 
     CLASS_ID clsid = CLSID_GAME_UI_DEATHMATCH;
@@ -302,7 +301,7 @@ BOOL game_cl_Deathmatch::CanCallInventoryMenu()
 
 void game_cl_Deathmatch::SetCurrentBuyMenu()
 {
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return;
 
     if (!pCurBuyMenu)
@@ -384,7 +383,7 @@ void game_cl_Deathmatch::OnSpectatorSelect()
     inherited::OnSpectatorSelect();
 };
 
-char* game_cl_Deathmatch::getTeamSection(int Team) { return "deathmatch_team0"; };
+pcstr game_cl_Deathmatch::getTeamSection(int Team) { return "deathmatch_team0"; };
 void game_cl_Deathmatch::Check_Invincible_Players(){};
 
 void game_cl_Deathmatch::ConvertTime2String(string64* str, u32 Time)
@@ -433,7 +432,7 @@ void game_cl_Deathmatch::OnConnected()
     inherited::OnConnected();
     if (m_game_ui)
     {
-        VERIFY(!g_dedicated_server);
+        VERIFY(!GEnv.isDedicatedServer);
         m_game_ui = smart_cast<CUIGameDM*>(CurrentGameUI());
         m_game_ui->SetClGame(this);
     }
@@ -441,11 +440,11 @@ void game_cl_Deathmatch::OnConnected()
 
 void game_cl_Deathmatch::shedule_Update(u32 dt)
 {
-    CStringTable st;
+    CStringTable& st = StringTable();
 
     inherited::shedule_Update(dt);
 
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return;
 
     // fake
@@ -535,7 +534,7 @@ void game_cl_Deathmatch::shedule_Update(u32 dt)
                                 PlaySndMessage(ID_COUNTDOWN_1 + dwCurTimeRemains - 1);
                         }
                         dwLastTimeRemains = dwCurTimeRemains;
-                        _itoa(dwCurTimeRemains, S, 10);
+                        xr_itoa(dwCurTimeRemains, S, 10);
                         strconcat(sizeof(tmpStr), tmpStr, *st.translate("mp_ready"), "...", S);
                     }
                 };
@@ -801,7 +800,7 @@ bool game_cl_Deathmatch::OnKeyboardRelease(int key)
 #define MAX_VOTE_PARAMS 5
 void game_cl_Deathmatch::OnVoteStart(NET_Packet& P)
 {
-    CStringTable st;
+    CStringTable& st = StringTable();
     inherited::OnVoteStart(P);
 
     string1024 Command = "";
@@ -950,7 +949,7 @@ void game_cl_Deathmatch::OnRender()
     };
 }
 
-IC bool DM_Compare_Players(game_PlayerState* p1, game_PlayerState* p2)
+bool DM_Compare_Players(game_PlayerState* p1, game_PlayerState* p2)
 {
     if (p1->testFlag(GAME_PLAYER_FLAG_SPECTATOR) && !p2->testFlag(GAME_PLAYER_FLAG_SPECTATOR))
         return false;
@@ -1133,7 +1132,7 @@ void game_cl_Deathmatch::OnTeamChanged()
     ChangeItemsCosts(pCurBuyMenu);
 };
 
-void game_cl_Deathmatch::LoadPlayerDefItems(char* TeamName, IBuyWnd* pBuyMenu)
+void game_cl_Deathmatch::LoadPlayerDefItems(pcstr TeamName, IBuyWnd* pBuyMenu)
 {
     if (!local_player)
         return;

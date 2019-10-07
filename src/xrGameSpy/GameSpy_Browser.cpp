@@ -1,4 +1,4 @@
-#include "StdAfx.h"
+#include "stdafx.h"
 #include "GameSpy_Browser.h"
 #include "xrServerEntities/gametype_chooser.h"
 #include "GameSpy_Keys.h"
@@ -191,7 +191,7 @@ GSUpdateStatus CGameSpy_Browser::RefreshList_Full(bool Local, const char* Filter
         xr_strcpy(pRData->FilterStr, FilterStr);
         pRData->pGSBrowser = this;
         m_bTryingToConnectToMasterServer = true;
-        thread_spawn(RefreshInternetList, "GS Internet Refresh", 0, pRData);
+        Threading::SpawnThread(RefreshInternetList, "GS Internet Refresh", 0, pRData);
         return GSUpdateStatus::ConnectingToMaster;
     }
     SBError error = ServerBrowserLANUpdate(m_pGSBrowser, onUpdate ? SBTrue : SBFalse, START_PORT_LAN, END_PORT_LAN);
@@ -327,7 +327,7 @@ void CGameSpy_Browser::ReadServerInfo(ServerInfo* pServerInfo, void* gsServer)
     for (int i = 0; i < pServerInfo->m_ServerNumPlayers; i++)
     {
         PlayerInfo PInfo;
-        _snprintf_s(
+        snprintf(
             PInfo.Name, sizeof(PInfo.Name) - 1, "%s", SBServerGetPlayerStringValueA(pServer, i, "player", "Unknown"));
         PInfo.Name[sizeof(PInfo.Name) - 1] = 0;
         PInfo.Frags = s16(SBServerGetPlayerIntValueA(pServer, i, "score", 0));

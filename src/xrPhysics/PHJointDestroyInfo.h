@@ -1,7 +1,6 @@
-#ifndef PHJOINT_DESTROY_INFO_H
-#define PHJOINT_DESTROY_INFO_H
+#pragma once
 
-#include "Externals/ode/include/ode/common.h"
+#include <ode/common.h>
 
 class CPHJointDestroyInfo
 {
@@ -20,5 +19,3 @@ public:
     IC bool Breaked() { return m_breaked; };
     bool Update();
 };
-
-#endif PHJOINT_DESTROY_INFO_H

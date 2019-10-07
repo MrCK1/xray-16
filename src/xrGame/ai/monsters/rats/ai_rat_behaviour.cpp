@@ -6,8 +6,9 @@
 //	Description : AI Behaviour for monster "Rat"
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "ai_rat.h"
+#include "ai_rat_impl.h"
 #include "rat_state_manager.h"
 #include "ai_space.h"
 #include "xrAICore/Navigation/game_level_cross_table.h"

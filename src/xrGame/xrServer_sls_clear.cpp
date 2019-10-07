@@ -1,10 +1,11 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "game_sv_single.h"
 #include "alife_simulator.h"
 #include "xrServer_Objects.h"
 #include "xrServer.h"
-#include "xrmessages.h"
+#include "xrMessages.h"
 #include "ai_space.h"
+#include "xrNetServer/NET_Messages.h"
 
 void xrServer::Perform_destroy(CSE_Abstract* object, u32 mode)
 {

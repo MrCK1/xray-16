@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ai/Monsters/BaseMonster/base_monster.h"
-#include "ai/Monsters/controlled_entity.h"
+#include "ai/monsters/basemonster/base_monster.h"
+#include "ai/monsters/controlled_entity.h"
 
 class CAI_Boar : public CBaseMonster, public CControlledEntity<CAI_Boar>
 {
@@ -29,5 +29,5 @@ public:
     bool look_at_enemy;
 
     virtual bool ability_can_drag() { return true; }
-    virtual char* get_monster_class_name() { return "boar"; }
+    pcstr get_monster_class_name() override { return "boar"; }
 };

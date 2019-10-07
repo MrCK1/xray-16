@@ -23,8 +23,8 @@
 #include "script_game_object.h"
 #include "smart_cover_transition_animation.hpp"
 #include "CharacterPhysicsSupport.h"
-#include "inventory.h"
-#include "weapon.h"
+#include "Inventory.h"
+#include "Weapon.h"
 
 namespace smart_cover
 {
@@ -51,8 +51,16 @@ void stalker_movement_manager_smart_cover::reinit()
 {
     inherited::reinit();
 
-    m_animation_selector = new animation_selector_type(&object());
-    m_animation_selector->setup(&object(), m_property_storage);
+    if (m_animation_selector)
+    {
+        m_animation_selector->~animation_selector_type();
+        new (m_animation_selector) animation_selector_type(&object());
+    }
+    else
+    {
+        m_animation_selector = new animation_selector_type(&object());
+        m_animation_selector->setup(&object(), m_property_storage);
+    }
 
     m_target.construct(this);
 }
@@ -189,7 +197,7 @@ void stalker_movement_manager_smart_cover::reach_enter_location(u32 const& time_
         target_loophole.enterable() ? target_loophole : nearest_enterable_loophole();
 
     Fvector position;
-    m_target.cover()->object().XFORM().transform_tiny(position, current_transition().animation().position());
+    m_target.cover()->get_object().XFORM().transform_tiny(position, current_transition().animation().position());
 
     u32 level_vertex_id = ai().level_graph().vertex(u32(-1), position);
     if (!accessible(level_vertex_id) || !accessible(position))
@@ -244,7 +252,11 @@ void stalker_movement_manager_smart_cover::reach_enter_location(u32 const& time_
     if (!object().sight().current_action().target_reached())
         return;
 
-    if (target_params().cover()->can_fire())
+    // morrey
+    // смарткаверы чн-ные не работали. заюзал из чн алгоритм
+    //if (target_params().cover()->can_fire()) // ЗП
+    //if (target_params().cover()->is_combat_cover()) // ЧН
+    if (target_params().cover()->can_fire() || target_params().cover()->is_combat_cover()) // Xottab_DUTY to morrey: а если так попробовать?
     {
         CInventoryItem const* const inventory_item = object().inventory().ActiveItem();
         if (!inventory_item)
@@ -364,10 +376,10 @@ void stalker_movement_manager_smart_cover::loophole_path(smart_cover::cover cons
 
     typedef GraphEngineSpace::CBaseParameters CBaseParameters;
     CBaseParameters parameters(u32(-1), u32(-1), u32(-1));
-    path.clear_not_free();
-    R_ASSERT2(ai().graph_engine().search(cover.description()->transitions(), source, target, &path, parameters),
+    path.clear();
+    R_ASSERT2(ai().graph_engine().search(cover.get_description()->transitions(), source, target, &path, parameters),
         make_string("cannot build path via loopholes [%s] -> [%s] (cover %s)", source_raw.c_str(), target_raw.c_str(),
-            cover.description()->table_id().c_str()));
+            cover.get_description()->table_id().c_str()));
 }
 
 bool stalker_movement_manager_smart_cover::exit_transition()

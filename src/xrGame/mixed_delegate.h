@@ -1,9 +1,10 @@
+#pragma once
 #ifndef MIXED_DELEGATE_INCLUDED
 #define MIXED_DELEGATE_INCLUDED
 
 #include "xrCore/fastdelegate.h"
-#include "pch_script.h"
-#include "script_callback_ex.h"
+//#include "pch_script.h" // Don't include PCH headers from a header. It frequently creates circular dependencies!
+#include "xrScriptEngine/script_callback_ex.h"
 #include "mixed_delegate_unique_tags.h"
 
 template <typename Signature, int UniqueTag = mdut_no_unique_tag>
@@ -16,11 +17,13 @@ public:
     typedef R return_type;
     typedef Param1 param1_type;
     typedef Param2 param2_type;
+    typedef mixed_delegate<R(Param1, Param2), UniqueTag> self_type;
 
     typedef fastdelegate::FastDelegate<R(Param1, Param2)> fastdelegate_type;
     typedef CScriptCallbackEx<R> lua_delegate_type;
     typedef luabind::object lua_object_type;
     typedef luabind::functor<R> lua_function_type;
+    using lua_bind_type = void (self_type::*)(lua_object_type, lua_function_type); 
 
     mixed_delegate() {}
     ~mixed_delegate() {}
@@ -66,8 +69,8 @@ public:
         FATAL("mixed delegate is not bound");
         return R();
     }
-    bool operator!() const { return !operator bool(); }
-    operator bool() const
+    bool operator!() const noexcept { return !operator bool(); }
+    operator bool() const noexcept
     {
         if (m_cpp_delegate)
             return true;

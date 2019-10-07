@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "game_cl_teamdeathmatch.h"
 #include "xrMessages.h"
 #include "Level.h"
@@ -6,10 +6,10 @@
 #include "xr_level_controller.h"
 #include "map_manager.h"
 #include "map_location.h"
-#include "actor.h"
+#include "Actor.h"
 #include "ui/UIMainIngameWnd.h"
 #include "ui/UISkinSelector.h"
-#include "ui/UIPDAWnd.h"
+#include "ui/UIPdaWnd.h"
 #include "ui/UIMapDesc.h"
 #include "game_base_menu_events.h"
 #include "ui/TeamInfo.h"
@@ -109,7 +109,6 @@ void game_cl_TeamDeathmatch::net_import_state(NET_Packet& P)
 }
 void game_cl_TeamDeathmatch::TranslateGameMessage(u32 msg, NET_Packet& P)
 {
-    CStringTable st;
     string512 Text;
     //	LPSTR	Color_Teams[3]	= {"%c[255,255,255,255]", "%c[255,64,255,64]", "%c[255,64,64,255]"};
     char Color_Main[] = "%c[255,192,192,192]";
@@ -126,12 +125,12 @@ void game_cl_TeamDeathmatch::TranslateGameMessage(u32 msg, NET_Packet& P)
 
         xr_sprintf(Text, "%s%s %s%s %s%s",
             "", // no color
-            PlayerName, Color_Main, *st.translate("mp_joined"), CTeamInfo::GetTeam_color_tag(int(Team)),
+            PlayerName, Color_Main, *StringTable().translate("mp_joined"), CTeamInfo::GetTeam_color_tag(int(Team)),
             CTeamInfo::GetTeam_name(int(Team)));
         if (CurrentGameUI())
             CurrentGameUI()->CommonMessageOut(Text);
         //---------------------------------------
-        Msg("%s %s %s", PlayerName, *st.translate("mp_joined"), CTeamInfo::GetTeam_name(int(Team)));
+        Msg("%s %s %s", PlayerName, *StringTable().translate("mp_joined"), CTeamInfo::GetTeam_name(int(Team)));
     }
     break;
 
@@ -147,12 +146,12 @@ void game_cl_TeamDeathmatch::TranslateGameMessage(u32 msg, NET_Packet& P)
             break;
 
         xr_sprintf(Text, "%s%s %s%s %s%s", CTeamInfo::GetTeam_color_tag(int(OldTeam)), pPlayer->getName(), Color_Main,
-            *st.translate("mp_switched_to"), CTeamInfo::GetTeam_color_tag(int(NewTeam)),
+            *StringTable().translate("mp_switched_to"), CTeamInfo::GetTeam_color_tag(int(NewTeam)),
             CTeamInfo::GetTeam_name(int(NewTeam)));
         if (CurrentGameUI())
             CurrentGameUI()->CommonMessageOut(Text);
         //---------------------------------------
-        Msg("%s *s %s", pPlayer->getName(), *st.translate("mp_switched_to"), CTeamInfo::GetTeam_name(int(NewTeam)));
+        Msg("%s *s %s", pPlayer->getName(), *StringTable().translate("mp_switched_to"), CTeamInfo::GetTeam_name(int(NewTeam)));
     }
     break;
 
@@ -169,7 +168,7 @@ void game_cl_TeamDeathmatch::SetGameUI(CUIGameCustom* uigame)
 
 CUIGameCustom* game_cl_TeamDeathmatch::createGameUI()
 {
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return NULL;
 
     CLASS_ID clsid = CLSID_GAME_UI_TEAMDEATHMATCH;
@@ -301,7 +300,7 @@ void game_cl_TeamDeathmatch::SetCurrentBuyMenu()
         return;
     if (!local_player->team || local_player->skin == -1)
         return;
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return;
 
     if (!pCurBuyMenu)
@@ -377,26 +376,21 @@ bool game_cl_TeamDeathmatch::CanBeReady()
     return inherited::CanBeReady();
 };
 
-char* game_cl_TeamDeathmatch::getTeamSection(int Team)
+pcstr game_cl_TeamDeathmatch::getTeamSection(int Team)
 {
     switch (Team)
     {
-    case 1: { return "teamdeathmatch_team1";
-    }
-    break;
-    case 2: { return "teamdeathmatch_team2";
-    }
-    break;
-    default: return NULL;
+    case 1: return "teamdeathmatch_team1";
+    case 2: return "teamdeathmatch_team2";
+    default: return nullptr;
     };
 };
 
 #include "string_table.h"
-#include "ui/teaminfo.h"
+#include "ui/TeamInfo.h"
 
 void game_cl_TeamDeathmatch::shedule_Update(u32 dt)
 {
-    CStringTable st;
     string512 msg;
 
     inherited::shedule_Update(dt);
@@ -416,7 +410,7 @@ void game_cl_TeamDeathmatch::shedule_Update(u32 dt)
     {
     case GAME_PHASE_TEAM1_SCORES:
     {
-        xr_sprintf(msg, st.translate("mp_team_wins").c_str(), CTeamInfo::GetTeam_name(1));
+        xr_sprintf(msg, StringTable().translate("mp_team_wins").c_str(), CTeamInfo::GetTeam_name(1));
         m_game_ui->SetRoundResultCaption(msg);
 
         m_game_ui->UpdateTeamPanels();
@@ -427,7 +421,7 @@ void game_cl_TeamDeathmatch::shedule_Update(u32 dt)
     break;
     case GAME_PHASE_TEAM2_SCORES:
     {
-        xr_sprintf(msg, st.translate("mp_team_wins").c_str(), CTeamInfo::GetTeam_name(2));
+        xr_sprintf(msg, StringTable().translate("mp_team_wins").c_str(), CTeamInfo::GetTeam_name(2));
         m_game_ui->SetRoundResultCaption(msg);
 
         m_game_ui->UpdateTeamPanels();
@@ -455,7 +449,7 @@ void game_cl_TeamDeathmatch::shedule_Update(u32 dt)
                 !local_player->testFlag(GAME_PLAYER_FLAG_VERY_VERY_DEAD))
             {
                 string1024 msg;
-                xr_sprintf(msg, *st.translate("mp_press_to_buy"), "B");
+                xr_sprintf(msg, *StringTable().translate("mp_press_to_buy"), "B");
                 if (m_game_ui)
                     m_game_ui->SetBuyMsgCaption(msg);
                 m_bBuyEnabled = true;

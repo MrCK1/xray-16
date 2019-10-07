@@ -1,8 +1,8 @@
-#include "stdafx.h"
-#include "mosquitobald.h"
+#include "StdAfx.h"
+#include "MosquitoBald.h"
 #include "ParticlesObject.h"
 #include "Level.h"
-#include "physicsshellholder.h"
+#include "PhysicsShellHolder.h"
 #include "xrEngine/xr_collide_form.h"
 
 CMosquitoBald::CMosquitoBald(void)
@@ -79,8 +79,7 @@ void CMosquitoBald::UpdateSecondaryHit()
     if (Device.dwPrecacheFrame)
         return;
 
-    OBJECT_INFO_VEC_IT it;
-    for (it = m_ObjectInfoMap.begin(); m_ObjectInfoMap.end() != it; ++it)
+    for (auto it = m_ObjectInfoMap.begin(); m_ObjectInfoMap.end() != it; ++it)
     {
         if (!(*it).object->getDestroy())
         {

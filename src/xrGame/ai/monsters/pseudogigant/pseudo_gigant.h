@@ -1,6 +1,6 @@
 #pragma once
-#include "ai/Monsters/BaseMonster/base_monster.h"
-#include "ai/Monsters/controlled_entity.h"
+#include "ai/monsters/basemonster/base_monster.h"
+#include "ai/monsters/controlled_entity.h"
 
 class CPseudoGigant : public CBaseMonster, public CControlledEntity<CPseudoGigant>
 {
@@ -55,5 +55,5 @@ public:
 
     virtual void HitEntityInJump(const CEntity* pEntity);
     virtual void TranslateActionToPathParams();
-    virtual char* get_monster_class_name() { return "pseudogigant"; }
+    pcstr get_monster_class_name() override { return "pseudogigant"; }
 };

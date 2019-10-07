@@ -1,5 +1,8 @@
+#pragma once
 #ifndef _matrix33H_
 #define _matrix33H_
+#include "_vector3d.h"
+#include "_matrix.h"
 
 template <class T>
 struct _matrix33
@@ -25,7 +28,7 @@ public:
             Tvector j;
             Tvector k;
         };
-        float m[3][3]; // Array
+        T m[3][3]; // Array
     };
     // Class members
     IC SelfRef set_rapid(const _matrix<T>& a)
@@ -283,7 +286,7 @@ public:
     //--------------------------------------------------------------------------------
     // other unused function
     //--------------------------------------------------------------------------------
-    IC SelfRef McolcMcol(int cr, SelfCRef M, int c)
+    IC SelfRef McolcMcol(size_t cr, SelfCRef M, size_t c)
     {
         m[0][cr] = M.m[0][c];
         m[1][cr] = M.m[1][c];
@@ -411,7 +414,7 @@ typedef _matrix33<float> Fmatrix33;
 typedef _matrix33<double> Dmatrix33;
 
 template <class T>
-BOOL _valid(const _matrix33<T>& m)
+bool _valid(const _matrix33<T>& m)
 {
     return _valid(m.i) && _valid(m.j) && _valid(m.k);
 }

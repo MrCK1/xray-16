@@ -1,25 +1,25 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "map_spot.h"
 #include "map_location.h"
 
 #include "ui/UIXmlInit.h"
-#include "ui/UIMApWnd.h"
+#include "ui/UIMapWnd.h"
 #include "Level.h"
 #include "ui/UIInventoryUtilities.h"
 #include "xrEngine/xr_object.h"
 #include "Common/object_broker.h"
-#include "ui/UITextureMaster.h"
+#include "xrUICore/XML/UITextureMaster.h"
 #include "ui/UIHelper.h"
 
 #include "Include/xrRender/UIShader.h"
-#include "gametaskmanager.h"
-#include "gametask.h"
+#include "GametaskManager.h"
+#include "GameTask.h"
 
-CMapSpot::CMapSpot(CMapLocation* ml) : m_map_location(ml)
+CMapSpot::CMapSpot(CMapLocation* ml) : m_map_location(ml), m_mark_focused(false)
 {
     m_bScale = false;
     m_location_level = 0;
-    m_border_static = NULL;
+    m_border_static = nullptr;
     m_scale_bounds.set(-1.0f, -1.0f);
 }
 
@@ -120,7 +120,6 @@ void CMiniMapSpot::Load(CUIXml* xml, LPCSTR path)
     inherited::Load(xml, path);
 
     string256 buf;
-    XML_NODE* n = NULL;
 
     Frect base_rect;
     base_rect.x1 = 0;
@@ -131,12 +130,12 @@ void CMiniMapSpot::Load(CUIXml* xml, LPCSTR path)
     Frect _stored_rect = m_UIStaticItem.GetTextureRect();
 
     strconcat(sizeof(buf), buf, path, ":texture_above");
-    n = xml->NavigateToNode(buf, 0);
+    XML_NODE n = xml->NavigateToNode(buf, 0);
     if (n)
     {
         LPCSTR texture = xml->Read(buf, 0, NULL);
         CUITextureMaster::InitTexture(texture, &m_UIStaticItem);
-        if (strchr(texture, '\\'))
+        if (strchr(texture, _DELIMITER))
         {
             float x = xml->ReadAttribFlt(buf, 0, "x", base_rect.x1);
             float y = xml->ReadAttribFlt(buf, 0, "y", base_rect.y1);
@@ -156,7 +155,7 @@ void CMiniMapSpot::Load(CUIXml* xml, LPCSTR path)
     {
         LPCSTR texture = xml->Read(buf, 0, NULL);
         CUITextureMaster::InitTexture(texture, &m_UIStaticItem);
-        if (strchr(texture, '\\'))
+        if (strchr(texture, _DELIMITER))
         {
             float x = xml->ReadAttribFlt(buf, 0, "x", base_rect.x1);
             float y = xml->ReadAttribFlt(buf, 0, "y", base_rect.y1);
@@ -175,7 +174,7 @@ void CMiniMapSpot::Load(CUIXml* xml, LPCSTR path)
     {
         LPCSTR texture = xml->Read(buf, 0, NULL);
         CUITextureMaster::InitTexture(texture, &m_UIStaticItem);
-        if (strchr(texture, '\\'))
+        if (strchr(texture, _DELIMITER))
         {
             float x = xml->ReadAttribFlt(buf, 0, "x", base_rect.x1);
             float y = xml->ReadAttribFlt(buf, 0, "y", base_rect.y1);
@@ -259,8 +258,8 @@ void CComplexMapSpot::Load(CUIXml* xml, LPCSTR path) // complex_spot_template
 {
     inherited::Load(xml, path);
 
-    XML_NODE* stored_root = xml->GetLocalRoot();
-    XML_NODE* node = xml->NavigateToNode(path, 0);
+    XML_NODE stored_root = xml->GetLocalRoot();
+    XML_NODE node = xml->NavigateToNode(path, 0);
     xml->SetLocalRoot(node);
 
     m_left_icon = CreateStaticOrig(*xml, "left_icon");
@@ -329,7 +328,7 @@ void CComplexMapSpot::SetWndSize(const Fvector2& size)
     }
     float k = size.x / m_originSize.x;
 
-    for (WINDOW_LIST_it it = m_ChildWndList.begin(); m_ChildWndList.end() != it; ++it)
+    for (auto it = m_ChildWndList.begin(); m_ChildWndList.end() != it; ++it)
     {
         CUIStaticOrig* static_orig = smart_cast<CUIStaticOrig*>(*it);
         if (static_orig)

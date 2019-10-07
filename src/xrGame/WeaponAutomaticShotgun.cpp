@@ -1,11 +1,11 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "WeaponAutomaticShotgun.h"
-#include "entity.h"
+#include "Entity.h"
 #include "ParticlesObject.h"
 #include "xr_level_controller.h"
-#include "inventory.h"
+#include "Inventory.h"
 #include "Level.h"
-#include "actor.h"
+#include "Actor.h"
 
 CWeaponAutomaticShotgun::CWeaponAutomaticShotgun()
 {
@@ -99,15 +99,15 @@ void CWeaponAutomaticShotgun::TriStateReload()
     SwitchState(eReload);
 }
 
-void CWeaponAutomaticShotgun::OnStateSwitch(u32 S)
+void CWeaponAutomaticShotgun::OnStateSwitch(u32 S, u32 oldState)
 {
     if (!m_bTriStateReload || S != eReload)
     {
-        inherited::OnStateSwitch(S);
+        inherited::OnStateSwitch(S, oldState);
         return;
     }
 
-    CWeapon::OnStateSwitch(S);
+    CWeapon::OnStateSwitch(S, oldState);
 
     if (m_magazine.size() == (u32)iMagazineSize || !HaveCartridgeInInventory(1))
     {
@@ -154,18 +154,18 @@ void CWeaponAutomaticShotgun::switch2_EndReload()
 void CWeaponAutomaticShotgun::PlayAnimOpenWeapon()
 {
     VERIFY(GetState() == eReload);
-    PlayHUDMotion("anm_open", FALSE, this, GetState());
+    PlayHUDMotion("anm_open", "anim_open", FALSE, this, GetState());
 }
 void CWeaponAutomaticShotgun::PlayAnimAddOneCartridgeWeapon()
 {
     VERIFY(GetState() == eReload);
-    PlayHUDMotion("anm_add_cartridge", FALSE, this, GetState());
+    PlayHUDMotion("anm_add_cartridge", "anim_add_cartridge", FALSE, this, GetState());
 }
 void CWeaponAutomaticShotgun::PlayAnimCloseWeapon()
 {
     VERIFY(GetState() == eReload);
 
-    PlayHUDMotion("anm_close", FALSE, this, GetState());
+    PlayHUDMotion("anm_close", "anim_close", FALSE, this, GetState());
 }
 
 bool CWeaponAutomaticShotgun::HaveCartridgeInInventory(u8 cnt)

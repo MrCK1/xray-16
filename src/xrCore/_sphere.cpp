@@ -1,5 +1,7 @@
 #include "stdafx.h"
-#pragma hdrstop
+#pragma hdrstop // Huh? Surely this _source_ file isn't part of PCH creation?!
+#include "_sphere.h"
+#include "xrCommon/xr_list.h"
 
 class Miniball;
 class Basis;
@@ -126,7 +128,7 @@ void Miniball::mtf_mb(It i)
 void Miniball::move_to_front(It j)
 {
     if (support_end == j)
-        support_end++;
+        ++support_end;
     L.splice(L.begin(), L, j);
 }
 

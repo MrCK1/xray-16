@@ -1,6 +1,6 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "ui_af_params.h"
-#include "UIStatic.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "Actor.h"
 #include "ActorCondition.h"
 #include "Common/object_broker.h"
@@ -22,6 +22,7 @@ CUIArtefactParams::CUIArtefactParams()
         m_restore_item[i] = NULL;
     }
     m_additional_weight = NULL;
+    m_Prop_line = nullptr;
 }
 
 CUIArtefactParams::~CUIArtefactParams()
@@ -33,17 +34,18 @@ CUIArtefactParams::~CUIArtefactParams()
 }
 
 LPCSTR af_immunity_section_names[] = // ALife::EInfluenceType
-    {
-        "radiation_immunity", // infl_rad=0
-        "burn_immunity", // infl_fire=1
-        "chemical_burn_immunity", // infl_acid=2
-        "telepatic_immunity", // infl_psi=3
-        "shock_immunity", // infl_electra=4
+{
+    "radiation_immunity", // infl_rad=0
+    "burn_immunity", // infl_fire=1
+    "chemical_burn_immunity", // infl_acid=2
+    "telepatic_immunity", // infl_psi=3
+    "shock_immunity", // infl_electra=4
 
-        //	"strike_immunity",
-        //	"wound_immunity",
-        //	"explosion_immunity",
-        //	"fire_wound_immunity",
+    //"strike_immunity",
+    //Alundaio: Uncommented
+    "wound_immunity",
+    "explosion_immunity",
+    "fire_wound_immunity",
 };
 
 LPCSTR af_restore_section_names[] = // ALife::EConditionRestoreType
@@ -56,22 +58,24 @@ LPCSTR af_restore_section_names[] = // ALife::EConditionRestoreType
 };
 
 LPCSTR af_immunity_caption[] = // ALife::EInfluenceType
-    {
-        "ui_inv_outfit_radiation_protection", // "(radiation_imm)",
-        "ui_inv_outfit_burn_protection", // "(burn_imm)",
-        "ui_inv_outfit_chemical_burn_protection", // "(chemical_burn_imm)",
-        "ui_inv_outfit_telepatic_protection", // "(telepatic_imm)",
-        "ui_inv_outfit_shock_protection", // "(shock_imm)",
+{
+    "ui_inv_outfit_radiation_protection", // "(radiation_imm)",
+    "ui_inv_outfit_burn_protection", // "(burn_imm)",
+    "ui_inv_outfit_chemical_burn_protection", // "(chemical_burn_imm)",
+    "ui_inv_outfit_telepatic_protection", // "(telepatic_imm)",
+    "ui_inv_outfit_shock_protection", // "(shock_imm)",
 
-        //	"ui_inv_outfit_strike_protection",			// "(strike_imm)",
-        //	"ui_inv_outfit_wound_protection",			// "(wound_imm)",
-        //	"ui_inv_outfit_explosion_protection",		// "(explosion_imm)",
-        //	"ui_inv_outfit_fire_wound_protection",		// "(fire_wound_imm)",
+    //"ui_inv_outfit_strike_protection",	 // "(strike_imm)",
+
+    //Alundaio: Uncommented
+    "ui_inv_outfit_wound_protection", // "(wound_imm)",
+    "ui_inv_outfit_explosion_protection", // "(explosion_imm)",
+    "ui_inv_outfit_fire_wound_protection", // "(fire_wound_imm)",
 };
 
 LPCSTR af_restore_caption[] = // ALife::EConditionRestoreType
-    {
-        "ui_inv_health", "ui_inv_satiety", "ui_inv_power", "ui_inv_bleeding", "ui_inv_radiation",
+{
+    "ui_inv_health", "ui_inv_satiety", "ui_inv_power", "ui_inv_bleeding", "ui_inv_radiation",
 };
 
 /*
@@ -89,8 +93,8 @@ void CUIArtefactParams::InitFromXml(CUIXml& xml)
 {
     LPCSTR base = "af_params";
 
-    XML_NODE* stored_root = xml.GetLocalRoot();
-    XML_NODE* base_node = xml.NavigateToNode(base, 0);
+    XML_NODE stored_root = xml.GetLocalRoot();
+    XML_NODE base_node = xml.NavigateToNode(base, 0);
     if (!base_node)
     {
         return;
@@ -98,10 +102,8 @@ void CUIArtefactParams::InitFromXml(CUIXml& xml)
     CUIXmlInit::InitWindow(xml, base, 0, this);
     xml.SetLocalRoot(base_node);
 
-    m_Prop_line = new CUIStatic();
-    AttachChild(m_Prop_line);
-    m_Prop_line->SetAutoDelete(false);
-    CUIXmlInit::InitStatic(xml, "prop_line", 0, m_Prop_line);
+    if ((m_Prop_line = UIHelper::CreateStatic(xml, "prop_line", this, false)))
+        m_Prop_line->SetAutoDelete(false);
 
     for (u32 i = 0; i < ALife::infl_max_count; ++i)
     {
@@ -109,7 +111,7 @@ void CUIArtefactParams::InitFromXml(CUIXml& xml)
         m_immunity_item[i]->Init(xml, af_immunity_section_names[i]);
         m_immunity_item[i]->SetAutoDelete(false);
 
-        LPCSTR name = CStringTable().translate(af_immunity_caption[i]).c_str();
+        LPCSTR name = StringTable().translate(af_immunity_caption[i]).c_str();
         m_immunity_item[i]->SetCaption(name);
 
         xml.SetLocalRoot(base_node);
@@ -121,7 +123,7 @@ void CUIArtefactParams::InitFromXml(CUIXml& xml)
         m_restore_item[i]->Init(xml, af_restore_section_names[i]);
         m_restore_item[i]->SetAutoDelete(false);
 
-        LPCSTR name = CStringTable().translate(af_restore_caption[i]).c_str();
+        LPCSTR name = StringTable().translate(af_restore_caption[i]).c_str();
         m_restore_item[i]->SetCaption(name);
 
         xml.SetLocalRoot(base_node);
@@ -132,8 +134,17 @@ void CUIArtefactParams::InitFromXml(CUIXml& xml)
         m_additional_weight->Init(xml, "additional_weight");
         m_additional_weight->SetAutoDelete(false);
 
-        LPCSTR name = CStringTable().translate("ui_inv_weight").c_str();
-        m_additional_weight->SetCaption(name);
+        // use either ui_inv_weight or ui_inv_outfit_additional_weight
+        // but set ui_inv_weight if both unavailable
+        LPCSTR name = StringTable().translate("ui_inv_weight").c_str();
+        LPCSTR add_name = StringTable().translate("ui_inv_outfit_additional_weight").c_str();
+        if (0 == xr_strcmp(name, "ui_inv_weight") &&
+            0 != xr_strcmp(add_name, "ui_inv_outfit_additional_weight"))
+        {
+            m_additional_weight->SetCaption(add_name);
+        }
+        else
+            m_additional_weight->SetCaption(name);
 
         // xml.SetLocalRoot( base_node );
     }
@@ -149,7 +160,8 @@ bool CUIArtefactParams::Check(const shared_str& af_section)
 void CUIArtefactParams::SetInfo(shared_str const& af_section)
 {
     DetachAll();
-    AttachChild(m_Prop_line);
+    if (m_Prop_line)
+        AttachChild(m_Prop_line);
 
     CActor* actor = smart_cast<CActor*>(Level().CurrentViewEntity());
     if (!actor)
@@ -157,9 +169,10 @@ void CUIArtefactParams::SetInfo(shared_str const& af_section)
         return;
     }
 
-    float val = 0.0f, max_val = 1.0f;
+    float val = 0.0f, max_val = 1.0f, h = 0.0f;
     Fvector2 pos;
-    float h = m_Prop_line->GetWndPos().y + m_Prop_line->GetWndSize().y;
+    if (m_Prop_line)
+        h = m_Prop_line->GetWndPos().y + m_Prop_line->GetWndSize().y;
 
     for (u32 i = 0; i < ALife::infl_max_count; ++i)
     {
@@ -242,7 +255,7 @@ void UIArtefactParamItem::Init(CUIXml& xml, LPCSTR section)
     m_sign_inverse = (xml.ReadAttribInt("value", 0, "sign_inverse", 0) == 1);
 
     LPCSTR unit_str = xml.ReadAttrib("value", 0, "unit_str", "");
-    m_unit_str._set(CStringTable().translate(unit_str));
+    m_unit_str._set(StringTable().translate(unit_str));
 
     LPCSTR texture_minus = xml.Read("texture_minus", 0, "");
     if (texture_minus && xr_strlen(texture_minus))

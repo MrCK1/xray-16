@@ -1,7 +1,7 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "EffectorBobbing.h"
 
-#include "actor.h"
+#include "Actor.h"
 #include "actor_defs.h"
 
 #define BOBBING_SECT "bobbing_effector"
@@ -13,7 +13,9 @@
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-CEffectorBobbing::CEffectorBobbing() : CEffectorCam(eCEBobbing, 10000.f)
+CEffectorBobbing::CEffectorBobbing()
+    : CEffectorCam(eCEBobbing, 10000.f), fYAmplitude(0),
+      fSpeed(0), dwMState(0), m_bZoomMode(false)
 {
     fTime = 0;
     fReminderFactor = 0;

@@ -1,16 +1,16 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "base_monster.h"
 #include "xrPhysics/PhysicsShell.h"
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
 #include "CharacterPhysicsSupport.h"
 #include "xrAICore/Navigation/game_level_cross_table.h"
 #include "xrAICore/Navigation/game_graph.h"
 #include "xrAICore/Navigation/level_graph.h"
 #include "PHMovementControl.h"
-#include "ai/Monsters/ai_monster_squad_manager.h"
-#include "xrServerEntities/xrserver_objects_alife_monsters.h"
-#include "ai/Monsters/corpse_cover.h"
+#include "ai/monsters/ai_monster_squad_manager.h"
+#include "xrServerEntities/xrServer_Objects_ALife_Monsters.h"
+#include "ai/monsters/corpse_cover.h"
 #include "cover_evaluators.h"
 #include "seniority_hierarchy_holder.h"
 #include "team_hierarchy_holder.h"
@@ -21,28 +21,28 @@
 #include "detail_path_manager.h"
 #include "memory_manager.h"
 #include "visual_memory_manager.h"
-#include "ai/Monsters/monster_velocity_space.h"
+#include "ai/monsters/monster_velocity_space.h"
 #include "EntityCondition.h"
 #include "sound_player.h"
 #include "Level.h"
-#include "ai/Monsters/state_manager.h"
-#include "ai/Monsters/controlled_entity.h"
-#include "ai/Monsters/control_animation_base.h"
-#include "ai/Monsters/control_direction_base.h"
-#include "ai/Monsters/control_movement_base.h"
-#include "ai/Monsters/control_path_builder_base.h"
-#include "ai/Monsters/anomaly_detector.h"
-#include "ai/Monsters/monster_cover_manager.h"
-#include "ai/Monsters/monster_home.h"
+#include "ai/monsters/state_manager.h"
+#include "ai/monsters/controlled_entity.h"
+#include "ai/monsters/control_animation_base.h"
+#include "ai/monsters/control_direction_base.h"
+#include "ai/monsters/control_movement_base.h"
+#include "ai/monsters/control_path_builder_base.h"
+#include "ai/monsters/anomaly_detector.h"
+#include "ai/monsters/monster_cover_manager.h"
+#include "ai/monsters/monster_home.h"
 #include "Inventory.h"
 #include "xrServer.h"
-#include "ai/Monsters/ai_monster_squad.h"
+#include "ai/monsters/ai_monster_squad.h"
 #include "Actor.h"
 #include "xrAICore/Navigation/ai_object_location.h"
 #include "xrAICore/Navigation/ai_object_location_impl.h"
 #include "ai_space.h"
 #include "xrScriptEngine/script_engine.hpp"
-#include "ai/Monsters/anti_aim_ability.h"
+#include "ai/monsters/anti_aim_ability.h"
 
 // Lain: added
 #include "level_debug.h"
@@ -429,7 +429,8 @@ void CBaseMonster::Hit(SHit* pHDS)
         if (!critically_wounded())
             update_critical_wounded(pHDS->boneID, pHDS->power);
 
-    if (pHDS->hit_type == ALife::eHitTypeFireWound)
+    const bool copOrHigher = !ShadowOfChernobylMode && !ClearSkyMode;
+    if (pHDS->hit_type == ALife::eHitTypeFireWound && copOrHigher)
     {
         float& hit_power = pHDS->power;
         float ap = pHDS->armor_piercing;
@@ -507,7 +508,7 @@ void CBaseMonster::ChangeTeam(int team, int squad, int group)
 #ifdef DEBUG
     if (!g_Alive())
     {
-        ai().script_engine().print_stack();
+        GEnv.ScriptEngine->print_stack();
         VERIFY2(g_Alive(), "you are trying to change team of a dead entity");
     }
 #endif // DEBUG
@@ -1006,10 +1007,10 @@ float CBaseMonster::get_screen_space_coverage_diagonal()
         Fvector p;
         b.getpoint(k, p);
         xform.transform(p);
-        mn.x = _min(mn.x, p.x);
-        mn.y = _min(mn.y, p.y);
-        mx.x = _max(mx.x, p.x);
-        mx.y = _max(mx.y, p.y);
+        mn.x = std::min(mn.x, p.x);
+        mn.y = std::min(mn.y, p.y);
+        mx.x = std::max(mx.x, p.x);
+        mx.y = std::max(mx.y, p.y);
     }
 
     float const width = mx.x - mn.x;

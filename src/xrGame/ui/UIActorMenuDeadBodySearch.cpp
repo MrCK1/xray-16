@@ -1,21 +1,21 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIActorMenu.h"
 #include "UIDragDropListEx.h"
 #include "UICharacterInfo.h"
 #include "UIInventoryUtilities.h"
-#include "UI3tButton.h"
+#include "xrUICore/Buttons/UI3tButton.h"
 #include "UICellItem.h"
 #include "UICellItemFactory.h"
-#include "UIFrameLineWnd.h"
+#include "xrUICore/Windows/UIFrameLineWnd.h"
 #include "xrMessages.h"
 #include "alife_registry_wrappers.h"
 #include "GameObject.h"
 #include "InventoryOwner.h"
 #include "Inventory.h"
-#include "Inventory_item.h"
+#include "inventory_item.h"
 #include "InventoryBox.h"
 #include "string_table.h"
-#include "ai/monsters/BaseMonster/base_monster.h"
+#include "ai/monsters/basemonster/base_monster.h"
 
 void move_item_from_to(u16 from_id, u16 to_id, u16 what_id)
 {
@@ -99,7 +99,7 @@ void CUIActorMenu::InitDeadBodySearchMode()
         known_info_registry.registry().init(m_pPartnerInvOwner->object_id());
         KNOWN_INFO_VECTOR& known_infos = known_info_registry.registry().objects();
 
-        KNOWN_INFO_VECTOR_IT it = known_infos.begin();
+        auto it = known_infos.begin();
         for (int i = 0; it != known_infos.end(); ++it, ++i)
         {
             NET_Packet P;
@@ -114,7 +114,7 @@ void CUIActorMenu::InitDeadBodySearchMode()
     UpdateDeadBodyBag();
 }
 
-void CUIActorMenu::DeInitDeadBodySearchMode()
+void CUIActorMenu::DeInitDeadBodySearchMode() const
 {
     m_pDeadBodyBagList->Show(false);
     m_PartnerCharacterInfo->Show(false);
@@ -150,7 +150,7 @@ bool CUIActorMenu::ToDeadBodyBag(CUICellItem* itm, bool b_use_cursor_pos)
         return false;
 
     CUIDragDropListEx* old_owner = itm->OwnerList();
-    CUIDragDropListEx* new_owner = NULL;
+    CUIDragDropListEx* new_owner = nullptr;
 
     if (b_use_cursor_pos)
     {
@@ -186,7 +186,7 @@ void CUIActorMenu::UpdateDeadBodyBag()
 {
     string64 buf;
 
-    LPCSTR kg_str = CStringTable().translate("st_kg").c_str();
+    LPCSTR kg_str = StringTable().translate("st_kg").c_str();
     float total = CalcItemsWeight(m_pDeadBodyBagList);
     xr_sprintf(buf, "%.1f %s", total, kg_str);
     m_PartnerWeight->SetText(buf);

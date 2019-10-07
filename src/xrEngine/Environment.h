@@ -1,5 +1,16 @@
+#pragma once
 #ifndef EnvironmentH
 #define EnvironmentH
+
+#include "Include/xrRender/FactoryPtr.h"
+#include "Include/xrRender/EnvironmentRender.h"
+#include "xrCore/_vector3d.h"
+#include "xrCore/_quaternion.h"
+#include "xrCore/xr_vector_defs.h"
+#include "xrCore/xrCore_benchmark_macros.h"
+#include "xrCommon/xr_vector.h"
+#include "xrCommon/xr_map.h"
+#include "xrSound/Sound.h"
 
 // refs
 class ENGINE_API IRender_Visual;
@@ -19,15 +30,6 @@ struct SThunderboltCollection;
 class CLensFlareDescriptor;
 
 #define DAY_LENGTH 86400.f
-
-#include "Include/xrRender/FactoryPtr.h"
-#include "Include/xrRender/EnvironmentRender.h"
-
-#ifdef INGAME_EDITOR
-#define INGAME_EDITOR_VIRTUAL virtual
-#else // #ifdef INGAME_EDITOR
-#define INGAME_EDITOR_VIRTUAL
-#endif // #ifdef INGAME_EDITOR
 
 // t-defs
 class ENGINE_API CEnvModifier
@@ -64,9 +66,10 @@ public:
         float wind_blast_strength;
         Fvector wind_blast_direction;
 
-        INGAME_EDITOR_VIRTUAL ~SEffect() {}
+        virtual ~SEffect() {}
     };
-    DEFINE_VECTOR(SEffect*, EffectVec, EffectVecIt);
+    using EffectVec = xr_vector<SEffect*>;
+
     struct SSndChannel
     {
         shared_str m_load_section;
@@ -75,7 +78,7 @@ public:
 
         typedef xr_vector<ref_sound> sounds_type;
 
-        void load(CInifile& config, LPCSTR sect);
+        void load(const CInifile& config, pcstr sect, pcstr sectionToReadFrom = nullptr);
         ref_sound& get_rnd_sound() { return sounds()[Random.randI(sounds().size())]; }
         u32 get_rnd_sound_time()
         {
@@ -89,12 +92,12 @@ public:
         {
             return (m_sound_dist.x < m_sound_dist.y) ? Random.randF(m_sound_dist.x, m_sound_dist.y) : 0;
         }
-        INGAME_EDITOR_VIRTUAL ~SSndChannel() {}
-        inline INGAME_EDITOR_VIRTUAL sounds_type& sounds() { return m_sounds; }
+        virtual ~SSndChannel() {}
+        virtual sounds_type& sounds() { return m_sounds; }
     protected:
         xr_vector<ref_sound> m_sounds;
     };
-    DEFINE_VECTOR(SSndChannel*, SSndChannelVec, SSndChannelVecIt);
+    using SSndChannelVec = xr_vector<SSndChannel*>;
 
 protected:
     shared_str m_load_section;
@@ -106,23 +109,25 @@ protected:
     shared_str m_ambients_config_filename;
 
 public:
-    IC const shared_str& name() { return m_load_section; }
-    IC const shared_str& get_ambients_config_filename() { return m_ambients_config_filename; }
-    INGAME_EDITOR_VIRTUAL void load(CInifile& ambients_config, CInifile& sound_channels_config,
-        CInifile& effects_config, const shared_str& section);
-    IC SEffect* get_rnd_effect() { return effects().empty() ? 0 : effects()[Random.randI(effects().size())]; }
-    IC u32 get_rnd_effect_time() { return Random.randI(m_effect_period.x, m_effect_period.y); }
-    INGAME_EDITOR_VIRTUAL SEffect* create_effect(CInifile& config, LPCSTR id);
-    INGAME_EDITOR_VIRTUAL SSndChannel* create_sound_channel(CInifile& config, LPCSTR id);
-    INGAME_EDITOR_VIRTUAL ~CEnvAmbient();
+    const shared_str& name() { return m_load_section; }
+    const shared_str& get_ambients_config_filename() { return m_ambients_config_filename; }
+    virtual void load(const CInifile& ambients_config, const CInifile& sound_channels_config,
+        const CInifile& effects_config, const shared_str& section);
+    SEffect* get_rnd_effect() { return effects().empty() ? 0 : effects()[Random.randI(effects().size())]; }
+    u32 get_rnd_effect_time() { return Random.randI(m_effect_period.x, m_effect_period.y); }
+    virtual SEffect* create_effect(const CInifile& config, pcstr id);
+    virtual SSndChannel* create_sound_channel(const CInifile& config, pcstr id, pcstr sectionToReadFrom = nullptr);
+    virtual ~CEnvAmbient();
     void destroy();
-    inline INGAME_EDITOR_VIRTUAL EffectVec& effects() { return m_effects; }
-    inline INGAME_EDITOR_VIRTUAL SSndChannelVec& get_snd_channels() { return m_sound_channels; }
+    virtual EffectVec& effects() { return m_effects; }
+    virtual SSndChannelVec& get_snd_channels() { return m_sound_channels; }
 };
 
 class ENGINE_API CEnvDescriptor
 {
 public:
+    bool old_style;
+
     float exec_time;
     float exec_time_loaded;
 
@@ -132,11 +137,6 @@ public:
 
     BENCH_SEC_SCRAMBLEMEMBER1
 
-    /*
-    ref_texture sky_texture ;
-    ref_texture sky_texture_env ;
-    ref_texture clouds_texture ;
-    */
     FactoryPtr<IEnvDescriptorRender> m_pDescriptor;
 
     Fvector4 clouds_color;
@@ -165,8 +165,8 @@ public:
     float m_fSunShaftsIntensity;
     float m_fWaterIntensity;
 
-    // int lens_flare_id;
-    // int tb_id;
+    float m_fTreeAmplitudeIntensity;
+
     shared_str lens_flare_id;
     shared_str tb_id;
 
@@ -174,7 +174,7 @@ public:
 
     CEnvDescriptor(shared_str const& identifier);
 
-    void load(CEnvironment& environment, CInifile& config);
+    void load(CEnvironment& environment, const CInifile& config, pcstr section = nullptr);
     void copy(const CEnvDescriptor& src)
     {
         float tm0 = exec_time;
@@ -193,20 +193,15 @@ public:
 class ENGINE_API CEnvDescriptorMixer : public CEnvDescriptor
 {
 public:
-    /*
-    STextureList sky_r_textures;
-    STextureList sky_r_textures_env;
-    STextureList clouds_r_textures;
-    */
     FactoryPtr<IEnvDescriptorMixerRender> m_pDescriptorMixer;
-    float weight;
 
+    float weight;
     float fog_near;
     float fog_far;
 
 public:
     CEnvDescriptorMixer(shared_str const& identifier);
-    INGAME_EDITOR_VIRTUAL void lerp(
+    virtual void lerp(
         CEnvironment* parent, CEnvDescriptor& A, CEnvDescriptor& B, float f, CEnvModifier& M, float m_power);
     void clear();
     void destroy();
@@ -215,22 +210,21 @@ public:
 class ENGINE_API CEnvironment
 {
     friend class dxEnvironmentRender;
-    struct str_pred : public std::binary_function<shared_str, shared_str, bool>
+    struct str_pred
     {
-        IC bool operator()(const shared_str& x, const shared_str& y) const { return xr_strcmp(x, y) < 0; }
+        bool operator()(const shared_str& x, const shared_str& y) const { return xr_strcmp(x, y) < 0; }
     };
 
 public:
-    DEFINE_VECTOR(CEnvAmbient*, EnvAmbVec, EnvAmbVecIt);
-    DEFINE_VECTOR(CEnvDescriptor*, EnvVec, EnvIt);
-    DEFINE_MAP_PRED(shared_str, EnvVec, EnvsMap, EnvsMapIt, str_pred);
+    using EnvAmbVec = xr_vector<CEnvAmbient*>;
+    using EnvVec = xr_vector<CEnvDescriptor*>;
+    using EnvsMap = xr_map<shared_str, EnvVec, str_pred>;
 
 private:
     // clouds
     FvectorVec CloudsVerts;
     U16Vec CloudsIndices;
 
-private:
     float NormalizeTime(float tm);
     float TimeDiff(float prev, float cur);
     float TimeWeight(float val, float min_t, float max_t);
@@ -293,17 +287,17 @@ public:
     void SelectEnvs(float gt);
 
     void UpdateAmbient();
-    INGAME_EDITOR_VIRTUAL CEnvAmbient* AppendEnvAmb(const shared_str& sect);
+    virtual CEnvAmbient* AppendEnvAmb(const shared_str& sect, CInifile const* pIni = nullptr);
 
     void Invalidate();
 
 public:
     CEnvironment();
 
-    INGAME_EDITOR_VIRTUAL ~CEnvironment();
+    virtual ~CEnvironment();
 
-    INGAME_EDITOR_VIRTUAL void load();
-    INGAME_EDITOR_VIRTUAL void unload();
+    virtual void load();
+    virtual void unload();
 
     void mods_load();
     void mods_unload();
@@ -339,12 +333,13 @@ public:
     void ED_Reload();
     float GetGameTime() { return fGameTime; }
 #else // #ifdef _EDITOR
-#ifdef INGAME_EDITOR
     float GetGameTime() { return fGameTime; }
-#endif // #ifdef INGAME_EDITOR
 
     bool m_paused;
 #endif // #ifdef _EDITOR
+
+    bool useDynamicSunDir;
+    float sunDirAzimuth;
 
     CInifile* m_ambients_config;
     CInifile* m_sound_channels_config;
@@ -354,25 +349,25 @@ public:
     CInifile* m_thunderbolts_config;
 
 protected:
-    INGAME_EDITOR_VIRTUAL CEnvDescriptor* create_descriptor(shared_str const& identifier, CInifile* config);
-    INGAME_EDITOR_VIRTUAL void load_weathers();
-    INGAME_EDITOR_VIRTUAL void load_weather_effects();
-    INGAME_EDITOR_VIRTUAL void create_mixer();
+    virtual CEnvDescriptor* create_descriptor(shared_str const& identifier, CInifile const* config, pcstr section = nullptr);
+    virtual void load_weathers();
+    virtual void load_weather_effects();
+    virtual void create_mixer();
     void destroy_mixer();
 
     void load_level_specific_ambients();
 
 public:
-    INGAME_EDITOR_VIRTUAL SThunderboltDesc* thunderbolt_description(CInifile& config, shared_str const& section);
-    INGAME_EDITOR_VIRTUAL SThunderboltCollection* thunderbolt_collection(
-        CInifile* pIni, CInifile* thunderbolts, LPCSTR section);
-    INGAME_EDITOR_VIRTUAL SThunderboltCollection* thunderbolt_collection(
+    virtual SThunderboltDesc* thunderbolt_description(const CInifile& config, shared_str const& section);
+    virtual SThunderboltCollection* thunderbolt_collection(
+        CInifile const* pIni, CInifile const* thunderbolts, pcstr section);
+    virtual SThunderboltCollection* thunderbolt_collection(
         xr_vector<SThunderboltCollection*>& collection, shared_str const& id);
-    INGAME_EDITOR_VIRTUAL CLensFlareDescriptor* add_flare(
-        xr_vector<CLensFlareDescriptor*>& collection, shared_str const& id);
+    virtual CLensFlareDescriptor* add_flare(
+        xr_vector<CLensFlareDescriptor*>& collection, shared_str const& id, CInifile const* pIni);
 
 public:
-    float p_var_alt;
+    Fvector2 p_var_alt;
     float p_var_long;
     float p_min_dist;
     float p_tilt;
@@ -382,9 +377,8 @@ public:
     float p_fog_color;
 };
 
-#undef INGAME_EDITOR_VIRTUAL
-
 ENGINE_API extern Flags32 psEnvFlags;
 ENGINE_API extern float psVisDistance;
+ENGINE_API extern float SunshaftsIntensity;
 
 #endif // EnvironmentH

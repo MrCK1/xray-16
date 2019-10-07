@@ -3,8 +3,12 @@
 
 #include <math.h>
 
+#if defined(WINDOWS)
 #include "vfw.h"
 #include "mmsystem.h"
+#elif defined(LINUX)
+#include <FreeImage.h>
+#endif
 
 // replaced with standard AVIIF_KEYFRAME
 // rr #define AVIINDEX_ISKEYFRAME 0x10 // ключевой кадр

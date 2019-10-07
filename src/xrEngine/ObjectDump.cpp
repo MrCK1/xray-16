@@ -1,7 +1,11 @@
 #include "stdafx.h"
 #include "xrEngine/xr_object.h"
+
 #ifdef DEBUG
 #include "ObjectDump.h"
+#include "xrCore/dump_string.h"
+
+// XXX: replace std::string with xr_string and optimize
 
 ENGINE_API std::string dbg_object_base_dump_string(const IGameObject* obj)
 {
@@ -14,7 +18,7 @@ ENGINE_API std::string dbg_object_base_dump_string(const IGameObject* obj)
 ENGINE_API std::string dbg_object_poses_dump_string(const IGameObject* obj)
 {
     if (!obj)
-        return std::string("");
+        return std::string();
 
     u32 ps_size = obj->ps_Size();
     std::string buf("");
@@ -30,7 +34,7 @@ ENGINE_API std::string dbg_object_poses_dump_string(const IGameObject* obj)
 ENGINE_API std::string dbg_object_visual_geom_dump_string(const IGameObject* obj)
 {
     if (!obj || !obj->Visual())
-        return std::string("");
+        return std::string();
     const Fbox& box = obj->BoundingBox();
     Fvector c;
     obj->Center(c);
@@ -61,7 +65,7 @@ ENGINE_API std::string dbg_object_visual_geom_dump_string(const IGameObject* obj
 ENGINE_API std::string dbg_object_props_dump_string(const IGameObject* obj)
 {
     if (!obj)
-        return std::string("");
+        return std::string();
     GameObjectProperties props;
     obj->DBGGetProps(props);
     const char* format =
@@ -93,4 +97,5 @@ ENGINE_API std::string dbg_object_full_capped_dump_string(const IGameObject* obj
 {
     return std::string("\n object dump: \n") + dbg_object_full_dump_string(obj);
 }
-#endif
+
+#endif // DEBUG

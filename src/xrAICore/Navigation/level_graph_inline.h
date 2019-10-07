@@ -7,9 +7,10 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #pragma once
+#include "xrCore/_fbox2.h"
 
-IC CLevelGraph::const_vertex_iterator CLevelGraph::begin() const { return (m_nodes); }
-IC CLevelGraph::const_vertex_iterator CLevelGraph::end() const { return (m_nodes + header().vertex_count()); }
+IC CLevelGraph::const_vertex_iterator CLevelGraph::begin() const { return (m_nodes->front()); }
+IC CLevelGraph::const_vertex_iterator CLevelGraph::end() const { return (m_nodes->back()); }
 IC const CLevelGraph::CHeader& CLevelGraph::header() const { return (*m_header); }
 ICF bool CLevelGraph::valid_vertex_id(u32 id) const
 {
@@ -20,13 +21,13 @@ ICF bool CLevelGraph::valid_vertex_id(u32 id) const
 ICF CLevelGraph::CVertex* CLevelGraph::vertex(const u32 vertex_id) const
 {
     VERIFY(valid_vertex_id(vertex_id));
-    return (m_nodes + vertex_id);
+    return m_nodes->at(vertex_id);
 }
 
 ICF u32 CLevelGraph::vertex(const CVertex* vertex_p) const
 {
-    VERIFY((vertex_p >= m_nodes) && valid_vertex_id(u32(vertex_p - m_nodes)));
-    return (u32(vertex_p - m_nodes));
+    VERIFY((vertex_p >= m_nodes->front()) && valid_vertex_id(u32(vertex_p - m_nodes->front())));
+    return (u32(vertex_p - m_nodes->front()));
 }
 
 ICF u32 CLevelGraph::vertex(const CVertex& vertex_r) const { return (vertex(&vertex_r)); }
@@ -49,8 +50,8 @@ IC void CLevelGraph::unpack_xz(const CLevelGraph::CPosition& vertex_position, fl
 {
     u32 _x, _z;
     unpack_xz(vertex_position, _x, _z);
-    x = float(_x) * header().cell_size() + header().box().min.x;
-    z = float(_z) * header().cell_size() + header().box().min.z;
+    x = float(_x) * header().cell_size() + header().box().vMin.x;
+    z = float(_z) * header().cell_size() + header().box().vMin.z;
 }
 
 template <typename T>
@@ -69,7 +70,7 @@ ICF const Fvector CLevelGraph::vertex_position(const CLevelGraph::CPosition& sou
 {
     Fvector dest_position;
     unpack_xz(source_position, dest_position.x, dest_position.z);
-    dest_position.y = (float(source_position.y()) / 65535) * header().factor_y() + header().box().min.y;
+    dest_position.y = (float(source_position.y()) / 65535.f) * header().factor_y() + header().box().vMin.y;
     return (dest_position);
 }
 
@@ -79,13 +80,15 @@ ICF const Fvector& CLevelGraph::vertex_position(
     return (dest_position = vertex_position(source_position));
 }
 
+// XXX: This method is WAY to large to inline.
 IC const CLevelGraph::CPosition& CLevelGraph::vertex_position(
     CLevelGraph::CPosition& dest_position, const Fvector& source_position) const
 {
-    VERIFY(iFloor((source_position.z - header().box().min.z) / header().cell_size() + .5f) < (int)m_row_length);
-    int pxz = iFloor(((source_position.x - header().box().min.x) / header().cell_size() + .5f)) * m_row_length +
-        iFloor((source_position.z - header().box().min.z) / header().cell_size() + .5f);
-    int py = iFloor(65535.f * (source_position.y - header().box().min.y) / header().factor_y() + EPS_S);
+    const auto& box = header().box();
+    VERIFY(iFloor((source_position.z - box.vMin.z) / header().cell_size() + .5f) < (int)m_row_length);
+    int pxz = iFloor(((source_position.x - box.vMin.x) / header().cell_size() + .5f)) * m_row_length +
+        iFloor((source_position.z - box.vMin.z) / header().cell_size() + .5f);
+    int py = iFloor(65535.f * (source_position.y - box.vMin.y) / header().factor_y() + EPS_S);
     VERIFY(pxz < (1 << MAX_NODE_BIT_COUNT) - 1);
     dest_position.xz(u32(pxz));
     clamp(py, 0, 65535);
@@ -188,8 +191,8 @@ IC bool CLevelGraph::inside(const u32 vertex_id, const Fvector& position, const 
 
 IC bool CLevelGraph::inside(const u32 vertex_id, const Fvector2& position) const
 {
-    int pxz = iFloor(((position.x - header().box().min.x) / header().cell_size() + .5f)) * m_row_length +
-        iFloor((position.y - header().box().min.z) / header().cell_size() + .5f);
+    int pxz = iFloor(((position.x - header().box().vMin.x) / header().cell_size() + .5f)) * m_row_length +
+        iFloor((position.y - header().box().vMin.z) / header().cell_size() + .5f);
     VERIFY(pxz < (1 << MAX_NODE_BIT_COUNT) - 1);
     bool b = vertex(vertex_id)->position().xz() == u32(pxz);
     return (b);
@@ -256,7 +259,7 @@ ICF bool CLevelGraph::CVertex::operator==(const CLevelGraph::CVertex& vertex) co
 
 IC const GameGraph::_LEVEL_ID& CLevelGraph::level_id() const { return (m_level_id); }
 IC void CLevelGraph::level_id(const GameGraph::_LEVEL_ID& level_id) { m_level_id = level_id; }
-IC void CLevelGraph::begin(const CVertex& vertex, const_iterator& begin, const_iterator& end) const
+IC void CLevelGraph::begin(const CVertex& /*vertex*/, const_iterator& begin, const_iterator& end) const
 {
     begin = 0;
     end = 4;
@@ -290,8 +293,8 @@ IC void CLevelGraph::set_invalid_vertex(u32& vertex_id, CVertex** vertex) const
 
 IC const u32 CLevelGraph::vertex_id(const CLevelGraph::CVertex* vertex) const
 {
-    VERIFY(valid_vertex_id(u32(vertex - m_nodes)));
-    return (u32(vertex - m_nodes));
+    VERIFY(valid_vertex_id(u32(vertex - m_nodes->front())));
+    return (u32(vertex - m_nodes->front()));
 }
 
 IC Fvector CLevelGraph::v3d(const Fvector2& vector2d) const { return (Fvector().set(vector2d.x, 0.f, vector2d.y)); }
@@ -418,8 +421,8 @@ IC bool CLevelGraph::create_straight_path(u32 start_vertex_id, const Fvector2& s
                 VERIFY(_valid(tIntersectPoint.z));
 #endif
 
-                clamp(tIntersectPoint.x, _min(next1.x, next2.x), _max(next1.x, next2.x));
-                clamp(tIntersectPoint.z, _min(next1.y, next2.y), _max(next1.y, next2.y));
+                clamp(tIntersectPoint.x, std::min(next1.x, next2.x), std::max(next1.x, next2.x));
+                clamp(tIntersectPoint.z, std::min(next1.y, next2.y), std::max(next1.y, next2.y));
                 if (bAssignY)
                     tIntersectPoint.y = vertex_plane_y(vertex(cur_vertex_id), tIntersectPoint.x, tIntersectPoint.z);
                 path_node.set_position(tIntersectPoint);
@@ -464,8 +467,8 @@ IC void CLevelGraph::assign_y_values(xr_vector<T>& path)
     const CVertex* _vertex;
     u32 prev_id = u32(-1);
 
-    xr_vector<T>::iterator I = path.begin();
-    xr_vector<T>::iterator E = path.end();
+    typename xr_vector<T>::iterator I = path.begin();
+    typename xr_vector<T>::iterator E = path.end();
     for (; I != E; ++I)
     {
         if (prev_id != (*I).get_vertex_id())
@@ -485,16 +488,19 @@ IC void CLevelGraph::assign_y_values(xr_vector<T>& path)
 IC u32 CLevelGraph::row_length() const { return (m_row_length); }
 IC bool CLevelGraph::valid_vertex_position(const Fvector& position) const
 {
-    if ((position.x < header().box().min.x - header().cell_size() * .5f) ||
-        (position.x > header().box().max.x + header().cell_size() * .5f) ||
-        (position.z < header().box().min.z - header().cell_size() * .5f) ||
-        (position.z > header().box().max.z + header().cell_size() * .5f))
+    const auto& box = header().box();
+    if ((position.x < box.vMin.x - header().cell_size() * .5f) ||
+        (position.x > box.vMax.x + header().cell_size() * .5f) ||
+        (position.z < box.vMin.z - header().cell_size() * .5f) ||
+        (position.z > box.vMax.z + header().cell_size() * .5f))
+    {
+        return false;
+    }
+
+    if (!(iFloor((position.z - box.vMin.z) / header().cell_size() + .5f) < (int)m_row_length))
         return (false);
 
-    if (!(iFloor((position.z - header().box().min.z) / header().cell_size() + .5f) < (int)m_row_length))
-        return (false);
-
-    if (!(iFloor((position.x - header().box().min.x) / header().cell_size() + .5f) < (int)m_column_length))
+    if (!(iFloor((position.x - box.vMin.x) / header().cell_size() + .5f) < (int)m_column_length))
         return (false);
 
     return ((vertex_position(position).xz() < (1 << MAX_NODE_BIT_COUNT) - 1));
@@ -550,23 +556,24 @@ template <typename P>
 IC void CLevelGraph::iterate_vertices(
     const Fvector& min_position, const Fvector& max_position, const P& predicate) const
 {
-    CVertex *I, *E;
+    CVertex *front = m_nodes->front(), *back = m_nodes->back();
 
+    CVertex *I, *E;
     if (valid_vertex_position(min_position))
         I = std::lower_bound(
-            m_nodes, m_nodes + header().vertex_count(), vertex_position(min_position).xz(), &vertex::predicate2);
+            front, back, vertex_position(min_position).xz(), &vertex::predicate2);
     else
-        I = m_nodes;
+        I = front;
 
     if (valid_vertex_position(max_position))
     {
         E = std::upper_bound(
-            m_nodes, m_nodes + header().vertex_count(), vertex_position(max_position).xz(), &vertex::predicate);
-        if (E != (m_nodes + header().vertex_count()))
+            front, back, vertex_position(max_position).xz(), &vertex::predicate);
+        if (E != (back))
             ++E;
     }
     else
-        E = m_nodes + header().vertex_count();
+        E = back;
 
     for (; I != E; ++I)
         predicate(*I);

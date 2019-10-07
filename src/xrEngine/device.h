@@ -1,6 +1,6 @@
+#pragma once
 #ifndef xr_device
 #define xr_device
-#pragma once
 
 // Note:
 // ZNear - always 0.0f
@@ -11,20 +11,21 @@
 
 #include "pure.h"
 
-#include "xrCore/ftimer.h"
-#include "stats.h"
+#include "xrCore/FTimer.h"
+#include "Stats.h"
+#include "xrCommon/xr_list.h"
 #include "xrCore/Threading/Event.hpp"
+#include "xrCore/fastdelegate.h"
+#include "xrCore/ModuleLookup.hpp"
 
 #define VIEWPORT_NEAR 0.2f
 
 #define DEVICE_RESET_PRECACHE_FRAME_COUNT 10
 
+#include "Include/editor/interfaces.hpp"
 #include "Include/xrRender/FactoryPtr.h"
 #include "Render.h"
-
-#ifdef INGAME_EDITOR
-#include "Include/editor/interfaces.hpp"
-#endif
+#include "SDL.h"
 
 class engine_impl;
 
@@ -57,14 +58,24 @@ public:
 class ENGINE_API CRenderDeviceData
 {
 public:
+    static constexpr u32 MaximalWaitTime = 33; // ms
+
+    // Rendering resolution
     u32 dwWidth;
     u32 dwHeight;
+
+    // Real application window resolution
+    SDL_Rect m_rcWindowBounds;
+
+    // Real game window resolution
+    SDL_Rect m_rcWindowClient;
 
     u32 dwPrecacheFrame;
     BOOL b_is_Ready;
     BOOL b_is_Active;
+    bool IsAnselActive;
+    bool AllowWindowDrag; // For windowed mode
 
-public:
     // Engine flow-control
     u32 dwFrame;
 
@@ -84,11 +95,14 @@ public:
     Fmatrix mFullTransform;
 
     // Copies of corresponding members. Used for synchronization.
-    Fvector vCameraPosition_saved;
+    Fvector vCameraPositionSaved;
+    Fvector vCameraDirectionSaved;
+    Fvector vCameraTopSaved;
+    Fvector vCameraRightSaved;
 
-    Fmatrix mView_saved;
-    Fmatrix mProject_saved;
-    Fmatrix mFullTransform_saved;
+    Fmatrix mViewSaved;
+    Fmatrix mProjectSaved;
+    Fmatrix mFullTransformSaved;
 
     float fFOV;
     float fASPECT;
@@ -100,15 +114,15 @@ protected:
 
 public:
     // Registrators
-    CRegistrator<pureRender> seqRender;
-    CRegistrator<pureAppActivate> seqAppActivate;
-    CRegistrator<pureAppDeactivate> seqAppDeactivate;
-    CRegistrator<pureAppStart> seqAppStart;
-    CRegistrator<pureAppEnd> seqAppEnd;
-    CRegistrator<pureFrame> seqFrame;
-    CRegistrator<pureScreenResolutionChanged> seqResolutionChanged;
+    MessageRegistry<pureRender> seqRender;
+    MessageRegistry<pureAppActivate> seqAppActivate;
+    MessageRegistry<pureAppDeactivate> seqAppDeactivate;
+    MessageRegistry<pureAppStart> seqAppStart;
+    MessageRegistry<pureAppEnd> seqAppEnd;
+    MessageRegistry<pureFrame> seqFrame;
+    MessageRegistry<pureScreenResolutionChanged> seqResolutionChanged;
 
-    HWND m_hWnd;
+    SDL_Window* m_sdlWnd;
 };
 
 class ENGINE_API CRenderDeviceBase : public IRenderDevice, public CRenderDeviceData
@@ -120,22 +134,42 @@ protected:
 
 #pragma pack(pop)
 // refs
-class ENGINE_API CRenderDevice : public CRenderDeviceBase
+class ENGINE_API CRenderDevice : public CRenderDeviceBase, public IWindowHandler
 {
+public:
+    class ENGINE_API CSecondVPParams //--#SM+#-- +SecondVP+
+    {
+        bool isActive; // Флаг активации рендера во второй вьюпорт
+        u8 frameDelay; // На каком кадре с момента прошлого рендера во второй вьюпорт мы начнём новый
+                       //(не может быть меньше 2 - каждый второй кадр, чем больше тем более низкий FPS во втором
+                       //вьюпорте)
+
+    public:
+        bool isCamReady; // Флаг готовности камеры (FOV, позиция, и т.п) к рендеру второго вьюпорта
+
+        IC bool IsSVPActive() { return isActive; }
+        IC void SetSVPActive(bool bState) { isActive = bState; }
+        bool IsSVPFrame();
+
+        IC u8 GetSVPFrameDelay() { return frameDelay; }
+        void SetSVPFrameDelay(u8 iDelay)
+        {
+            frameDelay = iDelay;
+            clamp<u8>(frameDelay, 2, u8(-1));
+        }
+    };
+
 private:
     // Main objects used for creating and rendering the 3D scene
-    u32 m_dwWindowStyle;
-    RECT m_rcWindowBounds;
-    RECT m_rcWindowClient;
     CTimer TimerMM;
     RenderDeviceStatictics stats;
 
     void _SetupStates();
 
 public:
-    // HWND m_hWnd;
+#if defined(WINDOWS)
     LRESULT MsgProc(HWND, UINT, WPARAM, LPARAM);
-
+#endif
     // u32 dwFrame;
     // u32 dwPrecacheFrame;
     u32 dwPrecacheTotal;
@@ -146,7 +180,6 @@ public:
     // BOOL b_is_Active;
     void OnWM_Activate(WPARAM wParam, LPARAM lParam);
 
-public:
     // ref_shader m_WireShader;
     // ref_shader m_SelectionShader;
 
@@ -163,47 +196,60 @@ public:
             m_bNearer = FALSE;
             mProject._43 += EPS_L;
         }
-        GlobalEnv.Render->SetCacheXform(mView, mProject);
+        GEnv.Render->SetCacheXform(mView, mProject);
         // R_ASSERT(0);
         // TODO: re-implement set projection
         // RCache.set_xform_project (mProject);
     }
 
-    void DumpResourcesMemoryUsage() { GlobalEnv.Render->ResourcesDumpMemoryUsage(); }
-public:
-    CRegistrator<pureFrame> seqFrameMT;
-    CRegistrator<pureDeviceReset> seqDeviceReset;
+    void DumpResourcesMemoryUsage() { GEnv.Render->ResourcesDumpMemoryUsage(); }
+
+    MessageRegistry<pureFrame> seqFrameMT;
+    MessageRegistry<pureDeviceReset> seqDeviceReset;
+    MessageRegistry<pureUIReset> seqUIReset;
     xr_vector<fastdelegate::FastDelegate0<>> seqParallel;
+    CSecondVPParams m_SecondViewport; //--#SM+#-- +SecondVP+
 
     Fmatrix mInvFullTransform;
 
     CRenderDevice()
-        : m_dwWindowStyle(0)
-#ifdef INGAME_EDITOR
-          ,
-          m_editor_module(0), m_editor_initialize(0), m_editor_finalize(0), m_editor(0), m_engine(0)
-#endif // #ifdef INGAME_EDITOR
+        : fWidth_2(0), fHeight_2(0), mtProcessingAllowed(false),
+          m_editor_module(nullptr), m_editor_initialize(nullptr),
+          m_editor_finalize(nullptr), m_editor(nullptr), m_engine(nullptr)
     {
-        m_hWnd = NULL;
+        m_sdlWnd = NULL;
         b_is_Active = FALSE;
         b_is_Ready = FALSE;
         Timer.Start();
         m_bNearer = FALSE;
+        //--#SM+#-- +SecondVP+
+        m_SecondViewport.SetSVPActive(false);
+        m_SecondViewport.SetSVPFrameDelay(2);
+        m_SecondViewport.isCamReady = false;
     };
 
     void Pause(BOOL bOn, BOOL bTimer, BOOL bSound, LPCSTR reason);
     BOOL Paused();
 
 private:
+    static void PrimaryThreadProc(void* context);
     static void SecondaryThreadProc(void* context);
+    static void RenderThreadProc(void* context);
 
 public:
     // Scene control
+    void xr_stdcall ProcessFrame();
+
     void PreCache(u32 amount, bool b_draw_loadscreen, bool b_wait_user_input);
-    BOOL Begin();
-    void Clear();
-    void End();
+
+    bool BeforeFrame();
     void FrameMove();
+
+    void BeforeRender();
+    void DoRender();
+    bool RenderBegin();
+    void Clear();
+    void RenderEnd();
 
     void overdrawBegin();
     void overdrawEnd();
@@ -213,35 +259,76 @@ public:
     IC CTimer_paused* GetTimerGlobal() { return &TimerGlobal; }
     u32 TimerAsync() { return TimerGlobal.GetElapsed_ms(); }
     u32 TimerAsync_MMT() { return TimerMM.GetElapsed_ms() + Timer_MM_Delta; }
+
+private:
     // Creation & Destroying
-    void Create(void);
+    void CreateInternal();
+    void ResetInternal(bool precache = true);
+
+public:
+    void Create();
+    void WaitUntilCreated();
+
     void Run(void);
     void Destroy(void);
     void Reset(bool precache = true);
+
+    void UpdateWindowProps(const bool windowed);
+    void UpdateWindowRects();
+    void SelectResolution(const bool windowed);
 
     void Initialize(void);
     void ShutDown(void);
     virtual const RenderDeviceStatictics& GetStats() const override { return stats; }
     virtual void DumpStatistics(class IGameFont& font, class IPerformanceAlert* alert) override;
 
-public:
+    SDL_Window* GetApplicationWindow() override;
+    void DisableFullscreen() override;
+    void ResetFullscreen() override;
+
     void time_factor(const float& time_factor)
     {
         Timer.time_factor(time_factor);
         TimerGlobal.time_factor(time_factor);
     }
 
-    IC const float& time_factor() const
+    IC const float time_factor() const
     {
         VERIFY(Timer.time_factor() == TimerGlobal.time_factor());
         return (Timer.time_factor());
     }
 
 private:
-    Event syncProcessFrame, syncFrameDone, syncThreadExit;
+    std::atomic<bool> shouldReset;
+    std::atomic<bool> precacheWhileReset;
+    std::atomic<bool> mtProcessingAllowed;
+    Event deviceCreated, deviceReadyToRun;
+    Event primaryReadyToRun, primaryProcessFrame, primaryFrameDone, primaryThreadExit; // Primary thread events
+    Event syncProcessFrame, syncFrameDone, syncThreadExit; // Secondary thread events
+    Event renderProcessFrame, renderFrameDone, renderThreadExit; // Render thread events
 
 public:
+    Event PresentationFinished = nullptr;
     volatile BOOL mt_bMustExit;
+
+    bool IsMTProcessingAllowed() const
+    {
+        return mtProcessingAllowed;
+    }
+
+    // Usable only when called from thread, that initialized SDL
+    // Calls SDL_PumpEvents() at least twice.
+    static void WaitEvent(Event& event)
+    {
+        // Once at the beginning:
+        SDL_PumpEvents();
+
+        while (!event.Wait(MaximalWaitTime))
+            SDL_PumpEvents();
+
+        // And once in the end:
+        SDL_PumpEvents();
+    }
 
     ICF void remove_from_seq_parallel(const fastdelegate::FastDelegate0<>& delegate)
     {
@@ -255,31 +342,31 @@ private:
     void CalcFrameStats();
 
 public:
-    void xr_stdcall on_idle();
+#if !defined(LINUX)
     bool xr_stdcall on_message(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT& result);
+#endif
 
 private:
     void message_loop();
     virtual void AddSeqFrame(pureFrame* f, bool mt);
     virtual void RemoveSeqFrame(pureFrame* f);
-#ifdef INGAME_EDITOR
+
 public:
-    IC editor::ide* editor() const { return m_editor; }
-private:
-    void initialize_editor();
-    void message_loop_editor();
+    XRay::Editor::ide_base* editor() const { return m_editor; }
 
 private:
-    typedef editor::initialize_function_ptr initialize_function_ptr;
-    typedef editor::finalize_function_ptr finalize_function_ptr;
+    void initialize_weather_editor();
+    void message_loop_weather_editor();
 
-private:
-    HMODULE m_editor_module;
+    using initialize_function_ptr = XRay::Editor::initialize_function_ptr;
+    using finalize_function_ptr = XRay::Editor::finalize_function_ptr;
+
+    XRay::Module m_editor_module;
+
     initialize_function_ptr m_editor_initialize;
     finalize_function_ptr m_editor_finalize;
-    editor::ide* m_editor;
+    XRay::Editor::ide_base* m_editor;
     engine_impl* m_engine;
-#endif // #ifdef INGAME_EDITOR
 };
 
 extern ENGINE_API CRenderDevice Device;
@@ -302,10 +389,46 @@ public:
     void start(bool b_user_input);
     void stop();
     virtual void OnRender();
+    bool IsActive() const { return b_registered; }
 
     bool b_registered;
     bool b_need_user_input;
 };
 extern ENGINE_API CLoadScreenRenderer load_screen_renderer;
+
+class CDeviceResetNotifier : public pureDeviceReset
+{
+public:
+    CDeviceResetNotifier(const int prio = REG_PRIORITY_NORMAL) { Device.seqDeviceReset.Add(this, prio); }
+    virtual ~CDeviceResetNotifier() { Device.seqDeviceReset.Remove(this); }
+    void OnDeviceReset() override {}
+};
+
+class CUIResetNotifier : public pureUIReset
+{
+public:
+    CUIResetNotifier(const int prio = REG_PRIORITY_NORMAL) { Device.seqUIReset.Add(this, prio); }
+    virtual ~CUIResetNotifier() { Device.seqUIReset.Remove(this); }
+    void OnUIReset() override {}
+};
+
+class CUIResetAndResolutionNotifier : public pureUIReset, pureScreenResolutionChanged
+{
+public:
+    CUIResetAndResolutionNotifier(const int uiResetPrio = REG_PRIORITY_NORMAL, const int resolutionChangedPrio = REG_PRIORITY_NORMAL)
+    {
+        Device.seqUIReset.Add(this, uiResetPrio);
+        Device.seqResolutionChanged.Add(this, resolutionChangedPrio);
+    }
+
+    virtual ~CUIResetAndResolutionNotifier()
+    {
+        Device.seqUIReset.Remove(this);
+        Device.seqResolutionChanged.Remove(this);
+    }
+
+    void OnUIReset() override {}
+    void OnScreenResolutionChanged() override { OnUIReset(); }
+};
 
 #endif

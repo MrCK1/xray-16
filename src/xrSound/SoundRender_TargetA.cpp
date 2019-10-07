@@ -1,5 +1,4 @@
 #include "stdafx.h"
-#pragma hdrstop
 
 #include "SoundRender_TargetA.h"
 #include "SoundRender_Emitter.h"
@@ -12,10 +11,12 @@ CSoundRender_TargetA::CSoundRender_TargetA() : CSoundRender_Target()
     cache_gain = 0.f;
     cache_pitch = 1.f;
     pSource = 0;
+    buf_block = 0;
 }
 
 CSoundRender_TargetA::~CSoundRender_TargetA() {}
-BOOL CSoundRender_TargetA::_initialize()
+
+bool CSoundRender_TargetA::_initialize()
 {
     inherited::_initialize();
     // initialize buffer
@@ -29,13 +30,10 @@ BOOL CSoundRender_TargetA::_initialize()
         A_CHK(alSourcef(pSource, AL_MAX_GAIN, 1.f));
         A_CHK(alSourcef(pSource, AL_GAIN, cache_gain));
         A_CHK(alSourcef(pSource, AL_PITCH, cache_pitch));
-        return TRUE;
+        return true;
     }
-    else
-    {
-        Msg("! sound: OpenAL: Can't create source. Error: %s.", (LPCSTR)alGetString(error));
-        return FALSE;
-    }
+    Msg("! sound: OpenAL: Can't create source. Error: %s.", static_cast<pcstr>(alGetString(error)));
+    return false;
 }
 
 void CSoundRender_TargetA::_destroy()
@@ -77,7 +75,7 @@ void CSoundRender_TargetA::stop()
     if (rendering)
     {
         A_CHK(alSourceStop(pSource));
-        A_CHK(alSourcei(pSource, AL_BUFFER, NULL));
+        A_CHK(alSourcei(pSource, AL_BUFFER, 0));
         A_CHK(alSourcei(pSource, AL_SOURCE_RELATIVE, TRUE));
     }
     inherited::stop();
@@ -88,7 +86,7 @@ void CSoundRender_TargetA::rewind()
     inherited::rewind();
 
     A_CHK(alSourceStop(pSource));
-    A_CHK(alSourcei(pSource, AL_BUFFER, NULL));
+    A_CHK(alSourcei(pSource, AL_BUFFER, 0));
     for (u32 buf_idx = 0; buf_idx < sdef_target_count; buf_idx++)
         fill_block(pBuffers[buf_idx]);
     A_CHK(alSourceQueueBuffers(pSource, sdef_target_count, pBuffers));
@@ -99,31 +97,47 @@ void CSoundRender_TargetA::update()
 {
     inherited::update();
 
-    ALint processed;
-    // Get status
-    A_CHK(alGetSourcei(pSource, AL_BUFFERS_PROCESSED, &processed));
+    ALint processed, state;
+    ALenum error;
 
-    if (processed > 0)
+    /* Get relevant source info */
+    alGetSourcei(pSource, AL_SOURCE_STATE, &state);
+    alGetSourcei(pSource, AL_BUFFERS_PROCESSED, &processed);
+    if ((error = alGetError()) != AL_NO_ERROR)
     {
-        while (processed)
+        Msg("! %s:: source state check failed (0x%d)", __FUNCTION__, error);
+        return;
+    }
+
+    while (processed > 0)
+    {
+        ALuint BufferID;
+        A_CHK(alSourceUnqueueBuffers(pSource, 1, &BufferID));
+        fill_block(BufferID);
+        A_CHK(alSourceQueueBuffers(pSource, 1, &BufferID));
+        processed--;
+        if ((error = alGetError()) != AL_NO_ERROR)
         {
-            ALuint BufferID;
-            A_CHK(alSourceUnqueueBuffers(pSource, 1, &BufferID));
-            fill_block(BufferID);
-            A_CHK(alSourceQueueBuffers(pSource, 1, &BufferID));
-            --processed;
+            Msg("! %s:: buffering data failed (0x%d)", __FUNCTION__, error);
+            return;
         }
     }
-    else
+
+    /* Make sure the source hasn't underrun */
+    if (state != AL_PLAYING && state != AL_PAUSED)
     {
-        // processed == 0
-        // check play status -- if stopped then queue is not being filled fast enough
-        ALint state;
-        A_CHK(alGetSourcei(pSource, AL_SOURCE_STATE, &state));
-        if (state != AL_PLAYING)
+        ALint queued;
+
+        /* If no buffers are queued, playback is finished */
+        alGetSourcei(pSource, AL_BUFFERS_QUEUED, &queued);
+        if (queued == 0)
+            return;
+
+        alSourcePlay(pSource);
+        if ((error = alGetError()) != AL_NO_ERROR)
         {
-            //			Log		("Queuing underrun detected.");
-            A_CHK(alSourcePlay(pSource));
+            Msg("! %s:: restarting playback failed (0x%d)", __FUNCTION__, error);
+            return;
         }
     }
 }
@@ -176,12 +190,12 @@ void CSoundRender_TargetA::fill_block(ALuint BufferID)
     R_ASSERT(m_pEmitter);
 
     m_pEmitter->fill_block(&g_target_temp_data.front(), buf_block);
-    ALuint format = (m_pEmitter->source()->m_wformat.nChannels == 1) ? AL_FORMAT_MONO16 : AL_FORMAT_STEREO16;
+    ALuint format = m_pEmitter->source()->m_wformat.nChannels == 1 ? AL_FORMAT_MONO16 : AL_FORMAT_STEREO16;
     A_CHK(alBufferData(
         BufferID, format, &g_target_temp_data.front(), buf_block, m_pEmitter->source()->m_wformat.nSamplesPerSec));
 }
 void CSoundRender_TargetA::source_changed()
 {
-    dettach();
+    detach();
     attach();
 }

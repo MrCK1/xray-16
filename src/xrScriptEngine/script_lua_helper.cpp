@@ -1,6 +1,9 @@
 #include "pch.hpp"
 #include "script_lua_helper.hpp"
 #include "script_debugger.hpp"
+#if defined(LINUX)
+#include "SDL.h" // for xr_itoa
+#endif
 
 CDbgLuaHelper* CDbgLuaHelper::m_pThis = nullptr;
 lua_State* CDbgLuaHelper::L = nullptr;
@@ -28,7 +31,8 @@ int CDbgLuaHelper::PrepareLua(lua_State* l)
 
 void CDbgLuaHelper::PrepareLuaBind()
 {
-    luabind::set_pcall_callback(hookLuaBind);
+    luabind::set_pcall_callback([](lua_State* L) { lua_pushcfunction(L, CDbgLuaHelper::hookLuaBind); });
+
 #if !XRAY_EXCEPTIONS
     luabind::set_error_callback(errormessageLuaBind);
 #endif
@@ -162,10 +166,10 @@ void print_stack(lua_State* L)
         Msg("%2d : %s", -i - 1, lua_typename(L, lua_type(L, -i - 1)));
 }
 
-void CDbgLuaHelper::hookLuaBind(lua_State* l)
+int CDbgLuaHelper::hookLuaBind(lua_State* l)
 {
     if (!m_pThis)
-        return;
+        return LUA_OK; // XXX: Is it correct to return LUA_OK?
     L = l;
     int top1 = lua_gettop(L);
     Msg("hookLuaBind start");
@@ -183,6 +187,7 @@ void CDbgLuaHelper::hookLuaBind(lua_State* l)
         Msg("Tope string %s", lua_tostring(L, -1));
     int top2 = lua_gettop(L);
     VERIFY(top2 == top1);
+    return LUA_OK; // XXX: Probably, we should show message asking what value we should return.
 }
 
 void CDbgLuaHelper::hookLua(lua_State* l, lua_Debug* ar)
@@ -235,7 +240,7 @@ void CDbgLuaHelper::DrawStackTrace()
                 xr_strcat(szDesc, " ");
             }
             char szTmp[6];
-            xr_strcat(szDesc, itoa(ar.currentline, szTmp, 10));
+            xr_strcat(szDesc, xr_itoa(ar.currentline, szTmp, 10));
             xr_strcat(szDesc, " ");
             if (ar.short_src)
                 xr_strcat(szDesc, ar.short_src);

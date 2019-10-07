@@ -1,10 +1,15 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "xrMessages.h"
 #include "xrGameSpyServer.h"
 #include "xrEngine/IGame_Persistent.h"
+#include "xrEngine/IGame_Level.h"
 #include "xrGameSpy/xrGameSpy.h"
 #include "xrGameSpy/GameSpy_Available.h"
 #include "xrGameSpy/GameSpy_GCD_Server.h"
+
+#define STRING_KICKED_BY_SERVER "st_kicked_by_server"
+u32 g_sv_max_suspicious_actions = 5;
+u32 g_sv_suspicious_actions_ban_time = 30; // minutes
 
 //#define DEMO_BUILD
 
@@ -32,6 +37,7 @@ xrGameSpyClientData::xrGameSpyClientData() : xrClientData()
 {
     m_bCDKeyAuth = false;
     m_iCDKeyReauthHint = 0;
+    suspiciousActionCount = 0;
 }
 void xrGameSpyClientData::Clear()
 {
@@ -40,6 +46,7 @@ void xrGameSpyClientData::Clear()
     m_pChallengeString[0] = 0;
     m_bCDKeyAuth = false;
     m_iCDKeyReauthHint = 0;
+    suspiciousActionCount = 0;
 };
 
 xrGameSpyClientData::~xrGameSpyClientData()
@@ -47,6 +54,7 @@ xrGameSpyClientData::~xrGameSpyClientData()
     m_pChallengeString[0] = 0;
     m_bCDKeyAuth = false;
     m_iCDKeyReauthHint = 0;
+    suspiciousActionCount = 0;
 }
 //-------------------------------------------------------
 xrGameSpyServer::EConnect xrGameSpyServer::Connect(shared_str& session_name, GameDescriptionData& game_descr)
@@ -59,8 +67,10 @@ xrGameSpyServer::EConnect xrGameSpyServer::Connect(shared_str& session_name, Gam
     {
         string1024 CompName;
         DWORD CompNameSize = 1024;
+#ifndef LINUX // FIXME!!!
         if (GetComputerName(CompName, &CompNameSize))
             HostName = CompName;
+#endif
     }
     else
         HostName = game->get_option_s(*session_name, "hname", NULL);
@@ -125,14 +135,14 @@ void xrGameSpyServer::Update()
 int xrGameSpyServer::GetPlayersCount()
 {
     int NumPlayers = net_players.ClientsCount();
-    if (!g_dedicated_server || NumPlayers < 1)
+    if (!GEnv.isDedicatedServer || NumPlayers < 1)
         return NumPlayers;
     return NumPlayers - 1;
 };
 
 bool xrGameSpyServer::NeedToCheckClient_GameSpy_CDKey(IClient* CL)
 {
-    if (!m_bCDKey_Initialized || (CL == GetServerClient() && g_dedicated_server))
+    if (!m_bCDKey_Initialized || (CL == GetServerClient() && GEnv.isDedicatedServer))
     {
         return false;
     };
@@ -171,8 +181,14 @@ u32 xrGameSpyServer::OnMessage(NET_Packet& P, ClientID sender) // Non-Zero means
             xr_string clientIp = CL->m_cAddress.to_string();
             Msg("! WARNING: Validation challenge respond from client [%s] is %s. DoS attack?", clientIp.c_str(),
                 bytesRemain == 0 ? "empty" : "too long");
-            DisconnectClient(CL, "");
-            // XXX nitrocaster: block IP address after X such attempts
+
+            CL->suspiciousActionCount++;
+
+            if (CL->suspiciousActionCount > g_sv_max_suspicious_actions)
+                BanClient(CL, g_sv_suspicious_actions_ban_time);
+
+            DisconnectClient(CL, STRING_KICKED_BY_SERVER);
+
             return 0;
         }
         P.r_stringZ(ResponseStr);
@@ -258,9 +274,9 @@ void xrGameSpyServer::GetServerInfo(CServerInfo* si)
     si->AddItem("Server name", HostName.c_str(), RGB(128, 128, 255));
     si->AddItem("Map", MapName.c_str(), RGB(255, 0, 128));
 
-    xr_strcpy(tmp, itoa(GetPlayersCount(), tmp2, 10));
+    xr_strcpy(tmp, xr_itoa(GetPlayersCount(), tmp2, 10));
     xr_strcat(tmp, " / ");
-    xr_strcat(tmp, itoa(m_iMaxPlayers, tmp2, 10));
+    xr_strcat(tmp, xr_itoa(m_iMaxPlayers, tmp2, 10));
     si->AddItem("Players", tmp, RGB(255, 128, 255));
 
     string256 res;
@@ -281,6 +297,6 @@ void xrGameSpyServer::GetServerInfo(CServerInfo* si)
     }
     si->AddItem("Access to server", res, RGB(200, 155, 155));
 
-    si->AddItem("GameSpy port", itoa(iGameSpyBasePort, tmp, 10), RGB(200, 5, 155));
+    si->AddItem("GameSpy port", xr_itoa(iGameSpyBasePort, tmp, 10), RGB(200, 5, 155));
     inherited::GetServerInfo(si);
 }

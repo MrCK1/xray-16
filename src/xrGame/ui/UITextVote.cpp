@@ -3,11 +3,11 @@
 #include "UITextVote.h"
 #include "UIVotingCategory.h"
 #include "UIXmlInit.h"
-#include "UI3tButton.h"
+#include "xrUICore/Buttons/UI3tButton.h"
 #include "UIEditboxEx.h"
 #include "Level.h"
 #include "game_cl_teamdeathmatch.h"
-#include "xrEngine/xr_ioconsole.h"
+#include "xrEngine/XR_IOConsole.h"
 
 CUITextVote::CUITextVote(){
     bkgrnd = new CUIStatic(); bkgrnd->SetAutoDelete(true);

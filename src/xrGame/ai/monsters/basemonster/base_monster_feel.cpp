@@ -10,24 +10,24 @@
 #include "base_monster.h"
 #include "Actor.h"
 #include "ActorEffector.h"
-#include "ai/Monsters/ai_monster_effector.h"
+#include "ai/monsters/ai_monster_effector.h"
 #include "Include/xrRender/KinematicsAnimated.h"
 #include "sound_player.h"
 #include "Level.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "script_game_object.h"
 #include "game_object_space.h"
 #include "ai_monster_space.h"
-#include "ai/Monsters/control_animation_base.h"
+#include "ai/monsters/control_animation_base.h"
 #include "UIGameCustom.h"
-#include "UI/UIStatic.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "xrAICore/Navigation/ai_object_location.h"
 #include "xrEngine/profiler.h"
 #include "ActorEffector.h"
 #include "xrEngine/CameraBase.h"
 
-void CBaseMonster::feel_sound_new(
-    IGameObject* who, int eType, CSound_UserDataPtr user_data, const Fvector& Position, float power)
+void CBaseMonster::feel_sound_new(IGameObject* who, int eType, const CSound_UserDataPtr& user_data,
+    const Fvector& position, float power)
 {
     if (!g_Alive())
         return;
@@ -46,7 +46,7 @@ void CBaseMonster::feel_sound_new(
     // ignore distant sounds
     Fvector center;
     Center(center);
-    float dist = center.distance_to(Position);
+    float dist = center.distance_to(position);
     if (dist > db().m_max_hear_dist)
         return;
 
@@ -70,12 +70,12 @@ void CBaseMonster::feel_sound_new(
         HitMemory.add_hit(who, eSideFront);
 
     // execute callback
-    sound_callback(who, eType, Position, power);
+    sound_callback(who, eType, position, power);
 
     // register in sound memory
     if (power >= db().m_fSoundThreshold)
     {
-        SoundMemory.HearSound(who, eType, Position, power, Device.dwTimeGlobal);
+        SoundMemory.HearSound(who, eType, position, power, Device.dwTimeGlobal);
     }
 }
 #define MAX_LOCK_TIME 2.f
@@ -124,7 +124,8 @@ void CBaseMonster::HitEntity(
         {
             START_PROFILE("BaseMonster/Animation/HitEntity");
 
-            StaticDrawableWrapper* s = CurrentGameUI()->AddCustomStatic("monster_claws", false);
+            const bool compat = ClearSkyMode || ShadowOfChernobylMode;
+            StaticDrawableWrapper* s = CurrentGameUI()->AddCustomStatic("monster_claws", false, compat ? 3.0f : -1.0f);
 
             float h1, p1;
             Device.vCameraDirection.getHP(h1, p1);

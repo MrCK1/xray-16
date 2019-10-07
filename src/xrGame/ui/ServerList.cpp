@@ -2,23 +2,24 @@
 #include "ServerList.h"
 #include "UIXmlInit.h"
 #include "string_table.h"
-#include "xrEngine/xr_ioconsole.h"
-#include "UIEditBox.h"
+#include "xrEngine/XR_IOConsole.h"
+#include "xrUICore/EditBox/UIEditBox.h"
 #include "UIMessageBoxEx.h"
-#include "UIMessageBox.h"
+#include "xrUICore/MessageBox/UIMessageBox.h"
 #include "TeamInfo.h"
 #include "MainMenu.h"
 #include "login_manager.h"
 #include "xrGameSpy/GameSpy_Keys.h"
 #include "xrGameSpy/GameSpy_Full.h"
 #include "xrGameSpy/GameSpy_Browser.h"
-#include "spectator.h"
+#include "Spectator.h"
 
 LPCSTR GameTypeToString(EGameIDs gt, bool bShort);
 CGameSpy_Browser* g_gs_browser = NULL;
 
 CServerList::CServerList()
 {
+#ifdef WINDOWS
     m_GSBrowser = MainMenu()->GetGS()->GetGameSpyBrowser();
     CGameSpy_Browser::UpdateCallback updateCb;
     updateCb.bind(this, &CServerList::OnUpdate);
@@ -56,6 +57,7 @@ CServerList::CServerList()
 
     m_last_retreived_index = u32(-1);
     m_need_refresh_fr = u32(-1);
+#endif
 }
 
 CServerList::~CServerList()
@@ -209,63 +211,58 @@ void CServerList::AddServerDetail(const GameInfo& info)
 
 void CServerList::AddBoolED(const char* keyName, bool value)
 {
-    CStringTable st;
     AddServerDetail(
-        GameInfo(*st.translate(keyName), value ? *st.translate("mp_si_enabled") : *st.translate("mp_si_disabled")));
+        GameInfo(*StringTable().translate(keyName), value ? *StringTable().translate("mp_si_enabled") :
+            *StringTable().translate("mp_si_disabled")));
 }
 
 void CServerList::AddBoolYN(const char* keyName, bool value)
 {
-    CStringTable st;
-    AddServerDetail(GameInfo(*st.translate(keyName), value ? *st.translate("mp_si_yes") : *st.translate("mp_si_no")));
+    AddServerDetail(GameInfo(*StringTable().translate(keyName), value ? *StringTable().translate("mp_si_yes") :
+        *StringTable().translate("mp_si_no")));
 }
 
 void CServerList::AddBoolKeyED(void* s, const char* keyName, int k) { AddBoolED(keyName, browser().GetBool(s, k)); }
 void CServerList::AddBoolKeyYN(void* s, const char* keyName, int k) { AddBoolYN(keyName, browser().GetBool(s, k)); }
 void CServerList::AddIntKey(void* s, const char* keyName, int k)
 {
-    CStringTable st;
     string256 tmp;
     xr_sprintf(tmp, "%d", browser().GetInt(s, k));
-    AddServerDetail(GameInfo(*st.translate(keyName), tmp));
+    AddServerDetail(GameInfo(*StringTable().translate(keyName), tmp));
 }
 
 void CServerList::AddIntKeyN(void* s, float m, const char* keyName, const char* suffix, int k)
 {
-    CStringTable st;
     if (browser().GetInt(s, k))
     {
         string256 tmp;
         xr_sprintf(tmp, "%d%s", int(browser().GetInt(s, k) * m), suffix);
-        AddServerDetail(GameInfo(*st.translate(keyName), tmp));
+        AddServerDetail(GameInfo(*StringTable().translate(keyName), tmp));
     }
     else
-        AddServerDetail(GameInfo(*st.translate(keyName), *st.translate("mp_si_no")));
+        AddServerDetail(GameInfo(*StringTable().translate(keyName), *StringTable().translate("mp_si_no")));
 }
 
 void CServerList::AddTimeKey(void* s, const char* keyName, const char* format, const char* suffix, int k)
 {
-    CStringTable st;
     if (browser().GetInt(s, k))
     {
         string256 tmp;
-        xr_sprintf(tmp, format, browser().GetFloat(s, k), *st.translate(suffix));
-        AddServerDetail(GameInfo(*st.translate(keyName), tmp));
+        xr_sprintf(tmp, format, browser().GetFloat(s, k), *StringTable().translate(suffix));
+        AddServerDetail(GameInfo(*StringTable().translate(keyName), tmp));
     }
     else
-        AddServerDetail(GameInfo(*st.translate(keyName), *st.translate("mp_si_no")));
+        AddServerDetail(GameInfo(*StringTable().translate(keyName), *StringTable().translate("mp_si_no")));
 }
 
 void CServerList::AddString(const char* key, const char* value)
 {
-    CStringTable st;
-    AddServerDetail(GameInfo(*st.translate(key), value));
+    AddServerDetail(GameInfo(*StringTable().translate(key), value));
 }
 
 void CServerList::AddStringSt(const char* key, const char* value)
 {
-    CStringTable st;
-    AddServerDetail(GameInfo(*st.translate(key), *st.translate(value)));
+    AddServerDetail(GameInfo(*StringTable().translate(key), *StringTable().translate(value)));
 }
 
 void CServerList::FillUpDetailedServerInfo()
@@ -300,7 +297,7 @@ void CServerList::FillUpDetailedServerInfo()
                 continue;
             if (!t1) // add header
             {
-                STRCONCAT(_buff, CStringTable().translate("ui_st_team").c_str(), "\"",
+                STRCONCAT(_buff, StringTable().translate("ui_st_team").c_str(), "\"",
                     CTeamInfo::GetTeam1_name().c_str(), "\"");
                 pItemAdv = m_list[LST_PLAYERS].AddItem();
                 pItemAdv->SetTextColor(m_list[LST_PLAYERS].GetTextColor());
@@ -322,7 +319,7 @@ void CServerList::FillUpDetailedServerInfo()
         }
 
         // TEAM 2
-        for (it = srvInfo.m_aPlayers.begin(); it != srvInfo.m_aPlayers.end(); it++)
+        for (it = srvInfo.m_aPlayers.begin(); it != srvInfo.m_aPlayers.end(); ++it)
         {
             PlayerInfo pf = *it;
             if (2 != pf.Team)
@@ -331,7 +328,7 @@ void CServerList::FillUpDetailedServerInfo()
                 continue;
             if (!t2)
             {
-                STRCONCAT(_buff, CStringTable().translate("ui_st_team").c_str(), "\"",
+                STRCONCAT(_buff, StringTable().translate("ui_st_team").c_str(), "\"",
                     CTeamInfo::GetTeam2_name().c_str(), "\"");
                 m_list[LST_PLAYERS].AddTextItem(_buff);
                 t2 = true;
@@ -355,7 +352,7 @@ void CServerList::FillUpDetailedServerInfo()
                 continue;
             if (!spect)
             {
-                pItemAdv = m_list[LST_PLAYERS].AddTextItem(CStringTable().translate("mp_spectator").c_str());
+                pItemAdv = m_list[LST_PLAYERS].AddTextItem(StringTable().translate("mp_spectator").c_str());
                 spect = true;
             }
             pItemAdv = m_list[LST_PLAYERS].AddItem();
@@ -388,7 +385,7 @@ void CServerList::FillUpDetailedServerInfo()
             pItemAdv->AddTextField(buf, m_header2[3].GetWidth());
         }
     }
-    CStringTable st;
+
     void* sv = browser().GetServerByIndex(serverIndex);
     AddString("mp_si_servername", srvInfo.m_ServerName);
     AddString("mp_si_version", srvInfo.m_ServerVersion);
@@ -558,6 +555,7 @@ void CServerList::InitFromXml(CUIXml& xml_doc, LPCSTR path)
 
 void CServerList::ConnectToSelected()
 {
+#ifdef WINDOWS
     gamespy_gp::login_manager const* lmngr = MainMenu()->GetLoginMngr();
     R_ASSERT(lmngr);
     gamespy_gp::profile const* tmp_profile = lmngr->get_current_profile();
@@ -610,6 +608,7 @@ void CServerList::ConnectToSelected()
 
         Console->Execute(command.c_str());
     }
+#endif
 }
 
 void CServerList::InitHeader()
@@ -797,7 +796,7 @@ void CServerList::SrvInfo2LstSrvInfo(const ServerInfo* pServerInfo)
     xr_string address = pServerInfo->m_HostName;
     char port[8];
     address += "/port=";
-    address += itoa(pServerInfo->m_Port, port, 10);
+    address += xr_itoa(pServerInfo->m_Port, port, 10);
     m_itemInfo.info.address = address.c_str();
     m_itemInfo.info.map = pServerInfo->m_SessionName;
     m_itemInfo.info.game = GameTypeToString((EGameIDs)pServerInfo->m_GameType, true);

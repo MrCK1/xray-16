@@ -104,7 +104,7 @@ void dx103DFluidManager::Initialize(int width, int height, int depth)
     InitShaders();
 
     D3D_TEXTURE3D_DESC desc;
-    desc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
+    desc.BindFlags = D3D_BIND_SHADER_RESOURCE | D3D_BIND_RENDER_TARGET;
     desc.CPUAccessFlags = 0;
     desc.MipLevels = 1;
     desc.MiscFlags = 0;
@@ -119,13 +119,13 @@ void dx103DFluidManager::Initialize(int width, int height, int depth)
     SRVDesc.Texture3D.MipLevels = 1;
     SRVDesc.Texture3D.MostDetailedMip = 0;
 
-    for (int rtIndex = 0; rtIndex < NUM_RENDER_TARGETS; rtIndex++)
+    for (size_t rtIndex = 0; rtIndex < NUM_RENDER_TARGETS; rtIndex++)
     {
         PrepareTexture(rtIndex);
         pRenderTargetViews[rtIndex] = 0;
     }
 
-    for (int rtIndex = 0; rtIndex < NUM_OWN_RENDER_TARGETS; rtIndex++)
+    for (size_t rtIndex = 0; rtIndex < NUM_OWN_RENDER_TARGETS; rtIndex++)
     {
         desc.Format = RenderTargetFormats[rtIndex];
         SRVDesc.Format = RenderTargetFormats[rtIndex];
@@ -165,8 +165,8 @@ void dx103DFluidManager::Destroy()
     // grid = new Grid( m_pD3DDevice );
     // renderer = new VolumeRenderer( m_pD3DDevice );
 
-    // for(int rtIndex=0; rtIndex<NUM_OWN_RENDER_TARGETS; rtIndex++)
-    for (int rtIndex = 0; rtIndex < NUM_RENDER_TARGETS; rtIndex++)
+    // for(size_t rtIndex=0; rtIndex<NUM_OWN_RENDER_TARGETS; rtIndex++)
+    for (size_t rtIndex = 0; rtIndex < NUM_RENDER_TARGETS; rtIndex++)
         DestroyRTTextureAndViews(rtIndex);
 
     DestroyShaders();
@@ -180,7 +180,7 @@ void dx103DFluidManager::InitShaders()
         CBlender_fluid_advect Blender;
         ref_shader shader;
         shader.create(&Blender, "null");
-        for (int i = 0; i < 4; ++i)
+        for (size_t i = 0; i < 4; ++i)
             m_SimulationTechnique[SS_Advect + i] = shader->E[i];
     }
 
@@ -188,7 +188,7 @@ void dx103DFluidManager::InitShaders()
         CBlender_fluid_advect_velocity Blender;
         ref_shader shader;
         shader.create(&Blender, "null");
-        for (int i = 0; i < 2; ++i)
+        for (size_t i = 0; i < 2; ++i)
             m_SimulationTechnique[SS_AdvectVel + i] = shader->E[i];
     }
 
@@ -196,26 +196,26 @@ void dx103DFluidManager::InitShaders()
         CBlender_fluid_simulate Blender;
         ref_shader shader;
         shader.create(&Blender, "null");
-        for (int i = 0; i < 5; ++i)
+        for (size_t i = 0; i < 5; ++i)
             m_SimulationTechnique[SS_Vorticity + i] = shader->E[i];
     }
 }
 
 void dx103DFluidManager::DestroyShaders()
 {
-    for (int i = 0; i < SS_NumShaders; ++i)
+    for (size_t i = 0; i < SS_NumShaders; ++i)
     {
         //  Release shader's element.
-        m_SimulationTechnique[i] = 0;
+        m_SimulationTechnique[i] = nullptr;
     }
 }
 
-void dx103DFluidManager::PrepareTexture(int rtIndex)
+void dx103DFluidManager::PrepareTexture(size_t rtIndex)
 {
     pRTTextures[rtIndex] = RImplementation.Resources->_CreateTexture(m_pEngineTextureNames[rtIndex]);
 }
 
-void dx103DFluidManager::CreateRTTextureAndViews(int rtIndex, D3D_TEXTURE3D_DESC TexDesc)
+void dx103DFluidManager::CreateRTTextureAndViews(size_t rtIndex, D3D_TEXTURE3D_DESC TexDesc)
 {
     // Resources must be already released by Destroy().
 
@@ -238,10 +238,10 @@ void dx103DFluidManager::CreateRTTextureAndViews(int rtIndex, D3D_TEXTURE3D_DESC
     // CTexture owns ID3DxxTexture3D interface
     pRT->Release();
 }
-void dx103DFluidManager::DestroyRTTextureAndViews(int rtIndex)
+void dx103DFluidManager::DestroyRTTextureAndViews(size_t rtIndex)
 {
     // pRTTextures[rtIndex]->surface_set(0);
-    pRTTextures[rtIndex] = 0;
+    pRTTextures[rtIndex] = nullptr;
     _RELEASE(pRenderTargetViews[rtIndex]);
 }
 
@@ -249,7 +249,7 @@ void dx103DFluidManager::Reset()
 {
     float color[4] = {0, 0, 0, 0};
 
-    for (int rtIndex = 0; rtIndex < NUM_OWN_RENDER_TARGETS; rtIndex++)
+    for (size_t rtIndex = 0; rtIndex < NUM_OWN_RENDER_TARGETS; rtIndex++)
     {
         HW.pContext->ClearRenderTargetView(pRenderTargetViews[rtIndex], color);
     }
@@ -359,7 +359,7 @@ void dx103DFluidManager::AttachFluidData(dx103DFluidData& FluidData)
 {
     PIX_EVENT(AttachFluidData);
 
-    for (int i = 0; i < dx103DFluidData::VP_NUM_TARGETS; ++i)
+    for (size_t i = 0; i < dx103DFluidData::VP_NUM_TARGETS; ++i)
     {
         ID3DTexture3D* pT = FluidData.GetTexture((dx103DFluidData::eVolumePrivateRT)i);
         pRTTextures[RENDER_TARGET_VELOCITY0 + i]->surface_set(pT);
@@ -386,7 +386,7 @@ void dx103DFluidManager::DetachAndSwapFluidData(dx103DFluidData& FluidData)
     _RELEASE(pRenderTargetViews[RENDER_TARGET_COLOR]);
     pRenderTargetViews[RENDER_TARGET_COLOR] = pV;
 
-    for (int i = 0; i < dx103DFluidData::VP_NUM_TARGETS; ++i)
+    for (size_t i = 0; i < dx103DFluidData::VP_NUM_TARGETS; ++i)
     {
         pRTTextures[RENDER_TARGET_VELOCITY0 + i]->surface_set(0);
         _RELEASE(pRenderTargetViews[RENDER_TARGET_VELOCITY0 + i]);
@@ -591,7 +591,7 @@ void dx103DFluidManager::ApplyVorticityConfinement(float timestep)
     // );
 }
 
-void dx103DFluidManager::ApplyExternalForces(const dx103DFluidData& FluidData, float timestep)
+void dx103DFluidManager::ApplyExternalForces(const dx103DFluidData& FluidData, float /*timestep*/)
 {
     PIX_EVENT(ApplyExternalForces);
 
@@ -602,7 +602,7 @@ void dx103DFluidManager::ApplyExternalForces(const dx103DFluidData& FluidData, f
     m_pEmittersHandler->RenderVelocity(FluidData);
 }
 
-void dx103DFluidManager::ComputeVelocityDivergence(float timestep)
+void dx103DFluidManager::ComputeVelocityDivergence(float /*timestep*/)
 {
     PIX_EVENT(ComputeVelocityDivergence);
 
@@ -621,7 +621,7 @@ void dx103DFluidManager::ComputeVelocityDivergence(float timestep)
     // pRenderTargetShaderViews[RENDER_TARGET_TEMPVECTOR] );
 }
 
-void dx103DFluidManager::ComputePressure(float timestep)
+void dx103DFluidManager::ComputePressure(float /*timestep*/)
 {
     PIX_EVENT(ComputePressure);
 
@@ -693,7 +693,7 @@ void dx103DFluidManager::ComputePressure(float timestep)
     // TechniqueJacobi->GetPassByIndex(0)->Apply(0);
 }
 
-void dx103DFluidManager::ProjectVelocity(float timestep)
+void dx103DFluidManager::ProjectVelocity(float /*timestep*/)
 {
     PIX_EVENT(ProjectVelocity);
 
@@ -761,9 +761,9 @@ void dx103DFluidManager::UpdateObstacles(const dx103DFluidData& FluidData, float
 #ifdef DEBUG
 void dx103DFluidManager::RegisterFluidData(dx103DFluidData* pData, const xr_string& SectionName)
 {
-    int iDataNum = m_lstFluidData.size();
+    const size_t iDataNum = m_lstFluidData.size();
 
-    int i;
+    size_t i;
 
     for (i = 0; i < iDataNum; ++i)
     {
@@ -784,9 +784,9 @@ void dx103DFluidManager::RegisterFluidData(dx103DFluidData* pData, const xr_stri
 
 void dx103DFluidManager::DeregisterFluidData(dx103DFluidData* pData)
 {
-    int iDataNum = m_lstFluidData.size();
+    const size_t iDataNum = m_lstFluidData.size();
 
-    int i;
+    size_t i;
 
     for (i = 0; i < iDataNum; ++i)
     {
@@ -809,11 +809,9 @@ void dx103DFluidManager::DeregisterFluidData(dx103DFluidData* pData)
 
 void dx103DFluidManager::UpdateProfiles()
 {
-    int iDataNum = m_lstFluidData.size();
+    const size_t iDataNum = m_lstFluidData.size();
 
-    int i;
-
-    for (i = 0; i < iDataNum; ++i)
+    for (size_t i = 0; i < iDataNum; ++i)
     {
         m_lstFluidData[i]->ReparseProfile(m_lstSectionNames[i]);
     }

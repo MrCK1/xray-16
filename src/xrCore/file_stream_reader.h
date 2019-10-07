@@ -5,14 +5,17 @@
 
 class CFileStreamReader : public CStreamReader
 {
-private:
-    typedef CStreamReader inherited;
+    using inherited = CStreamReader;
 
 private:
+#if defined(WINDOWS)
     HANDLE m_file_handle;
+#elif defined(LINUX)
+    int m_file_handle;
+#endif
 
 public:
-    virtual void construct(LPCSTR file_name, const u32& window_size);
+    virtual void construct(pcstr file_name, const size_t& window_size);
     virtual void destroy();
 };
 

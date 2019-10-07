@@ -49,9 +49,6 @@
     <Filter Include="Interfase implementations\FactoryPtr">
       <UniqueIdentifier>{4bc3705f-0312-42a9-9c04-71a4e17647d2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Interfase implementations\ApplicationRender">
-      <UniqueIdentifier>{cf5f3966-3a6f-493c-a5bd-5b607a797f84}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Interfase implementations\RainRender">
       <UniqueIdentifier>{66d08dfb-b689-48d3-9f9c-58e949f5e6c7}</UniqueIdentifier>
     </Filter>
@@ -297,12 +294,6 @@
     <ClInclude Include="..\..\Include\xrRender\FactoryPtr.h">
       <Filter>Interfase implementations\FactoryPtr</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\xrRender\ApplicationRender.h">
-      <Filter>Interfase implementations\ApplicationRender</Filter>
-    </ClInclude>
-    <ClInclude Include="..\xrRender\dxApplicationRender.h">
-      <Filter>Interfase implementations\ApplicationRender</Filter>
-    </ClInclude>
     <ClInclude Include="..\xrRender\dxRainRender.h">
       <Filter>Interfase implementations\RainRender</Filter>
     </ClInclude>
@@ -383,9 +374,6 @@
     </ClInclude>
     <ClInclude Include="..\..\Include\xrRender\UISequenceVideoItem.h">
       <Filter>Interfase implementations\UI\UISequenceVideoItem</Filter>
-    </ClInclude>
-    <ClInclude Include="..\xrRender\HW.h">
-      <Filter>Refactored\HW</Filter>
     </ClInclude>
     <ClInclude Include="..\xrRender\HWCaps.h">
       <Filter>Refactored\HW</Filter>
@@ -579,8 +567,14 @@
     <ClInclude Include="..\xrRender\D3DXRenderBase.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="..\xrRender\RenderAllocator.hpp">
-      <Filter>Core</Filter>
+    <ClInclude Include="..\xrRender\KinematicsAddBoneTransform.hpp">
+      <Filter>Refactored\Execution &amp; 3D\Visuals\Skeleton</Filter>
+    </ClInclude>
+    <ClInclude Include="..\xrRender\ShaderResourceTraits.h">
+      <Filter>Refactored\Execution &amp; 3D\Shaders\ShaderManager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\xrRenderDX9\dx9HW.h">
+      <Filter>Refactored\HW</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -636,9 +630,6 @@
       <Filter>Details</Filter>
     </ClCompile>
     <ClCompile Include="..\xrRender\DetailManager_Decompress.cpp">
-      <Filter>Details</Filter>
-    </ClCompile>
-    <ClCompile Include="..\xrRender\DetailManager_soft.cpp">
       <Filter>Details</Filter>
     </ClCompile>
     <ClCompile Include="..\xrRender\DetailManager_VS.cpp">
@@ -761,9 +752,6 @@
     <ClCompile Include="..\xrRender\dxLensFlareRender.cpp">
       <Filter>Interfase implementations\LensFlare</Filter>
     </ClCompile>
-    <ClCompile Include="..\xrRender\dxApplicationRender.cpp">
-      <Filter>Interfase implementations\ApplicationRender</Filter>
-    </ClCompile>
     <ClCompile Include="..\xrRender\dxRainRender.cpp">
       <Filter>Interfase implementations\RainRender</Filter>
     </ClCompile>
@@ -803,12 +791,6 @@
     <ClCompile Include="..\xrRender\dxUISequenceVideoItem.cpp">
       <Filter>Interfase implementations\UI\UISequenceVideoItem</Filter>
     </ClCompile>
-    <ClCompile Include="..\xrRender\HW.cpp">
-      <Filter>Refactored\HW</Filter>
-    </ClCompile>
-    <ClCompile Include="..\xrRender\HWCaps.cpp">
-      <Filter>Refactored\HW</Filter>
-    </ClCompile>
     <ClCompile Include="..\xrRender\R_Backend.cpp">
       <Filter>Refactored\Backend</Filter>
     </ClCompile>
@@ -840,9 +822,6 @@
       <Filter>Refactored\Execution &amp; 3D\Shaders\Resources</Filter>
     </ClCompile>
     <ClCompile Include="..\xrRender\SH_Matrix.cpp">
-      <Filter>Refactored\Execution &amp; 3D\Shaders\Resources</Filter>
-    </ClCompile>
-    <ClCompile Include="..\xrRender\SH_RT.cpp">
       <Filter>Refactored\Execution &amp; 3D\Shaders\Resources</Filter>
     </ClCompile>
     <ClCompile Include="..\xrRender\SH_Texture.cpp">
@@ -968,11 +947,29 @@
     <ClCompile Include="..\xrRender\ParticleGroup.cpp">
       <Filter>Models\Visuals</Filter>
     </ClCompile>
-    <ClCompile Include="..\xrRender\RenderAllocator.cpp">
+    <ClCompile Include="FStaticRender_Shaders.cpp">
       <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\xrRender\D3DXRenderBase.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\xrRenderDX9\dx9HW.cpp">
+      <Filter>Refactored\HW</Filter>
+    </ClCompile>
+    <ClCompile Include="..\xrRenderDX9\dx9HWCaps.cpp">
+      <Filter>Refactored\HW</Filter>
+    </ClCompile>
+    <ClCompile Include="..\xrRenderDX9\dx9SH_RT.cpp">
+      <Filter>Refactored\Execution &amp; 3D\Shaders\Resources</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Pipeline.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\..\OpenXRay.natvis" />
   </ItemGroup>
 </Project>

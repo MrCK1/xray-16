@@ -1,6 +1,7 @@
+#pragma once
 #ifndef xr_resourceH
 #define xr_resourceH
-#pragma once
+#include "xrstring.h"
 
 // resource itself, the base class for all derived resources
 class XRCORE_API xr_resource
@@ -56,13 +57,13 @@ protected:
     {
         if (0 == p_)
             return;
-        p_->dwReference++;
+        ++p_->dwReference;
     }
     void _dec()
     {
         if (0 == p_)
             return;
-        p_->dwReference--;
+        --p_->dwReference;
         if (0 == p_->dwReference)
             xr_delete(p_);
     }
@@ -71,7 +72,7 @@ public:
     ICF void _set(T* rhs)
     {
         if (0 != rhs)
-            rhs->dwReference++;
+            ++rhs->dwReference;
         _dec();
         p_ = rhs;
     }
@@ -110,7 +111,7 @@ public:
     // assignment
     self& operator=(const self& rhs)
     {
-        _set(rhs);
+        this->_set(rhs);
         return (self&)*this;
     }
 
@@ -124,9 +125,7 @@ public:
     // fast swapping
     void swap(self& rhs)
     {
-        T* tmp = C::p_;
-        C::p_ = rhs.p_;
-        rhs.p_ = tmp;
+        std::swap(this->p_, rhs.p_);
     }
 };
 

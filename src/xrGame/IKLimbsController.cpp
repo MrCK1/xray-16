@@ -1,12 +1,12 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #include "IKLimbsController.h"
 
-#include "IK/IKLimb.h"
-#include "physicsshellholder.h"
+#include "ik/IKLimb.h"
+#include "PhysicsShellHolder.h"
 
 #include "ik_anim_state.h"
-#include "xrPhysics/mathutils.h"
+#include "xrPhysics/MathUtils.h"
 #include "Include/xrRender/RenderVisual.h"
 #include "Include/xrRender/Kinematics.h"
 
@@ -16,7 +16,13 @@
 #include "PHDebug.h"
 #endif // DEBUG
 
-CIKLimbsController::CIKLimbsController() : m_object(0), m_legs_blend(0) {}
+CIKLimbsController::CIKLimbsController()
+#ifdef DEBUG
+    : m_legs_blend(nullptr), m_object(nullptr), anim_name(nullptr), anim_set_name(nullptr) {}
+#else
+    : m_legs_blend(nullptr), m_object(nullptr) {}
+#endif
+
 void CIKLimbsController::Create(CGameObject* O)
 {
     VERIFY(O);
@@ -193,7 +199,7 @@ void CIKLimbsController::ObjectShift(float static_shift, const SCalculateData cd
     CPhysicsShellHolder* sh = smart_cast<CPhysicsShellHolder*>(m_object);
     VERIFY(sh);
     // CCharacterPhysicsSupport *ch = sh->character_physics_support();
-    _object_shift.freeze(!!Device.Paused()); // ch->interactive_motion() ||
+    _object_shift.freeze(!!Device.Paused()); // ch->is_interactive_motion() ||
 
     if (cnt_in_step != sz && PredictObjectShift(cd)) // cnt_in_step > 0 &&
         return;

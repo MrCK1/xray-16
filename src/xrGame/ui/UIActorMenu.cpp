@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIActorMenu.h"
 #include "UIActorStateInfo.h"
 #include "Actor.h"
@@ -7,7 +7,7 @@
 #include "inventory_item.h"
 #include "InventoryBox.h"
 #include "Common/object_broker.h"
-#include "ai/monsters/BaseMonster/base_monster.h"
+#include "ai/monsters/basemonster/base_monster.h"
 #include "UIInventoryUtilities.h"
 #include "game_cl_base.h"
 #include "Weapon.h"
@@ -21,20 +21,20 @@
 #include "CustomOutfit.h"
 #include "CustomDetector.h"
 #include "eatable_item.h"
-#include "UIProgressBar.h"
-#include "UICursor.h"
+#include "xrUICore/ProgressBar/UIProgressBar.h"
+#include "xrUICore/Cursor/UICursor.h"
 #include "UICellItem.h"
 #include "UICharacterInfo.h"
 #include "UIItemInfo.h"
 #include "UIDragDropListEx.h"
 #include "UIDragDropReferenceList.h"
 #include "UIInventoryUpgradeWnd.h"
-#include "UI3tButton.h"
-#include "UIBtnHint.h"
+#include "xrUICore/Buttons/UI3tButton.h"
+#include "xrUICore/Buttons/UIBtnHint.h"
 #include "UIMessageBoxEx.h"
-#include "UIPropertiesBox.h"
+#include "xrUICore/PropertiesBox/UIPropertiesBox.h"
 #include "UIMainIngameWnd.h"
-#include "Trade.h"
+#include "trade.h"
 
 void CUIActorMenu::SetActor(CInventoryOwner* io)
 {
@@ -191,8 +191,12 @@ void CUIActorMenu::Update()
     case mmUndefined: break;
     case mmInventory:
     {
-        //			m_clock_value->TextItemControl()->SetText( InventoryUtilities::GetGameTimeAsString(
-        // InventoryUtilities::etpTimeToMinutes ).c_str() );
+        if (m_clock_value)
+        {
+            m_clock_value->SetText(InventoryUtilities::GetGameTimeAsString(
+                InventoryUtilities::etpTimeToMinutes).c_str());
+        }
+
         CurrentGameUI()->UIMainIngameWnd->UpdateZoneMap();
         break;
     }
@@ -211,7 +215,8 @@ void CUIActorMenu::Update()
     }
     case mmDeadBodySearch:
     {
-        CheckDistance();
+        // Alundaio: remove distance check when opening inventory boxes
+        //CheckDistance(); 
         break;
     }
     default: R_ASSERT(0); break;
@@ -275,7 +280,7 @@ EDDListType CUIActorMenu::GetListType(CUIDragDropListEx* l)
         return iActorSlot;
     if (l == m_pInventoryOutfitList)
         return iActorSlot;
-    if (l == m_pInventoryHelmetList)
+    if (l == m_pInventoryHelmetList && m_pInventoryHelmetList != nullptr)
         return iActorSlot;
     if (l == m_pInventoryDetectorList)
         return iActorSlot;
@@ -291,12 +296,12 @@ EDDListType CUIActorMenu::GetListType(CUIDragDropListEx* l)
     if (l == m_pDeadBodyBagList)
         return iDeadBodyBag;
 
-    if (l == m_pQuickSlot)
+    if (l == m_pQuickSlot && m_pQuickSlot != nullptr)
         return iQuickSlot;
-    if (l == m_pTrashList)
+    if (l == m_pTrashList && m_pTrashList != nullptr)
         return iTrashSlot;
 
-    R_ASSERT(0);
+    NODEFAULT;
 
     return iInvalid;
 }
@@ -348,7 +353,7 @@ void CUIActorMenu::InfoCurItem(CUICellItem* cell_item)
 {
     if (!cell_item)
     {
-        m_ItemInfo->InitItem(NULL);
+        m_ItemInfo->InitItem(nullptr);
         return;
     }
     PIItem current_item = (PIItem)cell_item->m_pData;
@@ -432,15 +437,31 @@ void CUIActorMenu::UpdateItemsPlace()
 
 void CUIActorMenu::clear_highlight_lists()
 {
-    m_InvSlot2Highlight->Show(false);
-    m_InvSlot3Highlight->Show(false);
-    m_HelmetSlotHighlight->Show(false);
-    m_OutfitSlotHighlight->Show(false);
-    m_DetectorSlotHighlight->Show(false);
-    for (u8 i = 0; i < 4; i++)
-        m_QuickSlotsHighlight[i]->Show(false);
-    for (u8 i = 0; i < e_af_count; i++)
-        m_ArtefactSlotsHighlight[i]->Show(false);
+    if (m_InvSlot2Highlight)
+        m_InvSlot2Highlight->Show(false);
+
+    if (m_InvSlot3Highlight)
+        m_InvSlot3Highlight->Show(false);
+
+    if (m_HelmetSlotHighlight)
+        m_HelmetSlotHighlight->Show(false);
+
+    if (m_OutfitSlotHighlight)
+        m_OutfitSlotHighlight->Show(false);
+
+    if (m_DetectorSlotHighlight)
+        m_DetectorSlotHighlight->Show(false);
+
+    if (m_QuickSlotsHighlight[0])
+    {
+        for (u8 i = 0; i < 4; i++)
+            m_QuickSlotsHighlight[i]->Show(false);
+    }
+    if (m_ArtefactSlotsHighlight[0])
+    {
+        for (u8 i = 0; i < e_af_count; i++)
+            m_ArtefactSlotsHighlight[i]->Show(false);
+    }
 
     m_pInventoryBagList->clear_select_armament();
 
@@ -475,25 +496,31 @@ void CUIActorMenu::highlight_item_slot(CUICellItem* cell_item)
     CEatableItem* eatable = smart_cast<CEatableItem*>(item);
     CArtefact* artefact = smart_cast<CArtefact*>(item);
 
-    if (weapon)
+    u16 slot_id = item->BaseSlot();
+    if (weapon && (slot_id == INV_SLOT_2 || slot_id == INV_SLOT_3))
     {
-        m_InvSlot2Highlight->Show(true);
-        m_InvSlot3Highlight->Show(true);
+        if (m_InvSlot2Highlight)
+            m_InvSlot2Highlight->Show(true);
+        if (m_InvSlot3Highlight)
+            m_InvSlot3Highlight->Show(true);
         return;
     }
-    if (helmet)
+    if (helmet && slot_id == HELMET_SLOT)
     {
-        m_HelmetSlotHighlight->Show(true);
+        if (m_HelmetSlotHighlight)
+            m_HelmetSlotHighlight->Show(true);
         return;
     }
-    if (outfit)
+    if (outfit && slot_id == OUTFIT_SLOT)
     {
-        m_OutfitSlotHighlight->Show(true);
+        if (m_OutfitSlotHighlight)
+            m_OutfitSlotHighlight->Show(true);
         return;
     }
-    if (detector)
+    if (detector && slot_id == DETECTOR_SLOT)
     {
-        m_DetectorSlotHighlight->Show(true);
+        if (m_DetectorSlotHighlight)
+            m_DetectorSlotHighlight->Show(true);
         return;
     }
     if (eatable)
@@ -501,8 +528,11 @@ void CUIActorMenu::highlight_item_slot(CUICellItem* cell_item)
         if (cell_item->OwnerList() && GetListType(cell_item->OwnerList()) == iQuickSlot)
             return;
 
-        for (u8 i = 0; i < 4; i++)
-            m_QuickSlotsHighlight[i]->Show(true);
+        if (m_QuickSlotsHighlight[0])
+        {
+            for (u8 i = 0; i < 4; i++)
+                m_QuickSlotsHighlight[i]->Show(true);
+        }
         return;
     }
     if (artefact)
@@ -510,9 +540,12 @@ void CUIActorMenu::highlight_item_slot(CUICellItem* cell_item)
         if (cell_item->OwnerList() && GetListType(cell_item->OwnerList()) == iActorBelt)
             return;
 
-        Ivector2 cap = m_pInventoryBeltList->CellsCapacity();
-        for (u8 i = 0; i < cap.x; i++)
-            m_ArtefactSlotsHighlight[i]->Show(true);
+        if (m_ArtefactSlotsHighlight[0])
+        {
+            Ivector2 cap = m_pInventoryBeltList->CellsCapacity();
+            for (u8 i = 0; i < cap.x; i++)
+                m_ArtefactSlotsHighlight[i]->Show(true);
+        }
         return;
     }
 }
@@ -565,7 +598,7 @@ void CUIActorMenu::highlight_ammo_for_weapon(PIItem weapon_item, CUIDragDropList
     VERIFY(weapon_item);
     VERIFY(ddlist);
     static xr_vector<shared_str> ammo_types;
-    ammo_types.clear_not_free();
+    ammo_types.clear();
 
     CWeapon* weapon = smart_cast<CWeapon*>(weapon_item);
     if (!weapon)
@@ -757,15 +790,21 @@ void CUIActorMenu::highlight_weapons_for_addon(PIItem addon_item, CUIDragDropLis
 
 void CUIActorMenu::ClearAllLists()
 {
+    // Xottab_DUTY: Let others can launch SOC without debugger
+    // XXX: to be removed
+    if (ShadowOfChernobylMode)
+        return;
     m_pInventoryBagList->ClearAll(true);
 
     m_pInventoryBeltList->ClearAll(true);
     m_pInventoryOutfitList->ClearAll(true);
-    m_pInventoryHelmetList->ClearAll(true);
+    if (m_pInventoryHelmetList)
+        m_pInventoryHelmetList->ClearAll(true);
     m_pInventoryDetectorList->ClearAll(true);
     m_pInventoryPistolList->ClearAll(true);
     m_pInventoryAutomaticList->ClearAll(true);
-    m_pQuickSlot->ClearAll(true);
+    if (m_pQuickSlot)
+        m_pQuickSlot->ClearAll(true);
 
     m_pTradeActorBagList->ClearAll(true);
     m_pTradeActorList->ClearAll(true);
@@ -839,29 +878,43 @@ bool CUIActorMenu::CanSetItemToList(PIItem item, CUIDragDropListEx* l, u16& ret_
 }
 void CUIActorMenu::UpdateConditionProgressBars()
 {
-    PIItem itm = m_pActorInvOwner->inventory().ItemFromSlot(INV_SLOT_2);
-    if (itm)
+    PIItem itm;
+    
+    if (m_WeaponSlot1_progress)
     {
-        m_WeaponSlot1_progress->SetProgressPos(iCeil(itm->GetCondition() * 15.0f) / 15.0f);
+        itm = m_pActorInvOwner->inventory().ItemFromSlot(INV_SLOT_2);
+        if (itm)
+        {
+            m_WeaponSlot1_progress->SetProgressPos(iCeil(itm->GetCondition() * 15.0f) / 15.0f);
+        }
+        else
+            m_WeaponSlot1_progress->SetProgressPos(0);
     }
-    else
-        m_WeaponSlot1_progress->SetProgressPos(0);
 
-    itm = m_pActorInvOwner->inventory().ItemFromSlot(INV_SLOT_3);
-    if (itm)
-        m_WeaponSlot2_progress->SetProgressPos(iCeil(itm->GetCondition() * 15.0f) / 15.0f);
-    else
-        m_WeaponSlot2_progress->SetProgressPos(0);
+    if (m_WeaponSlot2_progress)
+    {
+        itm = m_pActorInvOwner->inventory().ItemFromSlot(INV_SLOT_3);
+        if (itm)
+            m_WeaponSlot2_progress->SetProgressPos(iCeil(itm->GetCondition() * 15.0f) / 15.0f);
+        else
+            m_WeaponSlot2_progress->SetProgressPos(0);
+    }
 
-    itm = m_pActorInvOwner->inventory().ItemFromSlot(OUTFIT_SLOT);
-    if (itm)
-        m_Outfit_progress->SetProgressPos(iCeil(itm->GetCondition() * 15.0f) / 15.0f);
-    else
-        m_Outfit_progress->SetProgressPos(0);
+    if (m_Outfit_progress)
+    {
+        itm = m_pActorInvOwner->inventory().ItemFromSlot(OUTFIT_SLOT);
+        if (itm)
+            m_Outfit_progress->SetProgressPos(iCeil(itm->GetCondition() * 15.0f) / 15.0f);
+        else
+            m_Outfit_progress->SetProgressPos(0);
+    }
 
-    itm = m_pActorInvOwner->inventory().ItemFromSlot(HELMET_SLOT);
-    if (itm)
-        m_Helmet_progress->SetProgressPos(iCeil(itm->GetCondition() * 15.0f) / 15.0f);
-    else
-        m_Helmet_progress->SetProgressPos(0);
+    if (m_Helmet_progress)
+    {
+        itm = m_pActorInvOwner->inventory().ItemFromSlot(HELMET_SLOT);
+        if (itm)
+            m_Helmet_progress->SetProgressPos(iCeil(itm->GetCondition() * 15.0f) / 15.0f);
+        else
+            m_Helmet_progress->SetProgressPos(0);
+    }
 }

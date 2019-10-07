@@ -1,27 +1,30 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "configs_dumper.h"
 #include "configs_common.h"
-#include "xrCore/ppmd_compressor.h"
+#include "xrCore/Compression/ppmd_compressor.h"
 #include "xrCore/xr_ini.h"
-
+#include "xrCore/buffer_vector.h"
 #include "GameObject.h"
 #include "Level.h"
 #include "actor_mp_client.h"
-#include "inventory.h"
-#include "weapon.h"
+#include "Inventory.h"
+#include "Weapon.h"
 #include "game_cl_mp.h"
 
 namespace mp_anticheat
 {
 configs_dumper::configs_dumper()
+#ifdef DEBUG
+    : m_start_time(0)
+#endif
 {
     m_state = ds_not_active;
-    m_buffer_for_compress = NULL;
+    m_buffer_for_compress = nullptr;
     m_buffer_for_compress_size = 0;
     m_buffer_for_compress_capacity = 0;
 
-    m_make_start_event = NULL;
-    m_make_done_event = NULL;
+    m_make_start_event = nullptr;
+    m_make_done_event = nullptr;
 
     static u8 const sign_random_init[4] = {42, 42, 42, 42};
     m_dump_signer.sign(sign_random_init, sizeof(sign_random_init));
@@ -29,6 +32,7 @@ configs_dumper::configs_dumper()
 
 configs_dumper::~configs_dumper()
 {
+#ifndef LINUX // FIXME!!!
     if (m_make_start_event)
     {
         SetEvent(m_make_start_event);
@@ -36,11 +40,13 @@ configs_dumper::~configs_dumper()
         CloseHandle(m_make_done_event);
         CloseHandle(m_make_start_event);
     }
+#endif
     xr_free(m_buffer_for_compress);
 }
 
 void configs_dumper::shedule_Update(u32 dt)
 {
+#ifndef LINUX // FIXME!!!
     DWORD thread_result = WaitForSingleObject(m_make_done_event, 0);
     R_ASSERT((thread_result != WAIT_ABANDONED) && (thread_result != WAIT_FAILED));
     R_ASSERT(m_state == ds_active);
@@ -50,6 +56,7 @@ void configs_dumper::shedule_Update(u32 dt)
         m_state = ds_not_active;
         Engine.Sheduler.Unregister(this);
     }
+#endif
 }
 
 struct ExistDumpPredicate
@@ -134,7 +141,7 @@ void configs_dumper::write_configs()
     }
     CInifile active_params_dumper(NULL, FALSE, FALSE, FALSE);
     active_objects_t active_objects(
-        _alloca(sizeof(active_objects_t::value_type) * max_active_objects), max_active_objects);
+        xr_alloca(sizeof(active_objects_t::value_type) * max_active_objects), max_active_objects);
     active_objects_t::size_type aobjs_count = get_active_objects(active_objects);
     string16 tmp_strbuff;
     for (active_objects_t::size_type i = 0; i < aobjs_count; ++i)
@@ -200,8 +207,8 @@ void configs_dumper::dump_config(complete_callback_t complete_cb)
         return;
     }
 
-    DWORD process_affinity_mask;
-    DWORD tmp_dword;
+    ULONG_PTR process_affinity_mask, tmp_dword;
+#ifndef LINUX // FIXME!!!
     GetProcessAffinityMask(GetCurrentProcess(), &process_affinity_mask, &tmp_dword);
     bool single_core = (btwCount1(static_cast<u32>(process_affinity_mask)) == 1);
     if (single_core)
@@ -223,8 +230,9 @@ void configs_dumper::dump_config(complete_callback_t complete_cb)
     }
     m_make_start_event = CreateEvent(NULL, FALSE, TRUE, NULL);
     m_make_done_event = CreateEvent(NULL, FALSE, FALSE, NULL);
-    thread_spawn(&configs_dumper::dumper_thread, "configs_dumper", 0, this);
+    Threading::SpawnThread(&configs_dumper::dumper_thread, "configs_dumper", 0, this);
     Engine.Sheduler.Register(this, TRUE);
+#endif
 }
 
 void configs_dumper::compress_configs()
@@ -242,6 +250,7 @@ void configs_dumper::compress_configs()
 void configs_dumper::dumper_thread(void* my_ptr)
 {
     configs_dumper* this_ptr = static_cast<configs_dumper*>(my_ptr);
+#ifndef LINUX // FIXME!!!
     DWORD wait_result = WaitForSingleObject(this_ptr->m_make_start_event, INFINITE);
     while ((wait_result != WAIT_ABANDONED) || (wait_result != WAIT_FAILED))
     {
@@ -260,6 +269,7 @@ void configs_dumper::dumper_thread(void* my_ptr)
         wait_result = WaitForSingleObject(this_ptr->m_make_start_event, INFINITE);
     }
     SetEvent(this_ptr->m_make_done_event);
+#endif
 }
 
 void __stdcall configs_dumper::yield_cb(long progress)

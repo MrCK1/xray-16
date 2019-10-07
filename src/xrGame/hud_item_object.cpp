@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "hud_item_object.h"
 
 CHudItemObject::CHudItemObject() {}
@@ -24,7 +24,7 @@ bool CHudItemObject::Action(u16 cmd, u32 flags)
 }
 
 void CHudItemObject::SwitchState(u32 S) { CHudItem::SwitchState(S); }
-void CHudItemObject::OnStateSwitch(u32 S) { CHudItem::OnStateSwitch(S); }
+void CHudItemObject::OnStateSwitch(u32 S, u32 oldState) { CHudItem::OnStateSwitch(S, oldState); }
 void CHudItemObject::OnMoveToRuck(const SInvItemPlace& prev)
 {
     CInventoryItemObject::OnMoveToRuck(prev);
@@ -80,5 +80,5 @@ void CHudItemObject::UpdateCL()
     CHudItem::UpdateCL();
 }
 
-void CHudItemObject::renderable_Render() { CHudItem::renderable_Render(); }
-void CHudItemObject::on_renderable_Render() { CInventoryItemObject::renderable_Render(); }
+void CHudItemObject::renderable_Render(IRenderable* root) { CHudItem::renderable_Render(root); }
+void CHudItemObject::on_renderable_Render(IRenderable* root) { CInventoryItemObject::renderable_Render(root); }

@@ -4,12 +4,13 @@
 //	Copyright (C) GSC Game World - 2009
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "doors_actor.h"
 #include "doors_door.h"
 #include "ai/stalker/ai_stalker.h"
 #include "stalker_movement_manager_smart_cover.h"
 #include "debug_renderer.h"
+#include "script_game_object.h" //Alundaio
 
 using doors::actor;
 using doors::door;
@@ -52,8 +53,15 @@ void actor::revert_states(doors_type& doors, door_state const state)
 #endif // #ifdef DEBUG
     }
 
-    doors.clear_not_free();
+    doors.clear();
 }
+
+//Alundaio: add the ability to get lua game object
+CScriptGameObject* actor::lua_game_object() const
+{
+    return m_object.lua_game_object();
+}
+//Alundaio: END
 
 Fvector const& actor::get_position() const { return m_object.Position(); }
 bool actor::need_update() const { return !m_open_doors.empty() && !m_closed_doors.empty(); }
@@ -211,9 +219,9 @@ bool actor::update_doors(doors_type const& detected_doors, float const average_s
 
     u32 const detected_doors_count = detected_doors.size();
     temp_doors_type new_doors_to_open(
-        _alloca(detected_doors_count * sizeof(doors_type::value_type)), detected_doors_count);
+        xr_alloca(detected_doors_count * sizeof(doors_type::value_type)), detected_doors_count);
     temp_doors_type new_doors_to_close(
-        _alloca(detected_doors_count * sizeof(doors_type::value_type)), detected_doors_count);
+        xr_alloca(detected_doors_count * sizeof(doors_type::value_type)), detected_doors_count);
 
     float const check_distance = average_speed * g_door_open_time + g_door_length;
 

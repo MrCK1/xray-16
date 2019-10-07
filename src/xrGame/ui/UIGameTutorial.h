@@ -1,6 +1,9 @@
 #pragma once
 #include "xr_level_controller.h"
-#include <xrScriptEngine/Functor.hpp>
+#include "xrEngine/pure.h"
+#include "xrEngine/IInputReceiver.h"
+#include "xrScriptEngine/Functor.hpp"
+#include "xrCommon/xr_deque.h"
 
 class CUIWindow;
 class CUIStatic;
@@ -44,7 +47,7 @@ public:
     virtual void IR_OnKeyboardRelease(int dik);
     virtual void IR_OnKeyboardHold(int dik);
 
-    virtual void IR_OnMouseWheel(int direction);
+    virtual void IR_OnMouseWheel(int x, int y);
     virtual void IR_OnActivate(void);
     bool Persistent() { return !!m_flags.test(etsPersistent); }
     fastdelegate::FastDelegate0<> m_on_destroy_event;
@@ -117,11 +120,10 @@ class CUISequenceSimpleItem : public CUISequenceItem
         float m_length;
         bool m_visible;
 
-    public:
         virtual void Start();
         virtual void Stop();
     };
-    DEFINE_VECTOR(SSubItem, SubItemVec, SubItemVecIt);
+    using SubItemVec = xr_vector<SSubItem>;
     SubItemVec m_subitems;
     struct SActionItem
     {
@@ -161,9 +163,13 @@ protected:
 
 class CUISequenceVideoItem : public CUISequenceItem
 {
-    typedef CUISequenceItem inherited;
-    ref_sound m_sound;
+    using inherited = CUISequenceItem;
+
+    static constexpr size_t channels_count = 2;
+    xr_array<ref_sound, channels_count> m_sound;
+
     FactoryPtr<IUISequenceVideoItem> m_texture;
+
     enum
     {
         etiPlaying = (1 << (eti_last + 0)),
@@ -171,6 +177,7 @@ class CUISequenceVideoItem : public CUISequenceItem
         etiDelayed = (1 << (eti_last + 2)),
         etiBackVisible = (1 << (eti_last + 3)),
     };
+
     float m_delay;
     CUIStatic* m_wnd;
     CUIStatic* m_wnd_bg;

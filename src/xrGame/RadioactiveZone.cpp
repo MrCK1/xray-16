@@ -1,9 +1,9 @@
-#include "stdafx.h"
-#include "radioactivezone.h"
+#include "StdAfx.h"
+#include "RadioactiveZone.h"
 #include "Level.h"
-#include "xrmessages.h"
+#include "xrMessages.h"
 #include "xrCore/Animation/Bone.hpp"
-#include "actor.h"
+#include "Actor.h"
 #include "game_base_space.h"
 #include "Hit.h"
 #include "xrEngine/xr_collide_form.h"
@@ -75,7 +75,7 @@ void CRadioactiveZone::feel_touch_new(IGameObject* O)
     };
 };
 
-#include "actor.h"
+#include "Actor.h"
 bool CRadioactiveZone::feel_touch_contact(IGameObject* O)
 {
     CActor* A = smart_cast<CActor*>(O);
@@ -93,10 +93,9 @@ void CRadioactiveZone::UpdateWorkload(u32 dt)
 {
     if (IsEnabled() && GameID() != eGameIDSingle)
     {
-        OBJECT_INFO_VEC_IT it;
         Fvector pos;
         XFORM().transform_tiny(pos, GetCForm()->getSphere().P);
-        for (it = m_ObjectInfoMap.begin(); m_ObjectInfoMap.end() != it; ++it)
+        for (auto it = m_ObjectInfoMap.begin(); m_ObjectInfoMap.end() != it; ++it)
         {
             if (!(*it).object->getDestroy() && smart_cast<CActor*>((*it).object))
             {

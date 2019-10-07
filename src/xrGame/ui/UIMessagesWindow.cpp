@@ -7,15 +7,15 @@
 // Copyright 2005 GSC Game World
 
 #include "StdAfx.h"
-bool IsGameTypeSingle();
 #include "UIMessagesWindow.h"
 #include "UIGameLog.h"
 #include "UIChatWnd.h"
-#include "xrUIXmlParser.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 #include "UIXmlInit.h"
 #include "UIInventoryUtilities.h"
 #include "game_news.h"
 #include "UIPdaMsgListItem.h"
+#include "xrGame/game_type.h"
 
 CUIMessagesWindow::CUIMessagesWindow() : m_pChatLog(NULL), m_pChatWnd(NULL), m_pGameLog(NULL)
 {
@@ -49,7 +49,7 @@ void CUIMessagesWindow::PendingMode(bool const is_pending_mode)
 void CUIMessagesWindow::Init(float x, float y, float width, float height)
 {
     CUIXml xml;
-    xml.Load(CONFIG_PATH, UI_PATH, "messages_window.xml");
+    xml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "messages_window.xml");
     m_pGameLog = new CUIGameLog();
     m_pGameLog->SetAutoDelete(true);
     m_pGameLog->Show(true);
@@ -80,7 +80,7 @@ void CUIMessagesWindow::Init(float x, float y, float width, float height)
 
         m_in_pending_mode = false;
 
-        XML_NODE* pending_chat_list = xml.NavigateToNode(CHAT_LOG_LIST_PENDING);
+        XML_NODE pending_chat_list = xml.NavigateToNode(CHAT_LOG_LIST_PENDING);
 
         if (pending_chat_list)
         {

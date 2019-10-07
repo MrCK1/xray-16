@@ -15,14 +15,15 @@
 #include "level_path_manager.h"
 #include "detail_path_manager.h"
 #include "patrol_path_manager.h"
-#include "xrmessages.h"
+#include "xrMessages.h"
 #include "xrAICore/Navigation/ai_object_location.h"
-#include "custommonster.h"
+#include "CustomMonster.h"
 #include "location_manager.h"
 #include "level_path_builder.h"
 #include "detail_path_builder.h"
 #include "xrEngine/profiler.h"
 #include "mt_config.h"
+#include "xrNetServer/NET_Messages.h"
 
 // Lain: added
 #include "steering_behaviour.h"
@@ -136,10 +137,10 @@ u32 CMovementManager::level_dest_vertex_id() const { return (level_path().dest_v
 const xr_vector<DetailPathManager::STravelPathPoint>& CMovementManager::path() const { return (detail().path()); }
 void CMovementManager::update_path()
 {
-    START_PROFILE("Build Path::update")
-
     if (!enabled() || wait_for_distributed_computation())
         return;
+
+    START_PROFILE("Build Path::update")
 
     if (!game_path().evaluator())
         game_path().set_evaluator(base_game_params());

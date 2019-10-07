@@ -1,14 +1,21 @@
 #include "stdafx.h"
 #include "dx103DFluidData.h"
-
 #include "dx103DFluidManager.h"
+#include "xrCore/xr_token.h"
 
 namespace
 {
-const xr_token simulation_type_token[] = {{"Fog", dx103DFluidData::ST_FOG}, {"Fire", dx103DFluidData::ST_FIRE}, {0, 0}};
+const xr_token simulation_type_token[] = {
+    {"Fog", dx103DFluidData::ST_FOG},
+    {"Fire", dx103DFluidData::ST_FIRE},
+    {0, 0}
+};
 
-const xr_token emitter_type_token[] = {{"SimpleGaussian", dx103DFluidEmitters::ET_SimpleGausian},
-    {"SimpleDraught", dx103DFluidEmitters::ET_SimpleDraught}, {0, 0}};
+const xr_token emitter_type_token[] = {
+    {"SimpleGaussian", dx103DFluidEmitters::ET_SimpleGausian},
+    {"SimpleDraught", dx103DFluidEmitters::ET_SimpleDraught},
+    {0, 0}
+};
 }
 
 DXGI_FORMAT dx103DFluidData::m_VPRenderTargetFormats[VP_NUM_TARGETS] = {
@@ -20,7 +27,7 @@ DXGI_FORMAT dx103DFluidData::m_VPRenderTargetFormats[VP_NUM_TARGETS] = {
 dx103DFluidData::dx103DFluidData()
 {
     D3D_TEXTURE3D_DESC desc;
-    desc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
+    desc.BindFlags = D3D_BIND_SHADER_RESOURCE | D3D_BIND_RENDER_TARGET;
     desc.CPUAccessFlags = 0;
     desc.MipLevels = 1;
     desc.MiscFlags = 0;
@@ -160,13 +167,14 @@ void dx103DFluidData::ParseProfile(const xr_string& Profile)
 
     u32 iEmittersNum = ini.r_u32("volume", "EmittersNum");
 
+    m_Emitters.clear();
     m_Emitters.resize(iEmittersNum);
 
     for (u32 i = 0; i < iEmittersNum; ++i)
     {
         string32 EmitterSectionName;
         CEmitter& Emitter = m_Emitters[i];
-        ZeroMemory(&Emitter, sizeof(Emitter));
+
         xr_sprintf(EmitterSectionName, "emitter%02d", i);
 
         Emitter.m_eType = (dx103DFluidEmitters::EmitterType)ini.r_token(EmitterSectionName, "Type", emitter_type_token);
@@ -216,7 +224,7 @@ void dx103DFluidData::ParseProfile(const xr_string& Profile)
 #ifdef DEBUG
 void dx103DFluidData::ReparseProfile(const xr_string& Profile)
 {
-    m_Emitters.clear_not_free();
+    m_Emitters.clear();
     ParseProfile(Profile);
 }
 #endif //   DEBUG

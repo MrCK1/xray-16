@@ -6,7 +6,7 @@
 //	Description : moving objects
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "moving_objects.h"
 #include "ai_space.h"
 #include "xrAICore/Navigation/level_graph.h"
@@ -62,4 +62,4 @@ void moving_objects::on_object_move(moving_object* moving_object)
     m_tree->insert(moving_object);
 }
 
-void moving_objects::clear() { m_previous_collisions.clear_not_free(); }
+void moving_objects::clear() { m_previous_collisions.clear(); }

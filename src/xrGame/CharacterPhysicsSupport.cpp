@@ -1,8 +1,8 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #include "CharacterPhysicsSupport.h"
 #include "alife_space.h"
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
 #include "PHMovementControl.h"
 #include "CustomMonster.h"
@@ -10,9 +10,9 @@
 #include "Include/xrRender/KinematicsAnimated.h"
 
 #include "xrPhysics/PhysicsShell.h"
-#include "xrPhysics/iActivationShape.h"
+#include "xrPhysics/IActivationShape.h"
 
-#include "xrPhysics/geometry.h"
+#include "xrPhysics/Geometry.h"
 
 #include "xrPhysics/IPHCapture.h"
 
@@ -27,9 +27,9 @@
 #include "xrServer_Object_Base.h"
 #include "interactive_animation.h"
 #include "stalker_animation_manager.h"
-#include "inventoryowner.h"
-#include "inventory.h"
-#include "activatingcharcollisiondelay.h"
+#include "InventoryOwner.h"
+#include "Inventory.h"
+#include "ActivatingCharCollisionDelay.h"
 #include "stalker_movement_manager_smart_cover.h"
 
 // const float default_hinge_friction = 5.f;//gray_wolf comment
@@ -108,10 +108,13 @@ void CCharacterPhysicsSupport::SetRemoved()
     m_eState = esRemoved;
     if (m_flags.test(fl_skeleton_in_shell))
     {
+        if (!m_pPhysicsShell)
+            return;
+
         if (m_pPhysicsShell->isEnabled())
             m_EntityAlife.processing_deactivate();
-        if (m_pPhysicsShell)
-            m_pPhysicsShell->Deactivate();
+
+        m_pPhysicsShell->Deactivate();
         xr_delete(m_pPhysicsShell);
     }
     else
@@ -248,7 +251,7 @@ void CCharacterPhysicsSupport::SpawnInitPhysics(CSE_Abstract* e)
     {
 #ifdef DEBUG
         if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) &&
-            stricmp(PH_DBG_ObjectTrackName(), *m_EntityAlife.cName()) == 0)
+            xr_stricmp(PH_DBG_ObjectTrackName(), *m_EntityAlife.cName()) == 0)
         {
             Msg("CCharacterPhysicsSupport::SpawnInitPhysics obj %s before collision correction %f,%f,%f",
                 PH_DBG_ObjectTrackName(), m_EntityAlife.Position().x, m_EntityAlife.Position().y,
@@ -267,7 +270,7 @@ void CCharacterPhysicsSupport::SpawnInitPhysics(CSE_Abstract* e)
 
 #ifdef DEBUG
         if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) &&
-            stricmp(PH_DBG_ObjectTrackName(), *m_EntityAlife.cName()) == 0)
+            xr_stricmp(PH_DBG_ObjectTrackName(), *m_EntityAlife.cName()) == 0)
         {
             Msg("CCharacterPhysicsSupport::SpawnInitPhysics obj %s after collision correction %f,%f,%f",
                 PH_DBG_ObjectTrackName(), m_EntityAlife.Position().x, m_EntityAlife.Position().y,
@@ -772,7 +775,7 @@ void reset_root_bone_start_pose( CPhysicsShell& shell )
 
     //u16 anim_bones_number = K->LL_BoneCount();
 
-    //buffer_vector<u32>	anim_bones_bind_positions( _alloca(anim_bones_number*sizeof(u32)),
+    //buffer_vector<u32>	anim_bones_bind_positions( xr_alloca(anim_bones_number*sizeof(u32)),
     //												anim_bones_number
     //											);
 #pragma todo("LL_GetBindTransform shoud use buffer_vector")
@@ -1119,7 +1122,9 @@ void CCharacterPhysicsSupport::CreateShell(IGameObject* who, Fvector& dp, Fvecto
     if (IsGameTypeSingle())
     {
         m_pPhysicsShell->SetPrefereExactIntegration(); // use exact integration for ragdolls in single
+#ifndef DEAD_BODY_COLLISION
         m_pPhysicsShell->SetRemoveCharacterCollLADisable();
+#endif
     }
     else
         m_pPhysicsShell->SetIgnoreDynamic();
@@ -1360,10 +1365,10 @@ void CCharacterPhysicsSupport::on_destroy_anim_mov_ctrl()
     anim_mov_state.active = false;
 }
 
-bool CCharacterPhysicsSupport::interactive_motion() { return is_imotion(m_interactive_motion); }
+bool CCharacterPhysicsSupport::is_interactive_motion() { return is_imotion(m_interactive_motion); }
 bool CCharacterPhysicsSupport::can_drop_active_weapon()
 {
-    return !interactive_motion() && m_flags.test(fl_death_anim_on);
+    return !is_interactive_motion() && m_flags.test(fl_death_anim_on);
 };
 
 void CCharacterPhysicsSupport::in_Die()

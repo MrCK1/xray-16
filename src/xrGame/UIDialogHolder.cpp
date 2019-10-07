@@ -1,12 +1,12 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIDialogHolder.h"
 #include "ui/UIDialogWnd.h"
 #include "UIGameCustom.h"
-#include "UICursor.h"
+#include "xrUICore/Cursor/UICursor.h"
 #include "Level.h"
-#include "actor.h"
+#include "Actor.h"
 #include "xr_level_controller.h"
-#include "xrEngine/CustomHud.h"
+#include "xrEngine/CustomHUD.h"
 
 dlgItem::dlgItem(CUIWindow* pWnd)
 {
@@ -202,6 +202,15 @@ void CDialogHolder::StartDialog(CUIDialogWnd* pDialog, bool bDoHideIndicators)
 }
 
 void CDialogHolder::StopDialog(CUIDialogWnd* pDialog) { StopMenu(pDialog); }
+
+void CDialogHolder::StartStopMenu(CUIDialogWnd* pDialog, bool bDoHideIndicators)
+{
+    if (pDialog->IsShown())
+        StopDialog(pDialog);
+    else
+        StartDialog(pDialog, bDoHideIndicators);
+}
+
 void CDialogHolder::OnFrame()
 {
     m_b_in_update = true;
@@ -268,7 +277,7 @@ bool CDialogHolder::IR_UIOnKeyboardPress(int dik)
             if (IR)
             //				IR->IR_OnKeyboardPress(get_binded_action(dik));
             {
-                EGameActions action = get_binded_action(dik);
+                EGameActions action = GetBindedAction(dik);
                 if (action != kQUICK_USE_1 && action != kQUICK_USE_2 && action != kQUICK_USE_3 &&
                     action != kQUICK_USE_4)
                     IR->IR_OnKeyboardPress(action);
@@ -307,11 +316,22 @@ bool CDialogHolder::IR_UIOnKeyboardRelease(int dik)
         {
             IInputReceiver* IR = smart_cast<IInputReceiver*>(smart_cast<CGameObject*>(O));
             if (IR)
-                IR->IR_OnKeyboardRelease(get_binded_action(dik));
+                IR->IR_OnKeyboardRelease(GetBindedAction(dik));
             return (false);
         }
     }
     return true;
+}
+
+bool CDialogHolder::IR_UIOnTextInput(pcstr text)
+{
+    CUIDialogWnd* TIR = TopInputReceiver();
+    if (!TIR)
+        return false;
+    if (!TIR->IR_process())
+        return false;
+
+    return TIR->OnTextInput(text);
 }
 
 bool CDialogHolder::IR_UIOnKeyboardHold(int dik)
@@ -332,14 +352,14 @@ bool CDialogHolder::IR_UIOnKeyboardHold(int dik)
         {
             IInputReceiver* IR = smart_cast<IInputReceiver*>(smart_cast<CGameObject*>(O));
             if (IR)
-                IR->IR_OnKeyboardHold(get_binded_action(dik));
+                IR->IR_OnKeyboardHold(GetBindedAction(dik));
             return false;
         }
     }
     return true;
 }
 
-bool CDialogHolder::IR_UIOnMouseWheel(int direction)
+bool CDialogHolder::IR_UIOnMouseWheel(int x, int y)
 {
     CUIDialogWnd* TIR = TopInputReceiver();
     if (!TIR)
@@ -349,7 +369,18 @@ bool CDialogHolder::IR_UIOnMouseWheel(int direction)
 
     Fvector2 pos = GetUICursor().GetCursorPosition();
 
-    TIR->OnMouseAction(pos.x, pos.y, (direction > 0) ? WINDOW_MOUSE_WHEEL_UP : WINDOW_MOUSE_WHEEL_DOWN);
+    // Vertical scroll is in higher priority
+    EUIMessages wheelMessage;
+    if (x > 0)
+        wheelMessage = WINDOW_MOUSE_WHEEL_UP;
+    else if (x < 0)
+        wheelMessage = WINDOW_MOUSE_WHEEL_DOWN;
+    else if (y > 0)
+        wheelMessage = WINDOW_MOUSE_WHEEL_RIGHT;
+    else
+        wheelMessage = WINDOW_MOUSE_WHEEL_LEFT;
+
+    TIR->OnMouseAction(pos.x, pos.y, wheelMessage);
     return true;
 }
 

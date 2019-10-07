@@ -1,14 +1,16 @@
+#pragma once
 #ifndef UIPLAYERITEM
 #define UIPLAYERITEM
 
-#include "ui/UIWindow.h"
-#include "ui/xrUIXmlParser.h"
+#include "xrUICore/Windows/UIWindow.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 #include "ui/UIXmlInit.h"
 
 #include "game_cl_base.h"
 #include "string_table.h"
 #include "Level.h"
 #include "xrCore/Containers/AssociativeVector.hpp"
+#include "xrCore/buffer_vector.h"
 
 class UITeamState;
 class UITeamPanels; // for switching teams
@@ -24,7 +26,7 @@ private:
     // we just call method RemovePlayer
     UITeamState* m_teamState;
     UITeamPanels* m_teamPanels;
-    XML_NODE* m_player_node_root;
+    XML_NODE m_player_node_root;
     ETeam m_prevTeam;
     s32 m_checkPoints;
 

@@ -68,7 +68,7 @@ void CGlow::set_radius(float R)
     radius = R;
     spatial_move();
 };
-void CGlow::set_texture(LPCSTR name) { shader.create("effects\\glow", name); }
+void CGlow::set_texture(LPCSTR name) { shader.create("effects" DELIMITER "glow", name); }
 void CGlow::set_color(const Fcolor& C) { color = C; }
 void CGlow::set_color(float r, float g, float b) { color.set(r, g, b, 1); }
 void CGlow::spatial_move()
@@ -85,18 +85,18 @@ CGlowManager::~CGlowManager() {}
 void CGlowManager::Load(IReader* fs)
 {
     // glows itself
-    u32 size = fs->length();
+    const size_t size = fs->length();
     R_ASSERT(size);
-    u32 one = 4 * sizeof(float) + 1 * sizeof(u16);
+    const size_t one = sizeof(Fvector) + sizeof(float) + sizeof(u16);
     R_ASSERT(size % one == 0);
-    u32 count = size / one;
+    size_t count = size / one;
     Glows.reserve(count);
 
     for (; count; count--)
     {
         CGlow* G = new CGlow();
-        fs->r(&G->position, 3 * sizeof(float));
-        fs->r(&G->radius, 1 * sizeof(float));
+        fs->r(&G->position, sizeof(Fvector));
+        fs->r(&G->radius, sizeof(float));
         G->spatial.sphere.set(G->position, G->radius);
         G->direction.set(0, 0, 0);
 
@@ -227,7 +227,7 @@ void CGlowManager::render_hw()
     // 0. query result from 'SelectedToTest_2'
     SelectedToTest_2 = SelectedToTest_1;
     SelectedToTest_1 = SelectedToTest_0;
-    SelectedToTest_0.clear_not_free();
+    SelectedToTest_0.clear();
 
     // 1. Sort into two parts - 1(selected-to-test)[to-test], 2(selected)[just-draw]
     // Fvector &start	= Device.vCameraPosition;
@@ -311,5 +311,5 @@ void CGlowManager::render_selected()
             RCache.Render(D3DPT_TRIANGLELIST, vOffset, 0, vCount, 0, vCount / 2);
         }
     }
-    Selected.clear_not_free();
+    Selected.clear();
 }

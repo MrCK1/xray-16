@@ -1,6 +1,6 @@
-#include "stdafx.h"
-#include "ai/Monsters/PseudoGigant/pseudo_gigant.h"
-#include "ai/Monsters/PseudoGigant/pseudo_gigant_step_effector.h"
+#include "StdAfx.h"
+#include "ai/monsters/pseudogigant/pseudo_gigant.h"
+#include "ai/monsters/pseudogigant/pseudo_gigant_step_effector.h"
 #include "Actor.h"
 #include "ActorEffector.h"
 #include "Level.h"
@@ -8,7 +8,7 @@
 #include "ai/monsters/monster_velocity_space.h"
 #include "ai/monsters/control_animation_base.h"
 #include "ai/monsters/control_movement_base.h"
-#include "ai/Monsters/ai_monster_effector.h"
+#include "ai/monsters/ai_monster_effector.h"
 #include "xrEngine/CameraBase.h"
 #include "xr_level_controller.h"
 #include "detail_path_manager_space.h"
@@ -51,7 +51,7 @@ void CPseudoGigant::Load(LPCSTR section)
     SVelocityParam& velocity_none = move().get_velocity(MonsterMovement::eVelocityParameterIdle);
     SVelocityParam& velocity_turn = move().get_velocity(MonsterMovement::eVelocityParameterStand);
     SVelocityParam& velocity_walk = move().get_velocity(MonsterMovement::eVelocityParameterWalkNormal);
-    //	SVelocityParam &velocity_run		= move().get_velocity(MonsterMovement::eVelocityParameterRunNormal);
+    SVelocityParam& velocity_run = move().get_velocity(MonsterMovement::eVelocityParameterRunNormal);
     SVelocityParam& velocity_walk_dmg = move().get_velocity(MonsterMovement::eVelocityParameterWalkDamaged);
     //	SVelocityParam &velocity_run_dmg	= move().get_velocity(MonsterMovement::eVelocityParameterRunDamaged);
     SVelocityParam& velocity_steal = move().get_velocity(MonsterMovement::eVelocityParameterSteal);
@@ -145,8 +145,8 @@ void CPseudoGigant::Load(LPCSTR section)
     // "fx_stand_b",
     // "fx_stand_l", "fx_stand_r");
 
-    // 	anim().AddAnim(eAnimRunTurnLeft,	"stand_run_left_",		-1, &velocity_run,		PS_STAND);
-    // 	anim().AddAnim(eAnimRunTurnRight,	"stand_run_right_",		-1, &velocity_run,		PS_STAND);
+    anim().AddAnim(eAnimRunTurnLeft, { "stand_run_left_", true }, -1, &velocity_run, PS_STAND);
+    anim().AddAnim(eAnimRunTurnRight, { "stand_run_right_", true }, -1, &velocity_run, PS_STAND);
 
     anim().LinkAction(ACT_STAND_IDLE, eAnimStandIdle);
     anim().LinkAction(ACT_SIT_IDLE, eAnimSitIdle);
@@ -200,9 +200,9 @@ void CPseudoGigant::Load(LPCSTR section)
 
     // --------------------------------------------------------------------------------
 
-    ::Sound->create(
+    GEnv.Sound->create(
         m_sound_threaten_hit, pSettings->r_string(section, "sound_threaten_hit"), st_Effect, SOUND_TYPE_WORLD);
-    ::Sound->create(m_sound_start_threaten, pSettings->r_string(section, "sound_threaten_start"), st_Effect,
+    GEnv.Sound->create(m_sound_start_threaten, pSettings->r_string(section, "sound_threaten_start"), st_Effect,
         SOUND_TYPE_MONSTER_ATTACKING);
 
     m_kick_damage = pSettings->r_float(section, "HugeKick_Damage");
@@ -290,7 +290,7 @@ void CPseudoGigant::on_activate_control(ControlCom::EControlType type)
 void CPseudoGigant::on_threaten_execute()
 {
     // разбросить объекты
-    m_nearest.clear_not_free();
+    m_nearest.clear();
     Level().ObjectSpace.GetNearest(m_nearest, Position(), 15.f, NULL);
     for (u32 i = 0; i < m_nearest.size(); i++)
     {

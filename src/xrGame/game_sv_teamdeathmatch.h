@@ -17,7 +17,7 @@ protected:
     virtual void ConsoleCommands_Clear();
 
 public:
-    game_sv_TeamDeathmatch() { m_type = eGameIDTeamDeathmatch; }
+    game_sv_TeamDeathmatch() : teams_swaped(false) { m_type = eGameIDTeamDeathmatch; }
     virtual void Create(shared_str& options);
 
     virtual void OnEvent(NET_Packet& tNetPacket, u16 type, u32 time, ClientID sender);
@@ -52,7 +52,7 @@ public:
 
     virtual void LoadTeams();
 
-    virtual char* GetAnomalySetBaseName() { return "teamdeathmatch_game_anomaly_sets"; };
+    pcstr GetAnomalySetBaseName() override { return "teamdeathmatch_game_anomaly_sets"; };
     virtual BOOL CanHaveFriendlyFire() { return TRUE; }
     virtual void OnFraglimitExceed();
     virtual void OnTimelimitExceed();

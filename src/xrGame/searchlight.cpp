@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "searchlight.h"
 #include "xrEngine/LightAnimLibrary.h"
 #include "script_entity_action.h"
@@ -12,10 +12,10 @@
 
 CProjector::CProjector()
 {
-    light_render = GlobalEnv.Render->light_create();
+    light_render = GEnv.Render->light_create();
     light_render->set_type(IRender_Light::SPOT);
     light_render->set_shadow(true);
-    glow_render = GlobalEnv.Render->glow_create();
+    glow_render = GEnv.Render->glow_create();
     lanim = 0;
     bone_x.id = BI_NONE;
     bone_y.id = BI_NONE;
@@ -166,7 +166,6 @@ void CProjector::UpdateCL()
     angle_lerp(_current.pitch, _target.pitch, bone_y.velocity, Device.fTimeDelta);
 }
 
-void CProjector::renderable_Render() { inherited::renderable_Render(); }
 BOOL CProjector::UsedAI_Locations() { return (FALSE); }
 bool CProjector::bfAssignWatch(CScriptEntityAction* tpEntityAction)
 {

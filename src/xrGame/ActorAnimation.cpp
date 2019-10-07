@@ -1,23 +1,24 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "Actor.h"
 #include "ActorAnimation.h"
 #include "actor_anim_defs.h"
-#include "weapon.h"
-#include "inventory.h"
-#include "missile.h"
+#include "Weapon.h"
+#include "Inventory.h"
+#include "Missile.h"
 #include "Level.h"
 #ifdef DEBUG
 #include "PHDebug.h"
-#include "ui_base.h"
+#include "xrUICore/ui_base.h"
+#include "xrEngine/GameFont.h"
 #endif
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
 #include "Car.h"
 #include "Include/xrRender/Kinematics.h"
 #include "xrAICore/Navigation/ai_object_location.h"
 #include "game_cl_base.h"
 #include "xrCore/Animation/Motion.hpp"
-#include "artefact.h"
+#include "Artefact.h"
 #include "IKLimbsController.h"
 #include "player_hud.h"
 
@@ -174,7 +175,7 @@ void SActorState::CreateClimb(IKinematicsAnimated* K)
     landing[1] = K->ID_Cycle(strconcat(sizeof(buf), buf, base, "_jump_end_1"));
 
     for (int k = 0; k < 12; ++k)
-        m_damage[k] = K->ID_FX(strconcat(sizeof(buf), buf, base, "_damage_", itoa(k, buf1, 10)));
+        m_damage[k] = K->ID_FX(strconcat(sizeof(buf), buf, base, "_damage_", xr_itoa(k, buf1, 10)));
 }
 
 void SActorState::Create(IKinematicsAnimated* K, LPCSTR base)
@@ -209,7 +210,7 @@ void SActorState::Create(IKinematicsAnimated* K, LPCSTR base)
     landing[1] = K->ID_Cycle(strconcat(sizeof(buf), buf, base, "_jump_end_1"));
 
     for (int k = 0; k < 12; ++k)
-        m_damage[k] = K->ID_FX(strconcat(sizeof(buf), buf, base, "_damage_", itoa(k, buf1, 10)));
+        m_damage[k] = K->ID_FX(strconcat(sizeof(buf), buf, base, "_damage_", xr_itoa(k, buf1, 10)));
 }
 
 void SActorSprintState::Create(IKinematicsAnimated* K)
@@ -219,9 +220,9 @@ void SActorSprintState::Create(IKinematicsAnimated* K)
     legs_ls = K->ID_Cycle("norm_escape_ls_00");
     legs_rs = K->ID_Cycle("norm_escape_rs_00");
 
-    legs_jump_fwd = K->ID_Cycle("norm_escape_jump_00");
-    legs_jump_ls = K->ID_Cycle("norm_escape_ls_jump_00");
-    legs_jump_rs = K->ID_Cycle("norm_escape_rs_jump_00");
+    legs_jump_fwd = K->ID_Cycle_Safe("norm_escape_jump_00");
+    legs_jump_ls = K->ID_Cycle_Safe("norm_escape_ls_jump_00");
+    legs_jump_rs = K->ID_Cycle_Safe("norm_escape_rs_jump_00");
 }
 
 void SActorMotions::Create(IKinematicsAnimated* V)
@@ -254,13 +255,13 @@ SVehicleAnimCollection::SVehicleAnimCollection()
 void SVehicleAnimCollection::Create(IKinematicsAnimated* V, u16 num)
 {
     string128 buf, buff1, buff2;
-    strconcat(sizeof(buff1), buff1, itoa(num, buf, 10), "_");
+    strconcat(sizeof(buff1), buff1, xr_itoa(num, buf, 10), "_");
     steer_left = V->ID_Cycle(strconcat(sizeof(buf), buf, "steering_idle_", buff1, "ls"));
     steer_right = V->ID_Cycle(strconcat(sizeof(buf), buf, "steering_idle_", buff1, "rs"));
 
     for (int i = 0; MAX_IDLES > i; ++i)
     {
-        idles[i] = V->ID_Cycle_Safe(strconcat(sizeof(buf), buf, "steering_idle_", buff1, itoa(i, buff2, 10)));
+        idles[i] = V->ID_Cycle_Safe(strconcat(sizeof(buf), buf, "steering_idle_", buff1, xr_itoa(i, buff2, 10)));
         if (idles[i])
             idles_num++;
         else
@@ -272,14 +273,18 @@ void CActor::steer_Vehicle(float angle)
 {
     if (!m_holder)
         return;
-    /*
-        CCar*	car			= smart_cast<CCar*>(m_holder);
-        u16 anim_type       = car->DriverAnimationType();
-        SVehicleAnimCollection& anims=m_vehicle_anims->m_vehicles_type_collections[anim_type];
-        if(angle==0.f) 		smart_cast<IKinematicsAnimated*>	(Visual())->PlayCycle(anims.idles[0]);
-        else if(angle>0.f)	smart_cast<IKinematicsAnimated*>	(Visual())->PlayCycle(anims.steer_right);
-        else				smart_cast<IKinematicsAnimated*>	(Visual())->PlayCycle(anims.steer_left);
-    */
+
+    //Alundaio: Re-enable Car
+    CCar* car = smart_cast<CCar*>(m_holder);
+    u16 anim_type = car->DriverAnimationType();
+    SVehicleAnimCollection& anims = m_vehicle_anims->m_vehicles_type_collections[anim_type];
+    if (angle == 0.f)
+        smart_cast<IKinematicsAnimated*>(Visual())->PlayCycle(anims.idles[0]);
+    else if (angle > 0.f)
+        smart_cast<IKinematicsAnimated*>(Visual())->PlayCycle(anims.steer_right);
+    else 
+        smart_cast<IKinematicsAnimated*>(Visual())->PlayCycle(anims.steer_left);
+    //-Alundaio
 }
 
 void legs_play_callback(CBlend* blend)
@@ -296,11 +301,11 @@ void CActor::g_SetSprintAnimation(u32 mstate_rl, MotionID& head, MotionID& torso
     bool jump = (mstate_rl & mcFall) || (mstate_rl & mcLanding) || (mstate_rl & mcLanding2) || (mstate_rl & mcJump);
 
     if (mstate_rl & mcFwd)
-        legs = (!jump) ? sprint.legs_fwd : sprint.legs_jump_fwd;
+        legs = (jump && sprint.legs_jump_fwd.valid()) ? sprint.legs_jump_fwd : sprint.legs_fwd;
     else if (mstate_rl & mcLStrafe)
-        legs = (!jump) ? sprint.legs_ls : sprint.legs_jump_ls;
+        legs = (jump && sprint.legs_jump_ls.valid()) ? sprint.legs_jump_ls : sprint.legs_ls;
     else if (mstate_rl & mcRStrafe)
-        legs = (!jump) ? sprint.legs_rs : sprint.legs_jump_rs;
+        legs = (jump && sprint.legs_jump_rs.valid()) ? sprint.legs_jump_rs : sprint.legs_rs;
 }
 
 CMotion* FindMotionKeys(MotionID motion_ID, IRenderVisual* V)
@@ -310,9 +315,9 @@ CMotion* FindMotionKeys(MotionID motion_ID, IRenderVisual* V)
 }
 
 #ifdef DEBUG
-BOOL g_ShowAnimationInfo = TRUE;
+BOOL g_ShowAnimationInfo = FALSE;
 #endif // DEBUG
-char* mov_state[] = {
+constexpr pcstr mov_state[] = {
     "idle", "walk", "run", "sprint",
 };
 void CActor::g_SetAnimation(u32 mstate_rl)
@@ -639,26 +644,40 @@ void CActor::g_SetAnimation(u32 mstate_rl)
 #endif
 
 #ifdef DEBUG
-    if ((Level().CurrentControlEntity() == this) && g_ShowAnimationInfo)
+    if (g_ShowAnimationInfo && Level().CurrentControlEntity() == this)
     {
+        auto movement = character_physics_support()->movement();
+        auto pFontStat = UI().Font().pFontStat;
+        u32 color = pFontStat->GetColor();
+        pFontStat->SetColor(0xffffffff);
+        pFontStat->OutSet(170, 530);
+
         string128 buf;
         ConvState(mstate_rl, &buf);
-        UI().Font().pFontStat->OutNext("MSTATE:     [%s]", buf);
-        /*
-                switch (m_PhysicMovementControl->Environment())
-                {
-                case CPHMovementControl::peOnGround:	xr_strcpy(buf,"ground");			break;
-                case CPHMovementControl::peInAir:		xr_strcpy(buf,"air");				break;
-                case CPHMovementControl::peAtWall:		xr_strcpy(buf,"wall");				break;
-                }
-                UI().Font().pFontStat->OutNext	(buf);
-                UI().Font().pFontStat->OutNext	("Accel     [%3.2f, %3.2f, %3.2f]",VPUSH(NET_SavedAccel));
-                UI().Font().pFontStat->OutNext	("V         [%3.2f, %3.2f,
-           %3.2f]",VPUSH(m_PhysicMovementControl->GetVelocity()));
-                UI().Font().pFontStat->OutNext	("vertex ID   %d",ai_location().level_vertex_id());
+        pFontStat->OutNext("Movement state:       [%s]", buf);
+        switch (movement->Environment())
+        {
+        case CPHMovementControl::peOnGround:
+            pFontStat->OutNext("Movement environment: [OnGround]");
+            break;
+        case CPHMovementControl::peInAir:
+            pFontStat->OutNext("Movement environment: [InAir]");
+            break;
+        case CPHMovementControl::peAtWall:
+            pFontStat->OutNext("Movement environment: [AtWall]");
+            break;
+        }
 
-                Game().m_WeaponUsageStatistic->Draw();
-                */
+        pFontStat->OutNext("Vertex ID:            [%d]", ai_location().level_vertex_id());
+        pFontStat->OutNext("Position:             [%3.2f, %3.2f, %3.2f]", VPUSH(Position()));
+        pFontStat->OutNext("Accel:                [%3.2f, %3.2f, %3.2f]", VPUSH(NET_SavedAccel));
+        pFontStat->OutNext("Velocity:             [%3.2f, %3.2f, %3.2f]", VPUSH(movement->GetVelocity()));
+        pFontStat->OutNext("Vel Magnitude:        [%3.2f]", movement->GetVelocityMagnitude());
+        pFontStat->OutNext("Vel Actual:           [%3.2f]", movement->GetVelocityActual());
+
+        pFontStat->SetColor(color);
+
+        //Game().m_WeaponUsageStatistic->Draw();
     };
 #endif
 

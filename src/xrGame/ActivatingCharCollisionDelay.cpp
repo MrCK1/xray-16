@@ -1,10 +1,10 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 
-#include "activatingcharcollisiondelay.h"
+#include "ActivatingCharCollisionDelay.h"
 #include "CharacterPhysicsSupport.h"
-#include "phmovementcontrol.h"
+#include "PHMovementControl.h"
 #ifdef DEBUG
-#include "phdebug.h"
+#include "PHDebug.h"
 #endif
 activating_character_delay::activating_character_delay(CCharacterPhysicsSupport* char_support_)
     : char_support(*char_support_), activate_time(Device.dwTimeGlobal + delay)
@@ -45,8 +45,8 @@ bool activating_character_delay::do_position_correct()
     VERIFY(e_alife->g_Alive());
 #endif
     VERIFY(obj);
-    Fvector sv_pos = obj->Position();
-    bool ret = char_support.CollisionCorrectObjPos();
+    const Fvector& sv_pos = obj->Position();
+    const bool ret = char_support.CollisionCorrectObjPos();
     if (!ret)
         obj->Position().set(sv_pos);
 #if 0

@@ -42,7 +42,7 @@
 #include "restricted_object.h"
 #include "xrAICore/Navigation/ai_object_location.h"
 #include "Missile.h"
-#include "xrPhysics/iphworld.h"
+#include "xrPhysics/IPHWorld.h"
 #include "stalker_animation_names.h"
 #include "agent_corpse_manager.h"
 #include "CharacterPhysicsSupport.h"
@@ -229,7 +229,29 @@ void CAI_Stalker::Hit(SHit* pHDS)
     {
         float BoneArmor = m_boneHitProtection->getBoneArmor(HDS.bone());
         float ap = HDS.armor_piercing;
-        if (!fis_zero(BoneArmor, EPS))
+
+        if (ShadowOfChernobylMode || ClearSkyMode)
+        {
+            if (ap > EPS && ap > BoneArmor)
+            {
+                const float d_ap = ap - BoneArmor;
+                hit_power *= (d_ap / ap);
+
+                if (hit_power < m_boneHitProtection->m_fHitFracNpc)
+                {
+                    hit_power = m_boneHitProtection->m_fHitFracNpc;
+                }
+                if (hit_power < 0.0f) {
+                    hit_power = 0.0f;
+                }
+            }
+            else
+            {
+                hit_power *= m_boneHitProtection->m_fHitFracNpc;
+                HDS.add_wound = false;
+            }
+        }
+        else if (!fis_zero(BoneArmor, EPS))
         {
             if (ap > BoneArmor)
             {

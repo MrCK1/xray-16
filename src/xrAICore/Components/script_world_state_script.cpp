@@ -6,7 +6,7 @@
 //	Description : Script world state script export
 ////////////////////////////////////////////////////////////////////////////
 
-#include "ScriptPCH.hpp"
+#include "pch.hpp"
 #include "script_world_state.h"
 #include "condition_state.h"
 #include "xrScriptEngine/ScriptExporter.hpp"
@@ -21,7 +21,7 @@ SCRIPT_EXPORT(CScriptWorldState, (), {
                       .def("add_property", (void (CScriptWorldState::*)(const CScriptWorldState::COperatorCondition&))(
                                                &CScriptWorldState::add_condition))
                       .def("remove_property",
-                          (void (CScriptWorldState::*)(const CScriptWorldState::COperatorCondition::_condition_type&))(
+                          (void (CScriptWorldState::*)(const CScriptWorldState::COperatorCondition::condition_type&))(
                               &CScriptWorldState::remove_condition))
                       .def("clear", &CScriptWorldState::clear)
                       .def("includes", &CScriptWorldState::includes)

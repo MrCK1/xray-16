@@ -1,15 +1,12 @@
 // Frustum.h: interface for the CFrustum class.
 //
 //////////////////////////////////////////////////////////////////////
-
-#if !defined(AFX_FRUSTUM_H__E66ED755_F741_49CF_8B2A_404CCF7067F2__INCLUDED_)
-#define AFX_FRUSTUM_H__E66ED755_F741_49CF_8B2A_404CCF7067F2__INCLUDED_
+#pragma once
 
 #include "xrCDB.h"
 
-//#pragma once
-
-#include "xrCore/fixedvector.h"
+#include "xrCore/FixedVector.h"
+#include "xrCore/_plane.h"
 
 #pragma pack(push, 4)
 
@@ -45,7 +42,7 @@ public:
         void cache();
     };
     fplane planes[FRUSTUM_MAXPLANES];
-    int p_count;
+    size_t p_count;
 
 public:
     ICF EFC_Visible AABB_OverlapPlane(const fplane& P, const float* mM) const
@@ -73,13 +70,13 @@ public:
 
     void SimplifyPoly_AABB(sPoly* P, Fplane& plane);
 
-    void CreateOccluder(Fvector* p, int count, Fvector& vBase, CFrustum& clip);
+    void CreateOccluder(Fvector* p, size_t count, Fvector& vBase, CFrustum& clip);
     BOOL CreateFromClipPoly(
-        Fvector* p, int count, Fvector& vBase, CFrustum& clip); // returns 'false' if creation failed
-    void CreateFromPoints(Fvector* p, int count, Fvector& vBase);
+        Fvector* p, size_t count, Fvector& vBase, CFrustum& clip); // returns 'false' if creation failed
+    void CreateFromPoints(Fvector* p, size_t count, Fvector& vBase);
     void CreateFromMatrix(Fmatrix& M, u32 mask);
     void CreateFromPortal(sPoly* P, Fvector& vPN, Fvector& vBase, Fmatrix& mFullXFORM);
-    void CreateFromPlanes(Fplane* p, int count);
+    void CreateFromPlanes(Fplane* p, size_t count);
 
     sPoly* ClipPoly(sPoly& src, sPoly& dest) const;
 
@@ -88,19 +85,17 @@ public:
     BOOL testSphere_dirty(Fvector& c, float r) const;
     EFC_Visible testAABB(const float* mM, u32& test_mask) const;
     EFC_Visible testSAABB(Fvector& c, float r, const float* mM, u32& test_mask) const;
-    BOOL testPolyInside_dirty(Fvector* p, int count) const;
+    BOOL testPolyInside_dirty(Fvector* p, size_t count) const;
 
     IC BOOL testPolyInside(sPoly& src) const
     {
         sPoly d;
         return !!ClipPoly(src, d);
     }
-    IC BOOL testPolyInside(Fvector* p, int count) const
+    IC BOOL testPolyInside(Fvector* p, size_t count) const
     {
         sPoly src(p, count);
         return testPolyInside(src);
     }
 };
 #pragma pack(pop)
-
-#endif // !defined(AFX_FRUSTUM_H__E66ED755_F741_49CF_8B2A_404CCF7067F2__INCLUDED_)

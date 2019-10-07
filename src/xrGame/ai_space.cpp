@@ -6,7 +6,7 @@
 //  Description : AI space class
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "pch_script.h"
 #include "xrAICore/Navigation/game_graph.h"
 #include "xrAICore/Navigation/game_level_cross_table.h"
@@ -22,45 +22,47 @@
 #include "moving_objects.h"
 #include "doors_manager.h"
 
-ENGINE_API bool g_dedicated_server;
+CAI_Space* g_ai_space;
 
-CAI_Space* g_ai_space = 0;
-
-CAI_Space::CAI_Space()
+CAI_Space& CAI_Space::GetInstance()
 {
-    m_ef_storage = 0;
-    m_cover_manager = 0;
-    m_alife_simulator = 0;
-    m_moving_objects = 0;
-    m_doors_manager = 0;
+    if (!g_ai_space)
+    {
+        g_ai_space = new CAI_Space();
+        g_ai_space->init();
+    }
+    return *g_ai_space;
 }
 
 void CAI_Space::init()
 {
-    if (g_dedicated_server)
-        return;
-    AISpaceBase::Initialize();
-    VERIFY(!m_ef_storage);
-    m_ef_storage = new CEF_Storage();
+    R_ASSERT(!m_inited);
 
-    VERIFY(!m_cover_manager);
-    m_cover_manager = new CCoverManager();
+    if (!GEnv.isDedicatedServer)
+    {
+        AISpaceBase::Initialize();
 
-    VERIFY(!m_moving_objects);
-    m_moving_objects = new ::moving_objects();
-    VERIFY(!GlobalEnv.ScriptEngine);
-    GlobalEnv.ScriptEngine = new CScriptEngine();
-    SetupScriptEngine();
+        m_ef_storage = xr_make_unique<CEF_Storage>();
+        m_cover_manager = xr_make_unique<CCoverManager>();
+        m_moving_objects = xr_make_unique<::moving_objects>();
+
+        VERIFY(!GEnv.ScriptEngine);
+        GEnv.ScriptEngine = new CScriptEngine();
+        RestartScriptEngine();
+    }
+
+    m_inited = true;
 }
 
 CAI_Space::~CAI_Space()
 {
+    if (GEnv.ScriptEngine != nullptr)
+    {
+        m_events_notifier.FireEvent(EVENT_SCRIPT_ENGINE_RESET);
+    }
+
     unload();
-    xr_delete(GlobalEnv.ScriptEngine); // XXX: wrapped into try..catch(...) in vanilla source
-    xr_delete(m_doors_manager);
-    xr_delete(m_moving_objects);
-    xr_delete(m_cover_manager);
-    xr_delete(m_ef_storage);
+    xr_delete(GEnv.ScriptEngine); // XXX: wrapped into try..catch(...) in vanilla source
 }
 
 void CAI_Space::RegisterScriptClasses()
@@ -85,9 +87,9 @@ void CAI_Space::RegisterScriptClasses()
     {
         _GetItem(*registrators, i, I);
         luabind::functor<void> result;
-        if (!script_engine().functor(I, result))
+        if (!GEnv.ScriptEngine->functor(I, result))
         {
-            script_engine().script_log(LuaMessageType::Error, "Cannot load class registrator %s!", I);
+            GEnv.ScriptEngine->script_log(LuaMessageType::Error, "Cannot load class registrator %s!", I);
             continue;
         }
         result(const_cast<CObjectFactory*>(&object_factory()));
@@ -117,7 +119,7 @@ void CAI_Space::LoadCommonScripts()
         for (u32 i = 0; i < scriptCount; i++)
         {
             _GetItem(*scriptString, i, scriptName);
-            script_engine().load_file(scriptName, script_engine().GlobalNamespace);
+            GEnv.ScriptEngine->load_file(scriptName, CScriptEngine::GlobalNamespace);
         }
     }
     xr_delete(l_tpIniFile);
@@ -127,10 +129,28 @@ void CAI_Space::LoadCommonScripts()
 void CAI_Space::SetupScriptEngine()
 {
     XRay::ScriptExporter::Reset(); // mark all nodes as undone
-    GlobalEnv.ScriptEngine->init(XRay::ScriptExporter::Export, true);
+    GEnv.ScriptEngine->init(XRay::ScriptExporter::Export, true);
     RegisterScriptClasses();
     object_factory().register_script();
     LoadCommonScripts();
+}
+
+void CAI_Space::RestartScriptEngine()
+{
+    if (GEnv.ScriptEngine != nullptr)
+    {
+        m_events_notifier.FireEvent(EVENT_SCRIPT_ENGINE_RESET);
+    }
+
+    SetupScriptEngine();
+#ifdef DEBUG
+    get_moving_objects().clear();
+#endif // DEBUG
+
+    if (GEnv.ScriptEngine != nullptr)
+    {
+        m_events_notifier.FireEvent(EVENT_SCRIPT_ENGINE_STARTED);
+    }
 }
 
 void CAI_Space::load(LPCSTR level_name)
@@ -149,8 +169,7 @@ void CAI_Space::load(LPCSTR level_name)
     m_cover_manager->compute_static_cover();
     m_moving_objects->on_level_load();
 
-    VERIFY(!m_doors_manager);
-    m_doors_manager = new ::doors::manager(level_graph().header().box());
+    m_doors_manager.reset(new ::doors::manager(level_graph().header().box()));
 
 #ifdef DEBUG
     Msg("* Loading ai space is successfully completed (%.3fs, %7.3f Mb)", timer.GetElapsed_sec(),
@@ -160,10 +179,10 @@ void CAI_Space::load(LPCSTR level_name)
 
 void CAI_Space::unload(bool reload)
 {
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         return;
-    script_engine().unload();
-    xr_delete(m_doors_manager);
+    GEnv.ScriptEngine->unload();
+    m_doors_manager.reset(nullptr);
     AISpaceBase::Unload(reload);
 }
 
@@ -176,4 +195,9 @@ void CAI_Space::set_alife(CALifeSimulator* alife_simulator)
     if (alife_simulator)
         return;
     SetGameGraph(nullptr);
+}
+
+bool CAI_Space::Unsubscribe(CEventNotifierCallback::CID cid, EEventID event_id)
+{
+    return m_events_notifier.UnregisterCallback(cid, event_id);
 }

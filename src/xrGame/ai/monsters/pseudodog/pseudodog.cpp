@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "pseudodog.h"
 #include "pseudodog_state_manager.h"
 #include "Include/xrRender/KinematicsAnimated.h"
@@ -10,7 +10,6 @@
 #include "ai/monsters/control_movement_base.h"
 
 #ifdef _DEBUG
-#include <dinput.h>
 #include "xrAICore/Navigation/ai_object_location.h"
 #include "level_debug.h"
 #include "xrAICore/Navigation/level_graph.h"

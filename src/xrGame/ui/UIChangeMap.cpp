@@ -2,18 +2,17 @@
 #include "UIChangeMap.h"
 #include "UIVotingCategory.h"
 #include "UIXmlInit.h"
-#include "UI3tButton.h"
-#include "UIListBox.h"
-#include "UIListBoxItem.h"
+#include "xrUICore/Buttons/UI3tButton.h"
+#include "xrUICore/ListBox/UIListBox.h"
+#include "xrUICore/ListBox/UIListBoxItem.h"
 #include "Level.h"
 #include "game_cl_teamdeathmatch.h"
-#include "xrEngine/xr_ioconsole.h"
+#include "xrEngine/XR_IOConsole.h"
 #include "UIMapList.h"
 #include "Common/object_broker.h"
 #include "UIGameCustom.h"
 #include "UIDialogHolder.h"
-
-xr_token game_types[];
+#include "xrUICore/Windows/UIFrameWindow.h"
 
 CUIChangeMap::CUIChangeMap()
 {
@@ -78,10 +77,9 @@ void CUIChangeMap::InitChangeMap(CUIXml& xml_doc)
     FillUpList();
 }
 
-#include <dinput.h>
 bool CUIChangeMap::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
-    if (dik == DIK_ESCAPE)
+    if (dik == SDL_SCANCODE_ESCAPE)
     {
         OnBtnCancel();
         return true;
@@ -114,7 +112,7 @@ void CUIChangeMap::OnItemSelect()
     const shared_str& name = M.m_map_names[idx].map_name;
     LPSTR map_ver = NULL;
     STRCONCAT(map_ver, "[", M.m_map_names[idx].map_ver.c_str() ? M.m_map_names[idx].map_ver.c_str() : "unknown", "]");
-    xr_string map_name = "intro\\intro_map_pic_";
+    xr_string map_name = "intro" DELIMITER "intro_map_pic_";
     map_name += name.c_str();
     xr_string full_name = map_name + ".dds";
 
@@ -122,7 +120,7 @@ void CUIChangeMap::OnItemSelect()
     if (FS.exist("$game_textures$", full_name.c_str()))
         map_pic->InitTexture(map_name.c_str());
     else
-        map_pic->InitTexture("ui\\ui_noise");
+        map_pic->InitTexture("ui" DELIMITER "ui_noise");
 
     map_pic->SetTextureRect(orig_rect);
     map_version->SetText(map_ver);
@@ -152,7 +150,7 @@ void CUIChangeMap::FillUpList()
     u32 cnt = M.m_map_names.size();
     for (u32 i = 0; i < cnt; ++i)
     {
-        CUIListBoxItem* itm = lst->AddTextItem(CStringTable().translate(M.m_map_names[i].map_name).c_str());
+        CUIListBoxItem* itm = lst->AddTextItem(StringTable().translate(M.m_map_names[i].map_name).c_str());
         itm->Enable(true); // m_pExtraContentFilter->IsDataEnabled(M.m_map_names[i].map_name.c_str()));
     }
 }

@@ -1,7 +1,9 @@
+#pragma once
 #ifndef CAMERA_DEFS_H_INCLUDED
 #define CAMERA_DEFS_H_INCLUDED
 
-#pragma once
+#include "xrCore/fastdelegate.h"
+#include "xrCore/_vector3d.h"
 
 struct ENGINE_API SBaseEffector
 {
@@ -17,8 +19,11 @@ struct ENGINE_API SCamEffectorInfo
     Fvector n;
     Fvector r;
     float fFov;
+    float fNear;
     float fFar;
     float fAspect;
+    float offsetX; // Required for Nvidia Ansel
+    float offsetY; // Required for Nvidia Ansel
     bool dont_apply;
     bool affected_on_hud;
     SCamEffectorInfo();
@@ -29,8 +34,11 @@ struct ENGINE_API SCamEffectorInfo
         n = other.n;
         r = other.r;
         fFov = other.fFov;
+        fNear = other.fNear;
         fFar = other.fFar;
         fAspect = other.fAspect;
+        offsetX = other.offsetX;
+        offsetY = other.offsetY;
         dont_apply = other.dont_apply;
         affected_on_hud = other.affected_on_hud;
         return *this;
@@ -50,6 +58,7 @@ enum ECameraStyle
 enum ECamEffectorType
 {
     cefDemo = 0,
+    cefAnsel,
     cefNext
 };
 

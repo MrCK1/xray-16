@@ -1,5 +1,5 @@
 #include "pch_script.h"
-#include "actor.h"
+#include "Actor.h"
 #include "UIGameSP.h"
 #include "PDA.h"
 #include "Level.h"
@@ -20,12 +20,12 @@
 #include "ui/UIPdaWnd.h"
 #include "ui/UITalkWnd.h"
 #include "game_object_space.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "encyclopedia_article.h"
-#include "GameTaskManager.h"
-#include "GameTaskdefs.h"
-#include "infoportion.h"
-#include "inventory.h"
+#include "GametaskManager.h"
+#include "GameTaskDefs.h"
+#include "InfoPortion.h"
+#include "Inventory.h"
 #include "CustomDetector.h"
 #include "ai/monsters/basemonster/base_monster.h"
 #include "ai/trader/ai_trader.h"
@@ -40,6 +40,13 @@ void CActor::AddGameNews(GAME_NEWS_DATA& news_data)
     {
         CurrentGameUI()->UIMainIngameWnd->ReceiveNews(&news_data);
     }
+}
+
+void CActor::ClearGameNews()
+{
+    GAME_NEWS_VECTOR& news_vector = game_news_registry->registry().objects();
+    news_vector.clear();
+    m_defferedMessages.clear();
 }
 
 bool CActor::OnReceiveInfo(shared_str info_id) const

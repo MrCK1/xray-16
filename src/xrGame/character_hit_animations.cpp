@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #include "character_hit_animations.h"
 
@@ -8,7 +8,7 @@
 #include "Include/xrRender/Kinematics.h"
 #include "animation_utils.h"
 #ifdef DEBUG
-#include "phdebug.h"
+#include "PHDebug.h"
 #endif
 
 hit_animation_global_params ghit_anims_params;
@@ -77,8 +77,11 @@ IC void play_cycle(IKinematicsAnimated* CA, const MotionID& m, u8 channel, CBlen
             power *= g_params.reduce_power_factor;
     }
     CBlend* B = (CA->PlayCycle(m, mixin, 0, 0, channel));
-    B->blendAmount = power;
-    B->blendPower = power;
+    if (B)
+    {
+        B->blendAmount = power;
+        B->blendPower = power;
+    }
     blend_block = B;
 }
 

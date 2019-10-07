@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "best_scores_store.h"
 #include "xrGameSpy/GameSpy_Full.h"
 #include "xrGameSpy/GameSpy_SAKE.h"
@@ -13,7 +13,7 @@ best_scores_store::best_scores_store(CGameSpy_Full* fullgs_obj)
 
     init_field_names();
 
-    m_get_records_input.mTableId = profile_table_name;
+    m_get_records_input.mTableId = (char*)profile_table_name;
     m_get_records_input.mFieldNames = m_field_names_store;
     m_get_records_input.mNumFields = fields_count;
 }

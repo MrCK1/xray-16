@@ -1,13 +1,12 @@
+#pragma once
 #ifndef __SPECTATOR_H__
 #define __SPECTATOR_H__
 
-#pragma once
+#include "xrEngine/Feel_Touch.h"
+#include "xrEngine/IInputReceiver.h"
 
-#include "xrEngine/feel_touch.h"
-#include "xrEngine/iinputreceiver.h"
-
-#include "entity.h"
-#include "actor_flags.h"
+#include "Entity.h"
+#include "Actor_Flags.h"
 
 // refs
 class CActor;
@@ -78,7 +77,10 @@ public:
     virtual void On_SetEntity();
     virtual void On_LostEntity();
 
-    inline EActorCameras GetActiveCam() const { return cam_active; };
+    EActorCameras GetActiveCam() const { return cam_active; }
+
+    CCameraBase* cam_Active() { return cameras[cam_active]; }
+    CCameraBase* cam_FirstEye() { return cameras[eacFirstEye]; }
 };
 
 #endif // __SPECTATOR_H__

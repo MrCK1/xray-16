@@ -1,12 +1,12 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "game_sv_mp.h"
 #include "xrServer.h"
 #include "xrMessages.h"
 #include "xrServer_Object_Base.h"
 #include "xrServer_Objects.h"
 #include "Level.h"
-#include "xrserver_objects_alife_monsters.h"
-#include "actor.h"
+#include "xrServer_Objects_ALife_Monsters.h"
+#include "Actor.h"
 #include "xrEngine/XR_IOConsole.h"
 #include "xrEngine/IGame_Persistent.h"
 #include "date_time.h"
@@ -19,6 +19,8 @@
 #include "WeaponKnife.h"
 #include "game_cl_base_weapon_usage_statistic.h"
 #include "xrGameSpyServer.h"
+#include "xrNetServer/NET_Messages.h"
+#include "xrCore/xr_token.h"
 
 #include "game_sv_mp_vote_flags.h"
 #include "player_name_modifyer.h"
@@ -42,11 +44,13 @@ u32 g_sv_adm_menu_ban_time = 1;
 int g_sv_adm_menu_ping_limit = 25;
 //-----------------------------------------------------------------
 
-extern xr_token round_end_result_str[];
+extern const xr_token round_end_result_str[];
 
-#include "ui\UIBuyWndShared.h"
+#include "ui/UIBuyWndShared.h"
 
-game_sv_mp::game_sv_mp() : inherited()
+game_sv_mp::game_sv_mp()
+    : inherited(), m_bRankUp_Allowed(false), m_bVotingReal(false),
+      m_uVoteStartTime(0), m_u8SpectatorModes(0)
 {
     m_strWeaponsData = new CItemMgr();
     m_bVotingActive = false;
@@ -215,12 +219,17 @@ struct real_sender
     NET_Packet* P;
     u32 flags_to_send;
 
+#ifdef LINUX // FIXME!!!
+    real_sender(xrServer* server, NET_Packet* Packet, u32 flags = 0)
+#else
     real_sender(xrServer* server, NET_Packet* Packet, u32 flags = DPNSEND_GUARANTEED)
+#endif
     {
         server_for_send = server;
         P = Packet;
         flags_to_send = flags;
     }
+
     void operator()(IClient* client)
     {
         xrClientData* tmp_client = static_cast<xrClientData*>(client);
@@ -299,7 +308,7 @@ void game_sv_mp::OnEvent(NET_Packet& P, u16 type, u32 time, ClientID sender)
 #ifdef DEBUG
         xrClientData* l_pC = m_server->ID_to_client(sender);
         if (l_pC && l_pC->ps)
-            Msg("--- GAME_EVENT_PLAYER_KILLED: sender [%d][0x%08x]", l_pC->ps->GameID, sender);
+            Msg("--- GAME_EVENT_PLAYER_KILLED: sender [%d][0x%08x]", l_pC->ps->GameID, sender.value());
 #endif // #ifdef DEBUG
         OnPlayerKilled(P);
     }
@@ -308,7 +317,7 @@ void game_sv_mp::OnEvent(NET_Packet& P, u16 type, u32 time, ClientID sender)
 #ifdef DEBUG
         xrClientData* l_pC = m_server->ID_to_client(sender);
         if (l_pC && l_pC->ps)
-            Msg("--- GAME_EVENT_PLAYER_HITTED: sender [%d][0x%08x]", l_pC->ps->GameID, sender);
+            Msg("--- GAME_EVENT_PLAYER_HITTED: sender [%d][0x%08x]", l_pC->ps->GameID, sender.value());
 #endif // #ifdef DEBUG
         OnPlayerHitted(P);
     }
@@ -375,7 +384,7 @@ void game_sv_mp::OnEvent(NET_Packet& P, u16 type, u32 time, ClientID sender)
     break;
     case GAME_EVENT_PLAYER_STARTED: {
 #ifdef DEBUG
-        Msg("--- Player 0x%08x started.", sender);
+        Msg("--- Player 0x%08x started.", sender.value());
 #endif // #ifdef DEBUG
         if (CheckPlayerMapName(sender, P))
         {
@@ -432,7 +441,7 @@ bool game_sv_mp::CheckPlayerMapName(ClientID const& clientID, NET_Packet& P)
 
     if (xr_strcmp(Level().name().c_str(), temp_map_name))
     {
-        Msg("! Player 0x%08x has incorrect map name", clientID, temp_map_name);
+        Msg("! Player 0x%08x has incorrect map name", clientID.value(), temp_map_name);
         // ReconnectPlayer(clientID);
         return false;
     }
@@ -444,7 +453,7 @@ LPCSTR GameTypeToString(EGameIDs gt, bool bShort);
 void game_sv_mp::ReconnectPlayer(ClientID const& clientID)
 {
 #ifdef DEBUG
-    Msg("--- Reconnecting player 0x%08x", clientID);
+    Msg("--- Reconnecting player 0x%08x", clientID.value());
 #endif // #ifdef DEBUG
     NET_Packet P;
     P.w_begin(M_CHANGE_LEVEL_GAME);
@@ -897,7 +906,7 @@ void game_sv_mp::SpawnWeapon4Actor(u16 actorId, LPCSTR N, u8 Addons, game_Player
 
 void game_sv_mp::OnDestroyObject(u16 eid_who)
 {
-    CORPSE_LIST_it it = std::find(m_CorpseList.begin(), m_CorpseList.end(), eid_who);
+    auto it = std::find(m_CorpseList.begin(), m_CorpseList.end(), eid_who);
     if (it != m_CorpseList.end())
     {
         m_CorpseList.erase(it);
@@ -963,8 +972,8 @@ void game_sv_mp::OnPrevMap()
 
 struct _votecommands
 {
-    char* name;
-    char* command;
+    pcstr name;
+    pcstr command;
     u16 flag;
 };
 
@@ -1033,7 +1042,7 @@ void game_sv_mp::OnVoteStart(LPCSTR VoteCommand, ClientID sender)
     m_bVotingReal = false;
     while (votecommands[i].command)
     {
-        if (!stricmp(votecommands[i].name, CommandName))
+        if (!xr_stricmp(votecommands[i].name, CommandName))
         {
             m_bVotingReal = true;
             if (!IsVotingEnabled(votecommands[i].flag))
@@ -1054,7 +1063,7 @@ void game_sv_mp::OnVoteStart(LPCSTR VoteCommand, ClientID sender)
     m_uVoteStartTime = CurTime;
     if (m_bVotingReal)
     {
-        if (!stricmp(votecommands[i].name, "changeweather"))
+        if (!xr_stricmp(votecommands[i].name, "changeweather"))
         {
             string256 WeatherTime = "", WeatherName = "";
             sscanf(CommandParams, "%255s %255s", WeatherName, WeatherTime);
@@ -1062,11 +1071,11 @@ void game_sv_mp::OnVoteStart(LPCSTR VoteCommand, ClientID sender)
             m_pVoteCommand.printf("%s %s", votecommands[i].command, WeatherTime);
             xr_sprintf(resVoteCommand, "%s %s", votecommands[i].name, WeatherName);
         }
-        else if (!stricmp(votecommands[i].name, "changemap"))
+        else if (!xr_stricmp(votecommands[i].name, "changemap"))
         {
             string256 LevelName;
             string256 LevelVersion;
-            sscanf_s(CommandParams, "%255s %255s", LevelName, sizeof(LevelName), LevelVersion, sizeof(LevelVersion));
+            sscanf(CommandParams, "%255s %255s", LevelName, LevelVersion);
 #ifdef DEBUG
             Msg("--- Starting vote for changing level to: %s[%s]", LevelName, LevelVersion);
 #endif // #ifdef DEBUG
@@ -1078,7 +1087,7 @@ void game_sv_mp::OnVoteStart(LPCSTR VoteCommand, ClientID sender)
             m_pVoteCommand = sv_vote_command;
             xr_sprintf(resVoteCommand, "%s %s [%s]", votecommands[i].name, LevelName, LevelVersion);
         }
-        else if (!stricmp(votecommands[i].name, "kick"))
+        else if (!xr_stricmp(votecommands[i].name, "kick"))
         {
             SearcherClientByName tmp_predicate(CommandParams);
             IClient* tmp_client = m_server->FindClient(tmp_predicate);
@@ -1092,7 +1101,7 @@ void game_sv_mp::OnVoteStart(LPCSTR VoteCommand, ClientID sender)
             }
             xr_strcpy(resVoteCommand, VoteCommand);
         }
-        else if (!stricmp(votecommands[i].name, "ban"))
+        else if (!xr_stricmp(votecommands[i].name, "ban"))
         {
             string256 tmp_victim_name;
             s32 ban_time = ExcludeBanTimeFromVoteStr(CommandParams, tmp_victim_name, sizeof(tmp_victim_name));
@@ -1340,7 +1349,7 @@ void game_sv_mp::SetPlayersDefItems(game_PlayerState* ps)
     char tmp[5];
     for (int i = 1; i <= ps->rank; i++)
     {
-        strconcat(sizeof(RankStr), RankStr, "rank_", itoa(i, tmp, 10));
+        strconcat(sizeof(RankStr), RankStr, "rank_", xr_itoa(i, tmp, 10));
         if (!pSettings->section_exist(RankStr))
             continue;
         for (u32 it = 0; it < ps->pItemList.size(); it++)
@@ -1683,9 +1692,9 @@ void game_sv_mp::UpdatePlayersMoney()
         void operator()(IClient* client)
         {
             xrClientData* l_pC = static_cast<xrClientData*>(client);
-            game_PlayerState* ps = l_pC->ps;
-            if (!l_pC || !l_pC->net_Ready || !ps)
+            if (!l_pC || !l_pC->net_Ready || !l_pC->ps)
                 return;
+            game_PlayerState* ps = l_pC->ps;
             if (!ps->money_added && ps->m_aBonusMoney.empty())
                 return;
             //-----------------------------------------------------------
@@ -1809,7 +1818,7 @@ void game_sv_mp::RenewAllActorsHealth()
         void operator()(IClient* client)
         {
             xrClientData* l_pC = static_cast<xrClientData*>(client);
-            VERIFY2(l_pC->ps, make_string("player state of client, ClientID = 0x%08x", l_pC->ID.value()).c_str());
+            VERIFY2(l_pC && l_pC->ps, make_string("player state of client, ClientID = 0x%08x", l_pC->ID.value()).c_str());
             if (!l_pC || !l_pC->ps)
             {
                 return;
@@ -1909,9 +1918,9 @@ void game_sv_mp::DumpOnlineStatistic()
     xrGameSpyServer* srv = smart_cast<xrGameSpyServer*>(m_server);
 
     string_path fn;
-    FS.update_path(fn, "$logs$", "mp_stats\\");
+    FS.update_path(fn, "$logs$", "mp_stats" DELIMITER);
     xr_strcat(fn, srv->HostName.c_str());
-    xr_strcat(fn, "\\online_dump.ltx");
+    xr_strcat(fn, "" DELIMITER "online_dump.ltx");
 
     string64 t_stamp;
     timestamp(t_stamp);
@@ -1924,19 +1933,19 @@ void game_sv_mp::DumpOnlineStatistic()
 
     ini.w_u32(current_section.c_str(), "players_total_cnt", m_server->GetClientsCount());
 
-    xr_sprintf(str_buff, "\"%s\"", CStringTable().translate(Level().name().c_str()).c_str());
+    xr_sprintf(str_buff, "\"%s\"", StringTable().translate(Level().name().c_str()).c_str());
     ini.w_string(current_section.c_str(), "current_map_name", str_buff);
 
-    xr_sprintf(str_buff, "%s", CStringTable().translate(type_name()).c_str());
+    xr_sprintf(str_buff, "%s", StringTable().translate(type_name()).c_str());
     ini.w_string(current_section.c_str(), "game_mode", str_buff);
 
-    MAP_ROTATION_LIST_it it = m_pMapRotation_List.begin();
-    MAP_ROTATION_LIST_it it_e = m_pMapRotation_List.end();
+    auto it = m_pMapRotation_List.begin();
+    auto it_e = m_pMapRotation_List.end();
     for (u32 idx = 0; it != it_e; ++it, ++idx)
     {
         string16 num_buf;
         xr_sprintf(num_buf, "%d", idx);
-        xr_sprintf(str_buff, "\"%s\"", CStringTable().translate((*it).map_name.c_str()).c_str());
+        xr_sprintf(str_buff, "\"%s\"", StringTable().translate((*it).map_name.c_str()).c_str());
         ini.w_string("map_rotation", num_buf, str_buff);
     }
 
@@ -1954,7 +1963,7 @@ void game_sv_mp::DumpOnlineStatistic()
             if (!l_pC->ps)
                 return;
 
-            if (m_server->GetServerClient() == l_pC && g_dedicated_server)
+            if (m_server->GetServerClient() == l_pC && GEnv.isDedicatedServer)
                 return;
 
             if (!l_pC->net_Ready)
@@ -2090,11 +2099,11 @@ void game_sv_mp::StartToDumpStatistics()
     }
 
     xrGameSpyServer* srv = smart_cast<xrGameSpyServer*>(m_server);
-    FS.update_path(round_statistics_dump_fn, "$logs$", "mp_stats\\");
+    FS.update_path(round_statistics_dump_fn, "$logs$", "mp_stats" DELIMITER);
     string64 t_stamp;
     timestamp(t_stamp);
     xr_strcat(round_statistics_dump_fn, srv->HostName.c_str());
-    xr_strcat(round_statistics_dump_fn, "\\games\\dmp");
+    xr_strcat(round_statistics_dump_fn, DELIMITER "games" DELIMITER "dmp");
     xr_strcat(round_statistics_dump_fn, t_stamp);
     xr_strcat(round_statistics_dump_fn, ".ltx");
 }
@@ -2126,10 +2135,10 @@ void game_sv_mp::DumpRoundStatistics()
     timestamp(str_current_time);
     ini.w_string(current_section.c_str(), "end_time", str_current_time);
 
-    xr_sprintf(str_buff, "%s", CStringTable().translate(type_name()).c_str());
+    xr_sprintf(str_buff, "%s", StringTable().translate(type_name()).c_str());
     ini.w_string(current_section.c_str(), "game_mode", str_buff);
 
-    xr_sprintf(str_buff, "\"%s\"", CStringTable().translate(Level().name().c_str()).c_str());
+    xr_sprintf(str_buff, "\"%s\"", StringTable().translate(Level().name().c_str()).c_str());
     ini.w_string(current_section.c_str(), "current_map_name", str_buff);
 
     xr_sprintf(str_buff, "\"%s\"", Level().name().c_str());
@@ -2146,7 +2155,7 @@ void game_sv_mp::DumpRoundStatistics()
         {
             xrClientData* l_pC = static_cast<xrClientData*>(client);
 
-            if (m_server->GetServerClient() == l_pC && g_dedicated_server)
+            if (m_server->GetServerClient() == l_pC && GEnv.isDedicatedServer)
                 return;
             if (!l_pC->m_cdkey_digest.size())
                 return;
@@ -2299,11 +2308,11 @@ void game_sv_mp::OnPlayerChangeName(NET_Packet& P, ClientID sender)
     {
         Msg("Player \"%s\" try to change name on \"%s\" at public server.", ps->getName(), NewName);
 
-        NET_Packet P;
-        GenerateGameMessage(P);
-        P.w_u32(GAME_EVENT_SERVER_STRING_MESSAGE);
-        P.w_stringZ("Server is public. Can\'t change player name!");
-        m_server->SendTo(sender, P);
+        NET_Packet P2;
+        GenerateGameMessage(P2);
+        P2.w_u32(GAME_EVENT_SERVER_STRING_MESSAGE);
+        P2.w_stringZ("Server is public. Can\'t change player name!");
+        m_server->SendTo(sender, P2);
         return;
     }
 
@@ -2314,15 +2323,15 @@ void game_sv_mp::OnPlayerChangeName(NET_Packet& P, ClientID sender)
 
     if (pClient->owner)
     {
-        NET_Packet P;
-        GenerateGameMessage(P);
-        P.w_u32(GAME_EVENT_PLAYER_NAME);
-        P.w_u16(pClient->owner->ID);
-        P.w_s16(ps->team);
-        P.w_stringZ(old_name.c_str());
-        P.w_stringZ(ps->getName());
+        NET_Packet P3;
+        GenerateGameMessage(P3);
+        P3.w_u32(GAME_EVENT_PLAYER_NAME);
+        P3.w_u16(pClient->owner->ID);
+        P3.w_s16(ps->team);
+        P3.w_stringZ(old_name.c_str());
+        P3.w_stringZ(ps->getName());
         //---------------------------------------------------
-        real_sender tmp_functor(m_server, &P);
+        real_sender tmp_functor(m_server, &P3);
         m_server->ForEachClientDoSender(tmp_functor);
         //---------------------------------------------------
         pClient->owner->set_name_replace(ps->getName());

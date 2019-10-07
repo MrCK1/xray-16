@@ -9,7 +9,7 @@
 #pragma once
 
 #include "xrAICore/Navigation/game_graph_space.h"
-#include "xrserver_space.h"
+#include "xrServer_Space.h"
 #include "alife_space.h"
 
 class CSE_ALifeMonsterAbstract;
@@ -35,7 +35,7 @@ public:
 
     // sad, but true
 public:
-    void select_task();
+    void select_task(const bool forced = false);
 
 private:
     void process_task();
@@ -56,7 +56,8 @@ public:
     void on_switch_offline();
 
 public:
-    void update();
+    void update(const bool forced = false);
+    void update_script() { this->update(true); }
     bool perform_attack();
     ALife::EMeetActionType action_type(
         CSE_ALifeSchedulable* tpALifeSchedulable, const int& iGroupIndex, const bool& bMutualDetection);
@@ -64,7 +65,7 @@ public:
 public:
     IC object_type& object() const;
     IC movement_manager_type& movement() const;
-    IC CSE_ALifeSmartZone& smart_terrain();
+    CSE_ALifeSmartZone& smart_terrain();
     IC void can_choose_alife_tasks(bool value);
 };
 

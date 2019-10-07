@@ -21,12 +21,14 @@
 #include "script_monster_hit_info.h"
 #include "script_entity_action.h"
 #include "action_planner.h"
+#include "detail_path_manager_space.h"
 
 #include "helicopter.h"
 #include "script_zone.h"
 #include "relation_registry.h"
 #include "danger_object.h"
 #include "smart_cover_object.h"
+#include "xrScriptEngine/Functor.hpp"
 
 using namespace luabind;
 using namespace luabind::policy;
@@ -91,7 +93,9 @@ class_<CScriptGameObject>& script_register_game_object1(class_<CScriptGameObject
         .def("group", &CScriptGameObject::Group)
         .def("change_team", (void (CScriptGameObject::*)(u8, u8, u8))(&CScriptGameObject::ChangeTeam))
         .def("set_visual_memory_enabled", &CScriptGameObject::SetVisualMemoryEnabled)
-        .def("kill", &CScriptGameObject::Kill)
+         // XXX: this is a workaround, since luabind can't determine default function arguments...
+        .def("kill", (void (CScriptGameObject::*)(CScriptGameObject*))&CScriptGameObject::Kill)
+        .def("kill", (void (CScriptGameObject::*)(CScriptGameObject*, bool))(&CScriptGameObject::Kill))
         .def("hit", &CScriptGameObject::Hit)
         .def("play_cycle", (void (CScriptGameObject::*)(LPCSTR))(&CScriptGameObject::play_cycle))
         .def("play_cycle", (void (CScriptGameObject::*)(LPCSTR, bool))(&CScriptGameObject::play_cycle))
@@ -141,6 +145,21 @@ class_<CScriptGameObject>& script_register_game_object1(class_<CScriptGameObject
         .def("get_ammo_in_magazine", &CScriptGameObject::GetAmmoElapsed)
         .def("get_ammo_total", &CScriptGameObject::GetSuitableAmmoTotal)
         .def("set_ammo_elapsed", &CScriptGameObject::SetAmmoElapsed)
+        //Alundaio
+        .def("use", &CScriptGameObject::Use)
+        .def("start_trade", &CScriptGameObject::StartTrade)
+        .def("start_upgrade", &CScriptGameObject::StartUpgrade)
+        .def("get_ammo_type", &CScriptGameObject::GetAmmoType)
+        .def("set_ammo_type", &CScriptGameObject::SetAmmoType)
+        .def("get_ammo_count_for_type", &CScriptGameObject::GetAmmoCount)
+        .def("get_main_weapon_type", &CScriptGameObject::GetMainWeaponType)
+        .def("get_weapon_type", &CScriptGameObject::GetWeaponType)
+        .def("set_main_weapon_type", &CScriptGameObject::SetMainWeaponType)
+        .def("set_weapon_type", &CScriptGameObject::SetWeaponType)
+        .def("has_ammo_type", &CScriptGameObject::HasAmmoType)
+        .def("get_weapon_substate", &CScriptGameObject::GetWeaponSubstate)
+        .def("set_weight", &CScriptGameObject::SetWeight)
+        //-Alundaio
         .def("set_queue_size", &CScriptGameObject::SetQueueSize)
         //		.def("best_hit",					&CScriptGameObject::GetBestHit)
         //		.def("best_sound",					&CScriptGameObject::GetBestSound)
@@ -204,6 +223,11 @@ class_<CScriptGameObject>& script_register_game_object1(class_<CScriptGameObject
         .def("skip_transfer_enemy", &CScriptGameObject::skip_transfer_enemy)
         .def("set_home", (void (CScriptGameObject::*)(LPCSTR, float, float, bool, float))(&CScriptGameObject::set_home))
         .def("set_home", (void (CScriptGameObject::*)(u32, float, float, bool, float))(&CScriptGameObject::set_home))
+        .def("set_home", +[](CScriptGameObject* self, pcstr name, float r_min, float r_max, bool aggressive)
+        {
+            constexpr float defaultMiddleRadius = 20; // taken from COP mob_home.script
+            self->set_home(name, r_min, r_max, aggressive, defaultMiddleRadius);
+        })
         .def("remove_home", &CScriptGameObject::remove_home)
         .def("berserk", &CScriptGameObject::berserk)
         .def("can_script_capture", &CScriptGameObject::can_script_capture)
@@ -349,16 +373,16 @@ class_<CScriptGameObject>& script_register_game_object1(class_<CScriptGameObject
         .def("set_smart_cover_target_default", &CScriptGameObject::set_smart_cover_target_default)
 
         .def("idle_min_time", (void (CScriptGameObject::*)(float)) & CScriptGameObject::idle_min_time)
-        .def("idle_min_time", (float (CScriptGameObject::*)() const) & CScriptGameObject::idle_min_time)
+        .def("idle_min_time", (float const (CScriptGameObject::*)() const) & CScriptGameObject::idle_min_time)
 
         .def("idle_max_time", (void (CScriptGameObject::*)(float)) & CScriptGameObject::idle_max_time)
-        .def("idle_max_time", (float (CScriptGameObject::*)() const) & CScriptGameObject::idle_max_time)
+        .def("idle_max_time", (float const (CScriptGameObject::*)() const) & CScriptGameObject::idle_max_time)
 
         .def("lookout_min_time", (void (CScriptGameObject::*)(float)) & CScriptGameObject::lookout_min_time)
-        .def("lookout_min_time", (float (CScriptGameObject::*)() const) & CScriptGameObject::lookout_min_time)
+        .def("lookout_min_time", (float const (CScriptGameObject::*)() const) & CScriptGameObject::lookout_min_time)
 
         .def("lookout_max_time", (void (CScriptGameObject::*)(float)) & CScriptGameObject::lookout_max_time)
-        .def("lookout_max_time", (float (CScriptGameObject::*)() const) & CScriptGameObject::lookout_max_time)
+        .def("lookout_max_time", (float  const(CScriptGameObject::*)() const) & CScriptGameObject::lookout_max_time)
 
         .def("in_loophole_fov", &CScriptGameObject::in_loophole_fov)
         .def("in_current_loophole_fov", &CScriptGameObject::in_current_loophole_fov)

@@ -1,5 +1,5 @@
 #include "pch_script.h"
-#include "xrCore/LocatorApi.h"
+#include "xrCore/LocatorAPI.h"
 #include "xrScriptEngine/ScriptExporter.hpp"
 
 using namespace luabind;
@@ -14,6 +14,13 @@ LPCSTR update_path_script(CLocatorAPI* fs, LPCSTR initial, LPCSTR src)
     temp_2 = temp;
     return *temp_2;
 }
+
+//Alundaio: Set flag to rescan all files in path
+void rescan_path_script(CLocatorAPI* fs, pcstr initial)
+{
+    fs->get_path(initial)->m_Flags.set(FS_Path::flNeedRescan, true);
+}
+//-Alundaio
 
 class FS_file_list
 {
@@ -109,7 +116,7 @@ FS_file_list_ex::FS_file_list_ex(LPCSTR path, u32 flags, LPCSTR mask)
     FS_FileSet files;
     FS.file_list(files, path, flags, mask);
 
-    for (FS_FileSetIt it = files.begin(); it != files.end(); ++it)
+    for (auto it = files.begin(); it != files.end(); ++it)
     {
         m_file_items.push_back(FS_item());
         FS_item& itm = m_file_items.back();
@@ -192,6 +199,7 @@ SCRIPT_EXPORT(fs_registrator, (), {
             .def("GetAt", &FS_file_list::GetAt)
             .def("Free", &FS_file_list::Free),
 
+        // XXX: uncomment
         /*		class_<FS_Path>("FS_Path")
                     .def_readonly("m_Path",						&FS_Path::m_Path)
                     .def_readonly("m_Root",						&FS_Path::m_Root)
@@ -224,8 +232,10 @@ SCRIPT_EXPORT(fs_registrator, (), {
                 value("FSType_External", int(FSType::External)), value("FSType_Any", int(FSType::Any))]
             .def("path_exist", &CLocatorAPI::path_exist)
             .def("update_path", &update_path_script)
-            .def("get_path", &CLocatorAPI::get_path)
+            .def("get_path", static_cast<FS_Path*(CLocatorAPI::*)(pcstr)>(&CLocatorAPI::get_path))
+            .def("get_path", static_cast<bool(CLocatorAPI::*)(pcstr, FS_Path**)>(&CLocatorAPI::get_path))
             .def("append_path", &CLocatorAPI::append_path)
+            .def("rescan_path", &rescan_path_script) //Alundaio
 
             .def("file_delete", (void (CLocatorAPI::*)(LPCSTR, LPCSTR))(&CLocatorAPI::file_delete))
             .def("file_delete", (void (CLocatorAPI::*)(LPCSTR))(&CLocatorAPI::file_delete))

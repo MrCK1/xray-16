@@ -6,7 +6,7 @@
 //	Description : Smart dynamic cast
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #ifndef PURE_DYNAMIC_CAST
 #ifdef XRGAME_EXPORTS
@@ -16,7 +16,7 @@
 #include "actor.h"
 #include "custommonster.h"
 #include "ai/stalker/ai_stalker.h"
-#include "ui/uiwindow.h"
+#include "xrUICore/Windows/UIWindow.h"
 #include "customzone.h"
 #include "weapon.h"
 #include "cameraeffector.h"

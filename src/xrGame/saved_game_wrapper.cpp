@@ -6,7 +6,7 @@
 //	Description : saved game wrapper class
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "saved_game_wrapper.h"
 #include "alife_time_manager.h"
 #include "alife_object_registry.h"
@@ -19,10 +19,10 @@
 
 extern LPCSTR alife_section;
 
-LPCSTR CSavedGameWrapper::saved_game_full_name(LPCSTR saved_game_name, string_path& result)
+pcstr CSavedGameWrapper::saved_game_full_name(pcstr saved_game_name, string_path& result, pcstr extension)
 {
     string_path temp;
-    strconcat(sizeof(temp), temp, saved_game_name, SAVE_EXTENSION);
+    strconcat(sizeof(temp), temp, saved_game_name, extension);
     FS.update_path(result, "$game_saves$", temp);
     return (result);
 }
@@ -30,7 +30,9 @@ LPCSTR CSavedGameWrapper::saved_game_full_name(LPCSTR saved_game_name, string_pa
 bool CSavedGameWrapper::saved_game_exist(LPCSTR saved_game_name)
 {
     string_path file_name;
-    return (!!FS.exist(saved_game_full_name(saved_game_name, file_name)));
+    if (FS.exist(saved_game_full_name(saved_game_name, file_name, SAVE_EXTENSION)))
+        return true;
+    return FS.exist(saved_game_full_name(saved_game_name, file_name, SAVE_EXTENSION_LEGACY));
 }
 
 bool CSavedGameWrapper::valid_saved_game(IReader& stream)
@@ -50,8 +52,9 @@ bool CSavedGameWrapper::valid_saved_game(IReader& stream)
 bool CSavedGameWrapper::valid_saved_game(LPCSTR saved_game_name)
 {
     string_path file_name;
-    if (!FS.exist(saved_game_full_name(saved_game_name, file_name)))
-        return (false);
+    if (!FS.exist(saved_game_full_name(saved_game_name, file_name, SAVE_EXTENSION)))
+        if (!FS.exist(saved_game_full_name(saved_game_name, file_name, SAVE_EXTENSION_LEGACY)))
+            return false;
 
     IReader* stream = FS.r_open(file_name);
     bool result = valid_saved_game(*stream);
@@ -62,8 +65,11 @@ bool CSavedGameWrapper::valid_saved_game(LPCSTR saved_game_name)
 CSavedGameWrapper::CSavedGameWrapper(LPCSTR saved_game_name)
 {
     string_path file_name;
-    saved_game_full_name(saved_game_name, file_name);
-    R_ASSERT3(FS.exist(file_name), "There is no saved game ", file_name);
+    saved_game_full_name(saved_game_name, file_name, SAVE_EXTENSION);
+    if (!FS.exist(file_name))
+        saved_game_full_name(saved_game_name, file_name, SAVE_EXTENSION_LEGACY);
+
+    R_ASSERT3(FS.exist(file_name), "There is no saved game ", saved_game_name);
 
     IReader* stream = FS.r_open(file_name);
     if (!valid_saved_game(*stream))
@@ -161,7 +167,10 @@ CSavedGameWrapper::CSavedGameWrapper(LPCSTR saved_game_name)
         {
             CGameGraph graph(*chunk);
             m_level_id = graph.vertex(object->m_tGraphID)->level_id();
-            m_level_name = graph.header().level(m_level_id).name();
+            if (graph.header().level_exist(m_level_id))
+                m_level_name = graph.header().level(m_level_id).name();
+            else
+                m_level_name = StringTable().translate("ui_st_error");
         }
 
         chunk->close();

@@ -1,7 +1,6 @@
-#ifndef ELEVATOR_STAETE
-#define ELEVATOR_STAETE
+#pragma once
 
-#include "ielevatorstate.h"
+#include "IElevatorState.h"
 class CPHCharacter;
 struct dContact;
 struct SGameMtl;
@@ -19,7 +18,7 @@ private:
         u32 time;
     };
 
-    static SEnertionState m_etable[CElevatorState::clbNoState][CElevatorState::clbNoState];
+    static SEnertionState m_etable[::clbNoState][::clbNoState];
 
     IClimableObject* m_ladder;
     CPHCharacter* m_character;
@@ -62,5 +61,3 @@ private:
 public:
     void NetRelcase(IPhysicsShellHolder* O);
 };
-
-#endif

@@ -1,8 +1,8 @@
 #ifndef UITEAMSTATE
 #define UITEAMSTATE
 
-#include "ui/UIWindow.h"
-#include "ui/xrUIXmlParser.h"
+#include "xrUICore/Windows/UIWindow.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 #include "ui/UIXmlInit.h"
 
 #include "game_cl_base.h"
@@ -43,7 +43,7 @@ private:
     ETeam myTeam;
     MapClientIdToUIPlayer myPlayers;
 
-    XML_NODE* teamXmlNode;
+    XML_NODE teamXmlNode;
     CUIXml* mainUiXml;
 
     TScrollPanels m_scroll_panels;

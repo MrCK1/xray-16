@@ -1,7 +1,7 @@
-#include "stdafx.h"
-#include "game_sv_ArtefactHunt.h"
-#include "xrserver_objects_alife_monsters.h"
-#include "xrserver.h"
+#include "StdAfx.h"
+#include "game_sv_artefacthunt.h"
+#include "xrServer_Objects_ALife_Monsters.h"
+#include "xrServer.h"
 #include "Level.h"
 #include "Common/LevelGameDef.h"
 #include "Actor.h"
@@ -10,8 +10,9 @@
 #include "Artefact.h"
 #include "MPPlayersBag.h"
 #include "WeaponKnife.h"
-#include "ui\UIBuyWndShared.h"
+#include "ui/UIBuyWndShared.h"
 #include "game_cl_base_weapon_usage_statistic.h"
+#include "xrNetServer/NET_Messages.h"
 
 BOOL g_SV_Force_Artefact_Spawn = FALSE;
 
@@ -421,7 +422,7 @@ void game_sv_ArtefactHunt::SetRP(CSE_Abstract* E, RPoint* pRP)
     }
 }
 
-struct RemoveBlockedRPointPredicate : public std::unary_function<RPoint*, bool>
+struct RemoveBlockedRPointPredicate
 {
     bool operator()(RPoint* rp) const
     {
@@ -1139,11 +1140,12 @@ bool game_sv_ArtefactHunt::CheckAlivePlayersInTeam(s16 Team)
         u32 cnt_alive;
         u32 cnt_exist;
         s16 Team;
-        alife_players_counter_in_team()
+        alife_players_counter_in_team() : Team(0)
         {
             cnt_alive = 0;
             cnt_exist = 0;
         }
+
         void operator()(IClient* client)
         {
             xrClientData* l_pC = static_cast<xrClientData*>(client);
@@ -1182,6 +1184,7 @@ void game_sv_ArtefactHunt::MoveAllAlivePlayers()
         game_sv_ArtefactHunt* m_owner;
 
         alife_players_teleporter()
+            : m_server(nullptr), m_owner(nullptr)
         {
             AliveCount = 0;
             tmpP.B.count = 0;
@@ -1498,14 +1501,14 @@ bool game_sv_ArtefactHunt::Player_Check_Rank(game_PlayerState* ps)
 
 void game_sv_ArtefactHunt::OnPlayerHitPlayer_Case(game_PlayerState* ps_hitter, game_PlayerState* ps_hitted, SHit* pHitS)
 {
-    // if (pHitS->hit_type != ALife::eHitTypePhysicStrike)
-    //{
-    if (ps_hitted->testFlag(GAME_PLAYER_FLAG_ONBASE) && Get_ShieldedBases())
+    if (pHitS->hit_type != ALife::eHitTypePhysicStrike)
     {
-        pHitS->power = 0;
-        pHitS->impulse = 0;
+        if (ps_hitted->testFlag(GAME_PLAYER_FLAG_ONBASE) && Get_ShieldedBases())
+        {
+            pHitS->power = 0;
+            pHitS->impulse = 0;
+        }
     }
-    //	}
     inherited::OnPlayerHitPlayer_Case(ps_hitter, ps_hitted, pHitS);
 };
 

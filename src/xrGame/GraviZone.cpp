@@ -1,11 +1,11 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 
-#include "gravizone.h"
+#include "GraviZone.h"
 
 #include "xrPhysics/PhysicsShell.h"
 #include "entity_alive.h"
-#include "phmovementcontrol.h"
-#include "xrmessages.h"
+#include "PHMovementControl.h"
+#include "xrMessages.h"
 #include "PhysicsShellHolder.h"
 #include "Level.h"
 #include "CharacterPhysicsSupport.h"
@@ -69,7 +69,7 @@ bool CBaseGraviZone::IdleState()
     {
         if (m_dwTeleTime > m_dwTimeToTele)
         {
-            for (OBJECT_INFO_VEC_IT it = m_ObjectInfoMap.begin(); m_ObjectInfoMap.end() != it; ++it)
+            for (auto it = m_ObjectInfoMap.begin(); m_ObjectInfoMap.end() != it; ++it)
             {
                 CPhysicsShellHolder* GO = smart_cast<CPhysicsShellHolder*>((*it).object);
 
@@ -84,7 +84,7 @@ bool CBaseGraviZone::IdleState()
         {
             m_dwTeleTime = 0;
 
-            for (OBJECT_INFO_VEC_IT it = m_ObjectInfoMap.begin(); m_ObjectInfoMap.end() != it; ++it)
+            for (auto it = m_ObjectInfoMap.begin(); m_ObjectInfoMap.end() != it; ++it)
             {
                 CPhysicsShellHolder* GO = smart_cast<CPhysicsShellHolder*>((*it).object);
 

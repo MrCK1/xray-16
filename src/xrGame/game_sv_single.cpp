@@ -1,12 +1,12 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "game_sv_single.h"
-#include "xrserver_objects_alife_monsters.h"
+#include "xrServer_Objects_ALife_Monsters.h"
 #include "alife_simulator.h"
 #include "alife_object_registry.h"
 #include "alife_graph_registry.h"
 #include "alife_time_manager.h"
 #include "Common/object_broker.h"
-#include "gamepersistent.h"
+#include "GamePersistent.h"
 #include "xrServer.h"
 #include "xrEngine/x_ray.h"
 
@@ -149,7 +149,7 @@ void game_sv_Single::OnDetach(u16 eid_who, u16 eid_what)
                 Msg("Cannot detach object [%s][%s][%d] from object [%s][%s][%d]",
                     l_tpALifeInventoryItem->base()->name_replace(), *l_tpALifeInventoryItem->base()->s_name,
                     l_tpALifeInventoryItem->base()->ID, l_tpDynamicObject->base()->name_replace(),
-                    l_tpDynamicObject->base()->s_name, l_tpDynamicObject->ID);
+                    l_tpDynamicObject->base()->s_name.c_str(), l_tpDynamicObject->ID);
             }
 #endif
         }
@@ -331,12 +331,9 @@ void game_sv_Single::restart_simulator(LPCSTR saved_game_name)
     xr_strcpy(g_pGamePersistent->m_game_params.m_game_or_spawn, saved_game_name);
     xr_strcpy(g_pGamePersistent->m_game_params.m_new_or_load, "load");
 
-    pApp->ls_header[0] = '\0';
-    pApp->ls_tip_number[0] = '\0';
-    pApp->ls_tip[0] = '\0';
     pApp->LoadBegin();
     m_alife_simulator = new CALifeSimulator(&server(), &options);
-    //	g_pGamePersistent->LoadTitle		("st_client_synchronising");
+    g_pGamePersistent->SetLoadStageTitle("st_client_synchronising");
     g_pGamePersistent->LoadTitle();
     Device.PreCache(60, true, true);
     pApp->LoadEnd();

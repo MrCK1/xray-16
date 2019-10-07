@@ -1,5 +1,4 @@
-#ifndef PH_IMPACT_H
-#define PH_IMPACT_H
+#pragma once
 
 struct SPHImpact
 {
@@ -13,6 +12,4 @@ struct SPHImpact
         geom = root_geom;
     }
 };
-DEFINE_VECTOR(SPHImpact, PH_IMPACT_STORAGE, PH_IMPACT_I)
-
-#endif
+using PH_IMPACT_STORAGE = xr_vector<SPHImpact>;

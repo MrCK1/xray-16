@@ -8,7 +8,7 @@
 
 #include "pch_script.h"
 #include "smart_cover_object.h"
-#include "xrServerEntities/xrServer_Objects_ALife_Smartcovers.h"
+#include "xrServerEntities/xrServer_Objects_Alife_Smartcovers.h"
 #include "Level.h"
 #include "debug_renderer.h"
 #include "ai_space.h"
@@ -90,7 +90,7 @@ void dbg_draw_frustum(float FOV, float _FAR, float A, Fvector& P, Fvector& D, Fv
 
 void object::OnRender()
 {
-    GlobalEnv.DRender->OnFrameEnd();
+    GEnv.DRender->OnFrameEnd();
     Fvector l_half;
     l_half.set(.5f, .5f, .5f);
     Fmatrix l_ball, l_box;

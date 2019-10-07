@@ -1,14 +1,14 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "alife_space.h"
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
-#include "mincer.h"
-#include "xrmessages.h"
+#include "Mincer.h"
+#include "xrMessages.h"
 #include "Level.h"
 #include "CustomZone.h"
 #include "entity_alive.h"
 #include "PHDestroyableNotificate.h"
-#include "actor.h"
+#include "Actor.h"
 
 CMincer::CMincer(void) { m_fActorBlowoutRadiusPercent = 0.5f; }
 CMincer::~CMincer(void) {}
@@ -16,8 +16,7 @@ void CMincer::OnStateSwitch(EZoneState new_state)
 {
     if (m_eZoneState != eZoneStateBlowout && new_state == eZoneStateBlowout)
     {
-        OBJECT_INFO_VEC_IT it;
-        for (it = m_ObjectInfoMap.begin(); m_ObjectInfoMap.end() != it; ++it)
+        for (auto it = m_ObjectInfoMap.begin(); m_ObjectInfoMap.end() != it; ++it)
         {
             CPhysicsShellHolder* GO = smart_cast<CPhysicsShellHolder*>((*it).object);
             if (GO)

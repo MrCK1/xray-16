@@ -1,12 +1,13 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #ifdef DEBUG
 #include "PHDebug.h"
 #include "alife_space.h"
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
 #include "Car.h"
 #include "Level.h"
-#include "ui_base.h"
+#include "xrUICore/ui_base.h"
+#include "xrEngine/GameFont.h"
 
 void CCar::InitDebug()
 {
@@ -64,7 +65,7 @@ void CCar::DbgCreatePlots()
     if (b_auto_switch_transmission && ph_dbg_draw_mask.test(phDbgDrawCarAllTrnsm))
     {
         xr_vector<Fvector>::iterator i = m_gear_ratious.begin() + 1, e = m_gear_ratious.end();
-        for (; i < e; i++)
+        for (; i < e; ++i)
         {
             float r = 4 * m_dbg_torque_rpm.ResolutionX();
             m_dbg_torque_rpm.AddMarker(CStatGraph::stVert, (*i)[1] + r, color_xrgb(255, 255, 0));
@@ -86,7 +87,7 @@ void CCar::DbgCreatePlots()
     //--------------------------------------
     m_dbg_dynamic_plot->AddMarker(CStatGraph::stHor, 0, color_xrgb(255, 0, 0));
     xr_vector<Fvector>::iterator i = m_gear_ratious.begin() + 1, e = m_gear_ratious.end();
-    for (; i < e; i++)
+    for (; i < e; ++i)
     {
         m_dbg_dynamic_plot->AddMarker(CStatGraph::stHor, (*i)[1] / rpm_pow_max_ratio, color_xrgb(127, 0, 0));
         m_dbg_dynamic_plot->AddMarker(CStatGraph::stHor, (*i)[2] / rpm_pow_max_ratio, color_xrgb(0, 0, 127));

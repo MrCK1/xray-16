@@ -1,7 +1,7 @@
 #pragma once
 
 #include "inventory_item_object.h"
-#include "hudsound.h"
+#include "HudSound.h"
 
 class CLAItem;
 class CNightVisionEffector;
@@ -80,7 +80,6 @@ public:
     virtual void setup_physic_shell();
 
     virtual void afterDetach();
-    virtual void renderable_Render();
 };
 
 class CNightVisionEffector

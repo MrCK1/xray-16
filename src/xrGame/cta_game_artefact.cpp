@@ -6,11 +6,11 @@
 //	Description	:	Artefact object for Capture The Artefact game mode
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "cta_game_artefact.h"
 #include "cta_game_artefact_activation.h"
 #include "game_cl_capture_the_artefact.h"
-#include "xrServer_Objects_Alife_Items.h"
+#include "xrServer_Objects_ALife_Items.h"
 #include "xr_level_controller.h"
 
 CtaGameArtefact::CtaGameArtefact()
@@ -57,9 +57,9 @@ bool CtaGameArtefact::Action(s32 cmd, u32 flags)
     return inherited::Action((u16)cmd, flags);
 }
 
-void CtaGameArtefact::OnStateSwitch(u32 S)
+void CtaGameArtefact::OnStateSwitch(u32 S, u32 oldState)
 {
-    inherited::OnStateSwitch(S);
+    inherited::OnStateSwitch(S, oldState);
     /*// just temporary (before we get huds for artefact activation)
     if (S == eActivating)
     {
@@ -68,7 +68,7 @@ void CtaGameArtefact::OnStateSwitch(u32 S)
         return;
     } else
     {
-        //inherited::OnStateSwitch(S);
+        //inherited::OnStateSwitch(S, oldState);
     }*/
 }
 

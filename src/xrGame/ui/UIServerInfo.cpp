@@ -1,16 +1,19 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIServerInfo.h"
-#include "UIStatic.h"
-#include "UICursor.h"
-#include "UIScrollView.h"
+#include "xrUICore/Static/UIStatic.h"
+#include "xrUICore/Cursor/UICursor.h"
+#include "xrUICore/ScrollView/UIScrollView.h"
 #include "UIXmlInit.h"
-#include "UI3tButton.h"
+#include "xrUICore/Buttons/UI3tButton.h"
 #include "UIGameCustom.h"
 #include "Level.h"
 #include "game_cl_mp.h"
-#include <dinput.h>
+
 #include "ximage.h"
 #include "xmemfile.h"
+
+// XXX: uncomment, test and remove CxImage that is currectly used
+//#include <FreeImage/FreeImagePlus.h>
 
 CUIServerInfo::CUIServerInfo()
 {
@@ -52,7 +55,7 @@ void CUIServerInfo::SendMessage(CUIWindow* pWnd, s16 msg, void* pData) { CUIWndC
 void CUIServerInfo::Init()
 {
     CUIXml xml_doc;
-    xml_doc.Load(CONFIG_PATH, UI_PATH, "server_info.xml");
+    xml_doc.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "server_info.xml");
 
     CUIXmlInit::InitWindow(xml_doc, "server_info", 0, this);
     CUIXmlInit::InitStatic(xml_doc, "server_info:caption", 0, m_caption);
@@ -66,7 +69,7 @@ void CUIServerInfo::Init()
     m_text_desc->AddWindow(m_text_body, true);
 
     Frect orig_rect = m_image->GetTextureRect();
-    m_image->InitTexture("ui\\ui_noise");
+    m_image->InitTexture("ui" DELIMITER "ui_noise");
     m_image->SetTextureRect(orig_rect);
     m_image->SetStretchTexture(true);
 
@@ -91,6 +94,18 @@ void CUIServerInfo::InitCallbacks()
 char const* CUIServerInfo::tmp_logo_file_name = "tmp_sv_logo.dds";
 void CUIServerInfo::SetServerLogo(u8 const* data_ptr, u32 const data_size)
 {
+    // XXX: uncomment, test and remove CxImage that is currectly used
+    /*fipImage tmpImage;
+    fipMemoryIO tmpMemFile(const_cast<BYTE*>(data_ptr), data_size);
+    
+    tmpImage.loadFromMemory(tmpMemFile);
+
+    if (!tmpImage.isValid() || tmpImage.getFIF() != FIF_JPEG);
+    {
+        Msg("! ERROR: Failed to decode server logo image as JPEG formatted.");
+        return;
+    }*/
+
     CxMemFile tmp_memfile(const_cast<BYTE*>(data_ptr), data_size);
     CxImage tmp_image;
     if (!tmp_image.Decode(&tmp_memfile, CXIMAGE_FORMAT_JPG))
@@ -119,15 +134,15 @@ void CUIServerInfo::SetServerRules(u8 const* data_ptr, u32 const data_size)
     if (new_size > (sizeof(tmp_string) - 1))
         new_size = (sizeof(tmp_string) - 1);
 
-    strncpy_s(tmp_string, reinterpret_cast<char const*>(data_ptr), new_size);
+    strncpy_s(tmp_string, sizeof(tmp_string), reinterpret_cast<char const*>(data_ptr), new_size);
     tmp_string[new_size] = 0;
 
-    // std::replace(tmp_string, tmp_string + new_size, '\r', '\\');
+    // std::replace(tmp_string, tmp_string + new_size, '\r', _DELIMITER);
     // std::replace(tmp_string, tmp_string + new_size, '\n', 'n');
     char* tmp_iter = strstr(tmp_string, "\r\n");
     while (tmp_iter != NULL)
     {
-        *tmp_iter = '\\';
+        *tmp_iter = _DELIMITER;
         *(tmp_iter + 1) = 'n';
         tmp_iter += 2;
         tmp_iter = strstr(tmp_iter, "\r\n");
@@ -159,8 +174,8 @@ bool CUIServerInfo::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
     switch (dik)
     {
-    case DIK_SPACE:
-    case DIK_RETURN:
+    case SDL_SCANCODE_SPACE:
+    case SDL_SCANCODE_RETURN:
     {
         OnNextBtnClick(NULL, 0);
         return true;

@@ -5,12 +5,12 @@
 //	---------------------------------------------------------------------------
 //  Multiplayer game log window
 //=============================================================================
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIGameLog.h"
 #include "UIXmlInit.h"
 #include "UIPdaMsgListItem.h"
 #include "UIPdaKillMessage.h"
-#include "UILines.h"
+#include "xrUICore/Lines/UILines.h"
 
 CUIGameLog::CUIGameLog()
 {
@@ -80,8 +80,8 @@ void CUIGameLog::Update()
     CUIScrollView::Update();
     toDelList.clear();
 
-    WINDOW_LIST_it it = m_pad->GetChildWndList().begin();
-    WINDOW_LIST_it it_e = m_pad->GetChildWndList().end();
+    auto it = m_pad->GetChildWndList().begin();
+    auto it_e = m_pad->GetChildWndList().end();
 
     for (; it != it_e; ++it)
     {

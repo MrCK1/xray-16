@@ -6,7 +6,7 @@
 #include "stalker_planner.h"
 #include "ai/stalker/ai_stalker.h"
 #include "searchlight.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "game_object_space.h"
 #include "memory_manager.h"
 #include "enemy_manager.h"
@@ -15,7 +15,7 @@
 #include "PHCommander.h"
 #include "PHScriptCall.h"
 #include "PHSimpleCalls.h"
-#include "xrPhysics/iphworld.h"
+#include "xrPhysics/IPHWorld.h"
 #include "doors_manager.h"
 
 void CScriptGameObject::SetTipText(LPCSTR tip_text) { object().set_tip_text(tip_text); }
@@ -26,7 +26,7 @@ Fvector CScriptGameObject::GetCurrentDirection()
     CProjector* obj = smart_cast<CProjector*>(&object());
     if (!obj)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "Script Object : cannot access class member GetCurrentDirection!");
         return Fvector().set(0.f, 0.f, 0.f);
     }
@@ -59,19 +59,19 @@ int CScriptGameObject::clsid() const { return (object().clsid()); }
 LPCSTR CScriptGameObject::Name() const { return (*object().cName()); }
 shared_str CScriptGameObject::cName() const { return (object().cName()); }
 LPCSTR CScriptGameObject::Section() const { return (*object().cNameSect()); }
-void CScriptGameObject::Kill(CScriptGameObject* who)
+void CScriptGameObject::Kill(CScriptGameObject* who, bool bypass_actor_check /*AVO: added for actor before death callback*/)
 {
     CEntity* l_tpEntity = smart_cast<CEntity*>(&object());
     if (!l_tpEntity)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "%s cannot access class member Kill!", *object().cName());
         return;
     }
     if (!l_tpEntity->AlreadyDie())
-        l_tpEntity->KillEntity(who ? who->object().ID() : object().ID());
+        l_tpEntity->KillEntity(who ? who->object().ID() : object().ID(), bypass_actor_check);
     else
-        ai().script_engine().script_log(LuaMessageType::Error, "attempt to kill dead object %s", *object().cName());
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "attempt to kill dead object %s", *object().cName());
 }
 
 bool CScriptGameObject::Alive() const
@@ -79,7 +79,7 @@ bool CScriptGameObject::Alive() const
     CEntity* entity = smart_cast<CEntity*>(&object());
     if (!entity)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CSciptEntity : cannot access class member Alive!");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CSciptEntity : cannot access class member Alive!");
         return (false);
     }
     return (!!entity->g_Alive());
@@ -90,7 +90,7 @@ ALife::ERelationType CScriptGameObject::GetRelationType(CScriptGameObject* who)
     CEntityAlive* l_tpEntityAlive1 = smart_cast<CEntityAlive*>(&object());
     if (!l_tpEntityAlive1)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "%s cannot access class member GetRelationType!", *object().cName());
         return ALife::eRelationTypeDummy;
     }
@@ -98,7 +98,7 @@ ALife::ERelationType CScriptGameObject::GetRelationType(CScriptGameObject* who)
     CEntityAlive* l_tpEntityAlive2 = smart_cast<CEntityAlive*>(&who->object());
     if (!l_tpEntityAlive2)
     {
-        ai().script_engine().script_log(LuaMessageType::Error,
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
             "%s cannot apply GetRelationType method for non-alive object!", *who->object().cName());
         return ALife::eRelationTypeDummy;
     }
@@ -112,7 +112,7 @@ IC T* CScriptGameObject::action_planner()
     CAI_Stalker* manager = smart_cast<CAI_Stalker*>(&object());
     if (!manager)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member action_planner!");
         return (0);
     }
@@ -129,7 +129,7 @@ void CScriptGameObject::set_enemy_callback(const luabind::functor<bool>& functor
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CCustomMonster : cannot access class member set_enemy_callback!");
         return;
     }
@@ -141,7 +141,7 @@ void CScriptGameObject::set_enemy_callback(const luabind::functor<bool>& functor
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&this->object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CCustomMonster : cannot access class member set_enemy_callback!");
         return;
     }
@@ -153,7 +153,7 @@ void CScriptGameObject::set_enemy_callback()
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CCustomMonster : cannot access class member set_enemy_callback!");
         return;
     }
@@ -177,8 +177,8 @@ void CScriptGameObject::set_fastcall(const luabind::functor<bool>& functor, cons
     CPHScriptGameObjectCondition* c = new CPHScriptGameObjectCondition(object, functor, m_game_object);
     CPHDummiAction* a = new CPHDummiAction();
     CPHSriptReqGObjComparer cmpr(m_game_object);
-    Level().ph_commander_scripts().remove_calls(&cmpr);
-    Level().ph_commander_scripts().add_call(c, a);
+    Level().ph_commander_scripts().RemoveCallsDeferred(&cmpr);
+    Level().ph_commander_scripts().AddCallDeferred(c, a);
 }
 void CScriptGameObject::set_const_force(const Fvector& dir, float value, u32 time_interval)
 {
@@ -187,12 +187,12 @@ void CScriptGameObject::set_const_force(const Fvector& dir, float value, u32 tim
     //	shell->set_LinearVel( Fvector().set(0,0,0) );
     if (!physics_world())
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "set_const_force : ph_world do not exist!");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "set_const_force : ph_world do not exist!");
         return;
     }
     if (!shell)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "set_const_force : object %s has no physics shell!", *object().cName());
         return;
     }

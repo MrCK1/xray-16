@@ -1,7 +1,7 @@
 #pragma once
-#include "missile.h"
-#include "explosive.h"
-#include "xrEngine/feel_touch.h"
+#include "Missile.h"
+#include "Explosive.h"
+#include "xrEngine/Feel_Touch.h"
 
 class CGrenade : public CMissile, public CExplosive
 {
@@ -33,7 +33,7 @@ public:
 
     virtual bool Action(u16 cmd, u32 flags);
     virtual bool Useful() const;
-    virtual void State(u32 state);
+    virtual void State(u32 state, u32 old_state);
 
     virtual void OnH_B_Chield() { inherited::OnH_B_Chield(); }
     virtual void Hit(SHit* pHDS);

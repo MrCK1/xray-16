@@ -4,11 +4,12 @@
 #include "xrEngine/Render.h"
 #ifdef DEBUG
 #include "xrEngine/xr_object.h"
-#include "xrEngine/PS_Instance.h"
+#include "xrEngine/PS_instance.h"
 #endif
-#include "xrEngine/Device.h"
+#include "xrEngine/device.h"
 #include "xrEngine/GameFont.h"
 #include "xrEngine/PerformanceAlert.hpp"
+#include "xrCore/Threading/Lock.hpp"
 
 ISpatial_DB* g_SpatialSpace = NULL;
 ISpatial_DB* g_SpatialSpacePhysic = NULL;
@@ -117,7 +118,7 @@ void SpatialBase::spatial_move()
 
 void SpatialBase::spatial_updatesector_internal()
 {
-    IRender_Sector* S = GlobalEnv.Render->detectSector(spatial_sector_point());
+    IRender_Sector* S = GEnv.Render->detectSector(spatial_sector_point());
     spatial.type &= ~STYPEFLAG_INVALIDSECTOR;
     if (S)
         spatial.sector = S;
@@ -150,12 +151,15 @@ void ISpatial_NODE::_remove(ISpatial* S)
 
 //////////////////////////////////////////////////////////////////////////
 
-ISpatial_DB::ISpatial_DB(const char* name)
+ISpatial_DB::ISpatial_DB(const char* name) :
 #ifdef CONFIG_PROFILE_LOCKS
-    : cs(MUTEX_PROFILE_ID(ISpatial_DB))
+    pcs(new Lock(MUTEX_PROFILE_ID(ISpatial_DB))),
+#else
+    pcs(new Lock),
 #endif // CONFIG_PROFILE_LOCKS
+    rt_insert_object(nullptr), m_root(nullptr),
+    m_bounds(0), q_result(nullptr)
 {
-    m_root = NULL;
     xr_strcpy(Name, name);
 }
 
@@ -171,6 +175,8 @@ ISpatial_DB::~ISpatial_DB()
         allocator.destroy(allocator_pool.back());
         allocator_pool.pop_back();
     }
+
+    delete pcs;
 }
 
 void ISpatial_DB::initialize(Fbox& BB)
@@ -265,11 +271,13 @@ void ISpatial_DB::_insert(ISpatial_NODE* N, Fvector& n_C, float n_R)
 
 void ISpatial_DB::insert(ISpatial* S)
 {
-    cs.Enter();
+    pcs->Enter();
 #ifdef DEBUG
     Stats.Insert.Begin();
 
-    BOOL bValid = _valid(S->GetSpatialData().sphere.R) && _valid(S->GetSpatialData().sphere.P);
+    const auto& spatialData = S->GetSpatialData();
+
+    BOOL bValid = _valid(spatialData.sphere.R) && _valid(spatialData.sphere.P);
     if (!bValid)
     {
         IGameObject* O = dynamic_cast<IGameObject*>(S);
@@ -277,13 +285,19 @@ void ISpatial_DB::insert(ISpatial* S)
             xrDebug::Fatal(DEBUG_INFO, "Invalid OBJECT position or radius (%s)", O->cName().c_str());
         else
         {
+#ifndef LINUX
             CPS_Instance* P = dynamic_cast<CPS_Instance*>(S);
             if (P)
                 xrDebug::Fatal(DEBUG_INFO, "Invalid PS spatial position{%3.2f,%3.2f,%3.2f} or radius{%3.2f}",
-                    VPUSH(S->GetSpatialData().sphere.P), S->GetSpatialData().sphere.R);
+                    VPUSH(spatialData.sphere.P), spatialData.sphere.R);
             else
                 xrDebug::Fatal(DEBUG_INFO, "Invalid OTHER spatial position{%3.2f,%3.2f,%3.2f} or radius{%3.2f}",
-                    VPUSH(S->GetSpatialData().sphere.P), S->GetSpatialData().sphere.R);
+                    VPUSH(spatialData.sphere.P), spatialData.sphere.R);
+#else
+            // In Linux there is a linking issue because `CPS_Instance` belongs to xrEngine
+            // and is not available to xrCDB due to source code organization
+            xrDebug::Fatal(DEBUG_INFO, "Invalid PS or other spatial position");
+#endif // ifndef LINUX
         }
     }
 #endif
@@ -306,7 +320,7 @@ void ISpatial_DB::insert(ISpatial* S)
 #ifdef DEBUG
     Stats.Insert.End();
 #endif
-    cs.Leave();
+    pcs->Leave();
 }
 
 void ISpatial_DB::_remove(ISpatial_NODE* N, ISpatial_NODE* N_sub)
@@ -343,7 +357,7 @@ void ISpatial_DB::_remove(ISpatial_NODE* N, ISpatial_NODE* N_sub)
 
 void ISpatial_DB::remove(ISpatial* S)
 {
-    cs.Enter();
+    pcs->Enter();
 #ifdef DEBUG
     Stats.Remove.Begin();
 #endif
@@ -357,16 +371,16 @@ void ISpatial_DB::remove(ISpatial* S)
 #ifdef DEBUG
     Stats.Remove.End();
 #endif
-    cs.Leave();
+    pcs->Leave();
 }
 
-void ISpatial_DB::update(u32 nodes /* =8 */)
+void ISpatial_DB::update(u32 /*nodes = 8 */)
 {
 #ifdef DEBUG
     if (0 == m_root)
         return;
-    cs.Enter();
+    pcs->Enter();
     VERIFY(verify());
-    cs.Leave();
+    pcs->Leave();
 #endif
 }

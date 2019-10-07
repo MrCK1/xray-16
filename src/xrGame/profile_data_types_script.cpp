@@ -1,6 +1,7 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "profile_data_types.h"
 #include "xrScriptEngine/ScriptExporter.hpp"
+#include "profile_data_types_script.h"
 
 using namespace luabind;
 
@@ -20,10 +21,11 @@ SCRIPT_EXPORT(profile_data_script_registrator, (), {
 });
 
 SCRIPT_EXPORT(store_operation_cb, (), {
-    module(luaState)[class_<gamespy_profile::store_operation_cb>("store_operation_cb")
+    using namespace gamespy_profile;
+    module(luaState)[class_<store_operation_cb>("store_operation_cb")
                          .def(constructor<>())
-                         .def(constructor<gamespy_profile::store_operation_cb::lua_object_type,
-                             gamespy_profile::store_operation_cb::lua_function_type>())
-                         .def("bind", &gamespy_profile::store_operation_cb::bind)
-                         .def("clear", &gamespy_profile::store_operation_cb::clear)];
+                         .def(constructor<store_operation_cb::lua_object_type,
+                             store_operation_cb::lua_function_type>())
+                         .def("bind", (store_operation_cb::lua_bind_type)(&store_operation_cb::bind))
+                         .def("clear", &store_operation_cb::clear)];
 });

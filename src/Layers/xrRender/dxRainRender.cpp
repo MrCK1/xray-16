@@ -23,13 +23,13 @@ const float particles_time = .3f;
 
 dxRainRender::dxRainRender()
 {
-    IReader* F = FS.r_open("$game_meshes$", "dm\\rain.dm");
-    VERIFY3(F, "Can't open file.", "dm\\rain.dm");
+    IReader* F = FS.r_open("$game_meshes$", "dm" DELIMITER "rain.dm");
+    VERIFY3(F, "Can't open file.", "dm" DELIMITER "rain.dm");
 
     DM_Drop = ::RImplementation.model_CreateDM(F);
 
     //
-    SH_Rain.create("effects\\rain", "fx\\fx_rain");
+    SH_Rain.create("effects" DELIMITER "rain", "fx" DELIMITER "fx_rain");
     hGeom_Rain.create(FVF::F_LIT, RCache.Vertex.Buffer(), RCache.QuadIB);
     hGeom_Drops.create(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, RCache.Vertex.Buffer(), RCache.Index.Buffer());
 
@@ -38,7 +38,7 @@ dxRainRender::dxRainRender()
 
 dxRainRender::~dxRainRender() { ::RImplementation.model_Delete(DM_Drop); }
 void dxRainRender::Copy(IRainRender& _in) { *this = *(dxRainRender*)&_in; }
-#include "xrEngine/iGame_persistent.h"
+#include "xrEngine/IGame_Persistent.h"
 
 void dxRainRender::Render(CEffect_Rain& owner)
 {
@@ -155,7 +155,7 @@ void dxRainRender::Render(CEffect_Rain& owner)
         sC.mul(.5f);
         sR = sC.magnitude();
         sC.add(pos_trail);
-        if (!GlobalEnv.Render->ViewBase.testSphere_dirty(sC, sR))
+        if (!GEnv.Render->ViewBase.testSphere_dirty(sC, sR))
             continue;
 
         static Fvector2 UV[2][4] = {{{0, 1}, {0, 0}, {1, 1}, {1, 0}}, {{1, 0}, {1, 1}, {0, 0}, {0, 1}}};
@@ -198,7 +198,7 @@ void dxRainRender::Render(CEffect_Rain& owner)
 
     // Particles
     CEffect_Rain::Particle* P = owner.particle_active;
-    if (0 == P)
+    if (nullptr == P)
         return;
 
     {
@@ -229,7 +229,7 @@ void dxRainRender::Render(CEffect_Rain& owner)
             }
 
             // Render
-            if (GlobalEnv.Render->ViewBase.testSphere_dirty(P->bounds.P, P->bounds.R))
+            if (GEnv.Render->ViewBase.testSphere_dirty(P->bounds.P, P->bounds.R))
             {
                 // Build matrix
                 float scale = P->time / particles_time;

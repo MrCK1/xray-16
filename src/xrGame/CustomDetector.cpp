@@ -1,20 +1,20 @@
-#include "stdafx.h"
-#include "customdetector.h"
+#include "StdAfx.h"
+#include "CustomDetector.h"
 #include "ui/ArtefactDetectorUI.h"
-#include "hudmanager.h"
-#include "inventory.h"
+#include "HUDManager.h"
+#include "Inventory.h"
 #include "Level.h"
 #include "map_manager.h"
 #include "ActorEffector.h"
-#include "actor.h"
-#include "ui/UIWindow.h"
+#include "Actor.h"
+#include "xrUICore/Windows/UIWindow.h"
 #include "player_hud.h"
-#include "weapon.h"
+#include "Weapon.h"
 
-ITEM_INFO::ITEM_INFO()
+ITEM_INFO::ITEM_INFO() : snd_time(0), cur_period(0)
 {
-    pParticle = NULL;
-    curr_ref = NULL;
+    pParticle = nullptr;
+    curr_ref = nullptr;
 }
 
 ITEM_INFO::~ITEM_INFO()
@@ -25,7 +25,7 @@ ITEM_INFO::~ITEM_INFO()
 
 bool CCustomDetector::CheckCompatibilityInt(CHudItem* itm, u16* slot_to_activate)
 {
-    if (itm == NULL)
+    if (itm == nullptr)
         return true;
 
     CInventoryItem& iitm = itm->item();
@@ -117,9 +117,9 @@ void CCustomDetector::ToggleDetector(bool bFastMode)
         SwitchState(eHiding);
 }
 
-void CCustomDetector::OnStateSwitch(u32 S)
+void CCustomDetector::OnStateSwitch(u32 S, u32 oldState)
 {
-    inherited::OnStateSwitch(S);
+    inherited::OnStateSwitch(S, oldState);
 
     switch (S)
     {
@@ -127,15 +127,18 @@ void CCustomDetector::OnStateSwitch(u32 S)
     {
         g_player_hud->attach_item(this);
         m_sounds.PlaySound("sndShow", Fvector().set(0, 0, 0), this, true, false);
-        PlayHUDMotion(m_bFastAnimMode ? "anm_show_fast" : "anm_show", FALSE /*TRUE*/, this, GetState());
+        PlayHUDMotion(m_bFastAnimMode ? "anm_show_fast" : "anm_show", "anim_show", FALSE /*TRUE*/, this, GetState());
         SetPending(TRUE);
     }
     break;
     case eHiding:
     {
-        m_sounds.PlaySound("sndHide", Fvector().set(0, 0, 0), this, true, false);
-        PlayHUDMotion(m_bFastAnimMode ? "anm_hide_fast" : "anm_hide", FALSE /*TRUE*/, this, GetState());
-        SetPending(TRUE);
+        if (oldState != eHiding)
+        {
+            m_sounds.PlaySound("sndHide", Fvector().set(0, 0, 0), this, true, false);
+            PlayHUDMotion(m_bFastAnimMode ? "anm_hide_fast" : "anm_hide", "anim_show", FALSE/*TRUE*/, this, GetState());
+            SetPending(TRUE);
+        }
     }
     break;
     case eIdle:
@@ -152,7 +155,11 @@ void CCustomDetector::OnAnimationEnd(u32 state)
     inherited::OnAnimationEnd(state);
     switch (state)
     {
-    case eShowing: { SwitchState(eIdle);
+    case eShowing:
+    {
+        SwitchState(eIdle);
+        if (IsUsingCondition() && m_fDecayRate > 0.f)
+            this->SetCondition(-m_fDecayRate);
     }
     break;
     case eHiding:
@@ -190,10 +197,12 @@ BOOL CCustomDetector::net_Spawn(CSE_Abstract* DC)
 
 void CCustomDetector::Load(LPCSTR section)
 {
+    m_animation_slot = 7;
     inherited::Load(section);
 
-    m_fAfDetectRadius = pSettings->r_float(section, "af_radius");
-    m_fAfVisRadius = pSettings->r_float(section, "af_vis_radius");
+    m_fAfDetectRadius = pSettings->read_if_exists<float>(section, "af_radius", 30.0f);
+    m_fAfVisRadius = pSettings->read_if_exists<float>(section, "af_vis_radius", 2.0f);
+    m_fDecayRate = READ_IF_EXISTS(pSettings, r_float, section, "decay_rate", 0.f); //Alundaio
     m_artefacts.load(section, "af");
 
     m_sounds.LoadSound(section, "snd_draw", "sndShow");
@@ -211,6 +220,10 @@ void CCustomDetector::shedule_Update(u32 dt)
 
     Fvector P;
     P.set(H_Parent()->Position());
+
+    if (IsUsingCondition() && GetCondition() <= 0.01f)
+        return;
+
     m_artefacts.feel_touch_update(P, m_fAfDetectRadius);
 }
 
@@ -281,6 +294,13 @@ void CCustomDetector::OnH_B_Independent(bool just_before_destroy)
     inherited::OnH_B_Independent(just_before_destroy);
 
     m_artefacts.clear();
+
+	if (GetState() != eHidden)
+	{
+		// Detaching hud item and animation stop in OnH_A_Independent
+		TurnDetectorInternal(false);
+		SwitchState(eHidden);
+	}
 }
 
 void CCustomDetector::OnMoveToRuck(const SInvItemPlace& prev)

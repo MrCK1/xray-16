@@ -1,10 +1,10 @@
 #pragma once
 
-#include "xrEngine/feel_touch.h"
-#include "xrEngine/feel_sound.h"
-#include "xrEngine/iinputreceiver.h"
+#include "xrEngine/Feel_Touch.h"
+#include "xrEngine/Feel_Sound.h"
+#include "xrEngine/IInputReceiver.h"
 #include "Include/xrRender/KinematicsAnimated.h"
-#include "actor_flags.h"
+#include "Actor_Flags.h"
 #include "actor_defs.h"
 #include "fire_disp_controller.h"
 #include "entity_alive.h"
@@ -13,7 +13,7 @@
 #include "InventoryOwner.h"
 #include "xrEngine/StatGraph.h"
 #include "PhraseDialogManager.h"
-#include "ui_defs.h"
+#include "xrUICore/ui_defs.h"
 
 #include "step_manager.h"
 
@@ -98,10 +98,10 @@ public:
     virtual void OnEvent(NET_Packet& P, u16 type);
 
     // Render
-    virtual void renderable_Render();
+    void renderable_Render(IRenderable* root) override;
     virtual BOOL renderable_ShadowGenerate();
-    virtual void feel_sound_new(
-        IGameObject* who, int type, CSound_UserDataPtr user_data, const Fvector& Position, float power);
+    void feel_sound_new(IGameObject* who, int type, const CSound_UserDataPtr& user_data,
+        const Fvector& position, float power) override;
     virtual Feel::Sound* dcast_FeelSound() { return this; }
     float m_snd_noise;
 #ifdef DEBUG
@@ -132,6 +132,7 @@ public:
 public:
     void AddGameNews_deffered(GAME_NEWS_DATA& news_data, u32 delay);
     virtual void AddGameNews(GAME_NEWS_DATA& news_data);
+    void ClearGameNews();
 
 protected:
     CActorStatisticMgr* m_statistic_manager;
@@ -271,7 +272,7 @@ protected:
 
 public:
     SActorMotions* m_anims;
-    //.	SActorVehicleAnims*		m_vehicle_anims;
+    SActorVehicleAnims* m_vehicle_anims;
 
     CBlend* m_current_legs_blend;
     CBlend* m_current_torso_blend;
@@ -295,7 +296,7 @@ public:
     void g_SetSprintAnimation(u32 mstate_rl, MotionID& head, MotionID& torso, MotionID& legs);
 
 public:
-    virtual void OnHUDDraw(CCustomHUD* hud);
+    void OnHUDDraw(CCustomHUD* hud, IRenderable* root) override;
     BOOL HUDview() const;
 
     // visiblity
@@ -309,8 +310,12 @@ public:
     }
     IC CCameraBase* cam_Active() { return cameras[cam_active]; }
     IC CCameraBase* cam_FirstEye() { return cameras[eacFirstEye]; }
+
+    EActorCameras active_cam() const { return cam_active; } // KD: we need to know which cam is active outside actor methods
+    virtual void cam_Set(EActorCameras style); //Alundaio: made public
+
 protected:
-    virtual void cam_Set(EActorCameras style);
+    //virtual void cam_Set(EActorCameras style);
     void cam_Update(float dt, float fFOV);
     void cam_Lookout(const Fmatrix& xform, float camera_height);
     void camUpdateLadder(float dt);
@@ -381,12 +386,14 @@ public:
     void g_sv_Orientate(u32 mstate_rl, float dt);
     void g_Orientate(u32 mstate_rl, float dt);
     bool g_LadderOrient();
-    //	void					UpdateMotionIcon		(u32 mstate_rl);
+    void UpdateMotionIcon(u32 mstate_rl);
 
     bool CanAccelerate();
     bool CanJump();
     bool CanMove();
     float CameraHeight();
+    // Alex ADD: for smooth crouch fix
+    float CurrentHeight;
     bool CanSprint();
     bool CanRun();
     void StopAnyMove();
@@ -402,6 +409,7 @@ protected:
 
     BOOL m_bJumpKeyPressed;
 
+public:
     float m_fWalkAccel;
     float m_fJumpSpeed;
     float m_fRunFactor;
@@ -424,7 +432,7 @@ public:
     virtual void IR_OnKeyboardPress(int dik);
     virtual void IR_OnKeyboardRelease(int dik);
     virtual void IR_OnKeyboardHold(int dik);
-    virtual void IR_OnMouseWheel(int direction);
+    virtual void IR_OnMouseWheel(int x, int y);
     virtual float GetLookFactor();
 
 public:
@@ -458,6 +466,13 @@ protected:
     float m_fDispCrouchFactor;
     // crouch+no acceleration
     float m_fDispCrouchNoAccelFactor;
+
+    Fvector m_vMissileOffset;
+
+public:
+    // Получение, и запись смещения для гранат
+    Fvector GetMissileOffset() const;
+    void SetMissileOffset(const Fvector& vNewOffset);
 
 protected:
     //косточки используемые при стрельбе
@@ -522,7 +537,7 @@ protected:
     Fvector IPosS, IPosH, IPosL; //положение актера после интерполяции Бизье, Эрмита, линейной
 
 #ifdef DEBUG
-    DEF_DEQUE(VIS_POSITION, Fvector);
+    using VIS_POSITION = xr_deque<Fvector>;
 
     VIS_POSITION LastPosS;
     VIS_POSITION LastPosH;
@@ -544,7 +559,7 @@ protected:
     u32 m_dwILastUpdateTime;
 
     //---------------------------------------------
-    DEF_DEQUE(PH_STATES, SPHNetState);
+    using PH_STATES = xr_deque<SPHNetState>;
     PH_STATES m_States;
     u16 m_u16NumBones;
     void net_ExportDeadBody(NET_Packet& P);
@@ -737,6 +752,26 @@ private:
     bool m_disabled_hitmarks;
     bool m_inventory_disabled;
     // static CPhysicsShell		*actor_camera_shell;
+
+    IC u32 get_state() const
+    {
+        return this->mstate_real;
+    }
+
+    IC void set_state(u32 state)
+    {
+        mstate_real = state;
+    }
+
+    IC u32 get_state_wishful() const
+    {
+        return this->mstate_wishful;
+    }
+
+    IC void set_state_wishful(u32 state)
+    {
+        mstate_wishful = state;
+    }
 };
 
 extern bool isActorAccelerated(u32 mstate, bool ZoomMode);

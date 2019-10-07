@@ -6,7 +6,7 @@
 //	Description : Eatable item object implementation
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "eatable_item_object.h"
 
 CEatableItemObject::CEatableItemObject() {}
@@ -60,6 +60,12 @@ void CEatableItemObject::OnH_A_Independent()
 {
     CEatableItem::OnH_A_Independent();
     CPhysicItem::OnH_A_Independent();
+    // If we are dropping used item before removing - don't show it
+    if (!Useful())
+    {
+        setVisible(false);
+        setEnabled(false);
+    }
 }
 
 void CEatableItemObject::OnH_B_Independent(bool just_before_destroy)
@@ -119,10 +125,10 @@ void CEatableItemObject::load(IReader& packet)
     CEatableItem::load(packet);
 }
 
-void CEatableItemObject::renderable_Render()
+void CEatableItemObject::renderable_Render(IRenderable* root)
 {
-    CPhysicItem::renderable_Render();
-    CEatableItem::renderable_Render();
+    CPhysicItem::renderable_Render(root);
+    CEatableItem::renderable_Render(root);
 }
 
 void CEatableItemObject::reload(LPCSTR section)

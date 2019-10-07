@@ -1,3 +1,4 @@
+#pragma once
 #ifndef XR_DSA_SIGNER_INCLUDED
 #define XR_DSA_SIGNER_INCLUDED
 
@@ -22,7 +23,7 @@ protected:
     crypto::xr_dsa::private_key_t m_private_key;
 
 private:
-    xr_dsa_signer() : m_dsa(NULL, NULL, NULL){};
+    xr_dsa_signer() : m_private_key(), m_dsa(nullptr, nullptr, nullptr){}
 
     crypto::xr_dsa m_dsa;
     crypto::xr_sha256 m_sha;

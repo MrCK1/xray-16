@@ -1,8 +1,8 @@
 #include "pch_script.h"
-#include "physicobject.h"
+#include "PhysicObject.h"
 #include "xrPhysics/PhysicsShell.h"
 
-#include "xrserver_objects_alife.h"
+#include "xrServer_Objects_ALife.h"
 #include "Level.h"
 #include "Include/xrRender/Kinematics.h"
 #include "Include/xrRender/KinematicsAnimated.h"
@@ -12,17 +12,15 @@
 #include "game_object_space.h"
 
 #include "moving_bones_snd_player.h"
-#include "xrPhysics/extendedgeom.h"
+#include "xrPhysics/ExtendedGeom.h"
 #ifdef DEBUG
-#include "phdebug.h"
-#include "xrEngine/objectdump.h"
+#include "PHDebug.h"
+#include "xrEngine/ObjectDump.h"
 #endif
 BOOL dbg_draw_doors = false;
 CPhysicObject::CPhysicObject(void)
-    : m_anim_blend(0), m_type(epotBox), m_mass(10.f), m_collision_hit_callback(0), bones_snd_player(0),
-      m_net_updateData(0)
-{
-}
+    : m_type(epotBox), m_mass(10.f), m_collision_hit_callback(nullptr), m_anim_blend(nullptr),
+      bones_snd_player(nullptr), m_net_updateData(nullptr), m_just_after_spawn(false), m_activated(false) {}
 
 CPhysicObject::~CPhysicObject(void) { xr_delete(m_net_updateData); }
 BOOL CPhysicObject::net_Spawn(CSE_Abstract* DC)
@@ -484,7 +482,7 @@ DEFINE_MAP_PRED	(LPCSTR,	CPhysicsJoint*,	JOINT_P_MAP,	JOINT_P_PAIR_IT,	pred_str)
 
 JOINT_P_MAP			*l_tpJointMap = new JOINT_P_MAP();
 
-l_tpJointMap->insert(mk_pair(bone_name,joint*));
+l_tpJointMap->insert(std::make_pair(bone_name,joint*));
 JOINT_P_PAIR_IT		I = l_tpJointMap->find(bone_name);
 if (l_tpJointMap->end()!=I){
 //bone_name is found and is an pair_iterator
@@ -755,18 +753,18 @@ void CPhysicObject::PH_A_CrPr()
         K->CalculateBones_Invalidate();
         K->CalculateBones(TRUE);
 #if 0
-		Fbox bb= BoundingBox	();
-		DBG_OpenCashedDraw		();
-		Fvector c,r,p;
-		bb.get_CD(c,r );
-		XFORM().transform_tiny(p,c);
-		DBG_DrawAABB( p, r,color_xrgb(255, 0, 0));
-		//PPhysicsShell()->XFORM().transform_tiny(c);
-		Fmatrix mm;
-		PPhysicsShell()->GetGlobalTransformDynamic(&mm);
-		mm.transform_tiny(p,c);
-		DBG_DrawAABB( p, r,color_xrgb(0, 255, 0));
-		DBG_ClosedCashedDraw	(50000);
+        Fbox bb= BoundingBox	();
+        DBG_OpenCashedDraw		();
+        Fvector c,r,p;
+        bb.get_CD(c,r );
+        XFORM().transform_tiny(p,c);
+        DBG_DrawAABB( p, r,color_xrgb(255, 0, 0));
+        //PPhysicsShell()->XFORM().transform_tiny(c);
+        Fmatrix mm;
+        PPhysicsShell()->GetGlobalTransformDynamic(&mm);
+        mm.transform_tiny(p,c);
+        DBG_DrawAABB( p, r,color_xrgb(0, 255, 0));
+        DBG_ClosedCashedDraw	(50000);
 #endif
         spatial_move();
         m_just_after_spawn = false;
@@ -891,8 +889,11 @@ bool CPhysicObject::get_door_vectors(Fvector& closed, Fvector& open) const
 
     const SJointIKData& joint = bd.IK_data;
 
-    if (joint.type != jtJoint)
-        return false;
+    // Xottab_DUTY: commented this to allow sliding type doors
+    // https://github.com/OpenXRay/xray-16/issues/73
+    /*if (joint.type != jtJoint)
+        return false;*/
+
     const Fvector2& limits = joint.limits[1].limit;
 
     // if( limits.y < EPS ) //limits.y - limits.x < EPS

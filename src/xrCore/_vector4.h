@@ -1,8 +1,8 @@
+#pragma once
 #ifndef _VECTOR4_H
 #define _VECTOR4_H
-#pragma once
 
-#include "Common/Platform.hpp"
+#include "_types.h"
 
 template <class T>
 struct _vector4
@@ -15,8 +15,8 @@ struct _vector4
 public:
     T x, y, z, w;
 
-    IC T& operator[](int i) { return *((T*)this + i); }
-    IC T& operator[](int i) const { return *((T*)this + i); }
+    IC T& operator[](size_t i) { return *((T*)this + i); }
+    IC T& operator[](size_t i) const { return *((T*)this + i); }
     IC SelfRef set(T _x, T _y, T _z, T _w = 1)
     {
         x = _x;
@@ -205,14 +205,20 @@ public:
 typedef _vector4<float> Fvector4;
 typedef _vector4<double> Dvector4;
 typedef _vector4<s32> Ivector4;
+#ifdef FREEBSD
+alignas(16) inline _vector4<float> Fvector4a;
+alignas(16) inline _vector4<double> Dvector4a;
+alignas(16) inline _vector4<s32> Ivector4a;
+#else
 #ifndef __BORLANDC__
 typedef ALIGN(16) _vector4<float> Fvector4a;
 typedef ALIGN(16) _vector4<double> Dvector4a;
 typedef ALIGN(16) _vector4<s32> Ivector4a;
 #endif
+#endif
 
 template <class T>
-BOOL _valid(const _vector4<T>& v)
+bool _valid(const _vector4<T>& v)
 {
     return _valid((T)v.x) && _valid((T)v.y) && _valid((T)v.z) && _valid((T)v.w);
 }

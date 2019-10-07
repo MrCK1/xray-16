@@ -1,15 +1,14 @@
-#include "stdafx.h"
-#include <dinput.h>
+#include "StdAfx.h"
 #include "UISpawnWnd.h"
 #include "UIXmlInit.h"
 #include "Level.h"
 #include "game_cl_teamdeathmatch.h"
 #include "UIStatix.h"
-#include "UIScrollView.h"
-#include "UI3tButton.h"
+#include "xrUICore/ScrollView/UIScrollView.h"
+#include "xrUICore/Buttons/UI3tButton.h"
 #include "xr_level_controller.h"
-#include "uicursor.h"
-#include "uigamecustom.h"
+#include "xrUICore/Cursor/UICursor.h"
+#include "UIGameCustom.h"
 
 CUISpawnWnd::CUISpawnWnd() : m_iCurTeam(0)
 {
@@ -59,7 +58,7 @@ CUISpawnWnd::~CUISpawnWnd()
 void CUISpawnWnd::Init()
 {
     CUIXml xml_doc;
-    xml_doc.Load(CONFIG_PATH, UI_PATH, "spawn.xml");
+    xml_doc.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "spawn.xml");
 
     CUIXmlInit::InitWindow(xml_doc, "team_selector", 0, this);
     CUIXmlInit::InitStatic(xml_doc, "team_selector:caption", 0, m_pCaption);
@@ -119,7 +118,7 @@ bool CUISpawnWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
     if (WINDOW_KEY_PRESSED != keyboard_action)
     {
-        if (dik == DIK_TAB)
+        if (dik == SDL_SCANCODE_TAB)
         {
             ShowChildren(true);
             game_cl_mp* game = smart_cast<game_cl_mp*>(&Game());
@@ -129,7 +128,7 @@ bool CUISpawnWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
         return false;
     }
 
-    if (dik == DIK_TAB)
+    if (dik == SDL_SCANCODE_TAB)
     {
         ShowChildren(false);
         game_cl_mp* game = smart_cast<game_cl_mp*>(&Game());
@@ -142,11 +141,11 @@ bool CUISpawnWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
     VERIFY(game);
     // game_cl_TeamDeathmatch * dm = smart_cast<game_cl_TeamDeathmatch *>(&(Game()));
 
-    if (DIK_1 == dik || DIK_2 == dik)
+    if (SDL_SCANCODE_1 == dik || SDL_SCANCODE_2 == dik)
     {
         HideDialog();
 
-        if (DIK_1 == dik)
+        if (SDL_SCANCODE_1 == dik)
             game->OnTeamSelect(0);
         else
             game->OnTeamSelect(1);
@@ -154,15 +153,15 @@ bool CUISpawnWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
     }
     switch (dik)
     {
-    case DIK_ESCAPE:
+    case SDL_SCANCODE_ESCAPE:
         HideDialog();
         game->OnTeamMenuBack();
         return true;
-    case DIK_SPACE:
+    case SDL_SCANCODE_SPACE:
         HideDialog();
         game->OnTeamSelect(-1);
         return true;
-    case DIK_RETURN:
+    case SDL_SCANCODE_RETURN:
         HideDialog();
         if (m_pImage1->GetSelectedState())
             game->OnTeamSelect(0);

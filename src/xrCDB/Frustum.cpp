@@ -173,10 +173,10 @@ EFC_Visible CFrustum::testSAABB(Fvector& c, float r, const float* mM, u32& test_
                 test_mask &= ~bit; // fully - no need to test this plane
             else
             {
-                EFC_Visible r = AABB_OverlapPlane(planes[i], mM);
-                if (fcvFully == r)
+                EFC_Visible r2 = AABB_OverlapPlane(planes[i], mM);
+                if (fcvFully == r2)
                     test_mask &= ~bit; // fully - no need to test this plane
-                else if (fcvNone == r)
+                else if (fcvNone == r2)
                 {
                     test_mask = 0;
                     return fcvNone;
@@ -187,7 +187,7 @@ EFC_Visible CFrustum::testSAABB(Fvector& c, float r, const float* mM, u32& test_
     return test_mask ? fcvPartial : fcvFully;
 }
 
-BOOL CFrustum::testPolyInside_dirty(Fvector* p, int count) const
+BOOL CFrustum::testPolyInside_dirty(Fvector* p, size_t count) const
 {
     Fvector* e = p + count;
     for (int i = 0; i < p_count; i++)
@@ -201,23 +201,23 @@ BOOL CFrustum::testPolyInside_dirty(Fvector* p, int count) const
 }
 
 //////////////////////////////////////////////////////////////////////
-void CFrustum::CreateFromPoints(Fvector* p, int count, Fvector& COP)
+void CFrustum::CreateFromPoints(Fvector* p, size_t count, Fvector& COP)
 {
     VERIFY(count < FRUSTUM_MAXPLANES);
     VERIFY(count >= 3);
 
     _clear();
-    for (int i = 1; i < count; i++)
+    for (size_t i = 1; i < count; i++)
         _add(COP, p[i - 1], p[i]);
     _add(COP, p[count - 1], p[0]);
 }
 
-void CFrustum::CreateFromPlanes(Fplane* p, int count)
+void CFrustum::CreateFromPlanes(Fplane* p, size_t count)
 {
-    for (int k = 0; k < count; k++)
+    for (size_t k = 0; k < count; k++)
         planes[k].set(p[k]);
 
-    for (int i = 0; i < count; i++)
+    for (size_t i = 0; i < count; i++)
     {
         float denom = 1.0f / planes[i].n.magnitude(); // Get magnitude of Vector
         planes[i].n.x *= denom;
@@ -310,7 +310,7 @@ void CFrustum::SimplifyPoly_AABB(sPoly* poly, Fplane& plane)
     poly->inc();
 }
 
-void CFrustum::CreateOccluder(Fvector* p, int count, Fvector& vBase, CFrustum& clip)
+void CFrustum::CreateOccluder(Fvector* p, size_t count, Fvector& vBase, CFrustum& clip)
 {
     VERIFY(count < FRUSTUM_SAFE);
     VERIFY(count >= 3);
@@ -318,19 +318,19 @@ void CFrustum::CreateOccluder(Fvector* p, int count, Fvector& vBase, CFrustum& c
     BOOL edge[FRUSTUM_SAFE];
     float cls[FRUSTUM_SAFE];
     ZeroMemory(edge, sizeof(edge));
-    for (int i = 0; i < clip.p_count; i++)
+    for (size_t i = 0; i < clip.p_count; i++)
     {
         // classify all points relative to plane #i
         fplane& P = clip.planes[i];
-        for (int j = 0; j < count; j++)
+        for (size_t j = 0; j < count; j++)
             cls[j] = _abs(P.classify(p[j]));
 
         // test edges to see which lies directly on plane
-        for (int j = 0; j < count; j++)
+        for (size_t j = 0; j < count; j++)
         {
             if (cls[j] < EPS_L)
             {
-                int next = j + 1;
+                size_t next = j + 1;
                 if (next >= count)
                     next = 0;
                 if (cls[next] < EPS_L)
@@ -345,11 +345,11 @@ void CFrustum::CreateOccluder(Fvector* p, int count, Fvector& vBase, CFrustum& c
     // here we have all edges marked accordenly to 'open' / 'closed' classification
     _clear();
     _add(p[0], p[1], p[2]); // main plane
-    for (int i = 0; i < count; i++)
+    for (size_t i = 0; i < count; i++)
     {
         if (!edge[i])
         {
-            int next = i + 1;
+            size_t next = i + 1;
             if (next >= count)
                 next = 0;
             _add(vBase, p[i], p[next]);
@@ -376,7 +376,7 @@ sPoly* CFrustum::ClipPoly(sPoly& S, sPoly& D) const
         // clip everything to this plane
         cls[src->size()] = cls[0];
         src->push_back((*src)[0]);
-        Fvector D;
+        Fvector D2;
         float denum, t;
         for (u32 j = 0; j < src->size() - 1; j++)
         {
@@ -389,12 +389,12 @@ sPoly* CFrustum::ClipPoly(sPoly& S, sPoly& D) const
                 if (positive(cls[j + 1]))
                 {
                     // segment intersects plane
-                    D.sub((*src)[j + 1], (*src)[j]);
-                    denum = P.n.dotproduct(D);
+                    D2.sub((*src)[j + 1], (*src)[j]);
+                    denum = P.n.dotproduct(D2);
                     if (denum != 0)
                     {
                         t = -cls[j] / denum; // VERIFY(t<=1.f && t>=0);
-                        dest->last().mad((*src)[j], D, t);
+                        dest->last().mad((*src)[j], D2, t);
                         dest->inc();
                     }
                 }
@@ -406,12 +406,12 @@ sPoly* CFrustum::ClipPoly(sPoly& S, sPoly& D) const
                 {
                     // J+1  - inside
                     // segment intersects plane
-                    D.sub((*src)[j + 1], (*src)[j]);
-                    denum = P.n.dotproduct(D);
+                    D2.sub((*src)[j + 1], (*src)[j]);
+                    denum = P.n.dotproduct(D2);
                     if (denum != 0)
                     {
                         t = -cls[j] / denum; // VERIFY(t<=1.f && t>=0);
-                        dest->last().mad((*src)[j], D, t);
+                        dest->last().mad((*src)[j], D2, t);
                         dest->inc();
                     }
                 }
@@ -425,7 +425,7 @@ sPoly* CFrustum::ClipPoly(sPoly& S, sPoly& D) const
     return dest;
 }
 
-BOOL CFrustum::CreateFromClipPoly(Fvector* p, int count, Fvector& vBase, CFrustum& clip)
+BOOL CFrustum::CreateFromClipPoly(Fvector* p, size_t count, Fvector& vBase, CFrustum& clip)
 {
     VERIFY(count < FRUSTUM_MAXPLANES);
     VERIFY(count >= 3);

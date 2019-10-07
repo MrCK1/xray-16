@@ -9,17 +9,24 @@
 #include "IGame_Level.h"
 #include "IGame_Persistent.h"
 
+#include "ILoadingScreen.h"
 #include "XR_IOConsole.h"
 #include "x_ray.h"
 #include "std_classes.h"
 #include "GameFont.h"
 #include "xrCDB/ISpatial.h"
+#if !defined(LINUX)
 #include "xrSASH.h"
+#endif
 #include "xrServerEntities/smart_cast.h"
+#include "xr_input.h"
 
 //---------------------------------------------------------------------
 
+ENGINE_API CApplication* pApp = nullptr;
 extern CRenderDevice Device;
+
+ENGINE_API int ps_rs_loading_stages = 0;
 
 #ifdef MASTER_GOLD
 #define NO_MULTI_INSTANCES
@@ -31,7 +38,7 @@ struct _SoundProcessor : public pureFrame
     virtual void OnFrame()
     {
         // Msg ("------------- sound: %d [%3.2f,%3.2f,%3.2f]",u32(Device.dwFrame),VPUSH(Device.vCameraPosition));
-        ::Sound->update(Device.vCameraPosition, Device.vCameraDirection, Device.vCameraTop);
+        GEnv.Sound->update(Device.vCameraPosition, Device.vCameraDirection, Device.vCameraTop);
     }
 } SoundProcessor;
 
@@ -112,7 +119,7 @@ CApplication::CApplication()
     Level_Scan();
 
     // Font
-    pFontSystem = NULL;
+    pFontSystem = nullptr;
 
     // Register us
     Device.seqFrame.Add(this, REG_PRIORITY_HIGH + 1000);
@@ -125,11 +132,10 @@ CApplication::CApplication()
     Console->Show();
 
     // App Title
-    // app_title[ 0 ] = '\0';
-    ls_header[0] = '\0';
-    ls_tip_number[0] = '\0';
-    ls_tip[0] = '\0';
+    loadingScreen = nullptr;
 }
+
+extern CInput* pInput;
 
 CApplication::~CApplication()
 {
@@ -155,23 +161,28 @@ void CApplication::OnEvent(EVENT E, u64 P1, u64 P2)
 {
     if (E == eQuit)
     {
+        if (pInput != nullptr)
+            pInput->GrabInput(false);
+#if !defined(LINUX)
         g_SASH.EndBenchmark();
+#endif
+        SDL_Event quit = { SDL_QUIT };
+        SDL_PushEvent(&quit);
 
-        PostQuitMessage(0);
-
-        for (u32 i = 0; i < Levels.size(); i++)
+        for (auto& level : Levels)
         {
-            xr_free(Levels[i].folder);
-            xr_free(Levels[i].name);
+            xr_free(level.folder);
+            xr_free(level.name);
         }
+        Levels.clear();
     }
     else if (E == eStart)
     {
         LPSTR op_server = LPSTR(P1);
         LPSTR op_client = LPSTR(P2);
         Level_Current = u32(-1);
-        R_ASSERT(0 == g_pGameLevel);
-        R_ASSERT(0 != g_pGamePersistent);
+        R_ASSERT(nullptr == g_pGameLevel);
+        R_ASSERT(nullptr != g_pGamePersistent);
         Console->Execute("main_menu off");
         Console->Hide();
         //! this line is commented by Dima
@@ -191,9 +202,8 @@ void CApplication::OnEvent(EVENT E, u64 P1, u64 P2)
     }
     else if (E == eDisconnect)
     {
-        ls_header[0] = '\0';
-        ls_tip_number[0] = '\0';
-        ls_tip[0] = '\0';
+        if (pInput != nullptr && TRUE == Engine.Event.Peek("KERNEL:quit"))
+            pInput->GrabInput(false);
 
         if (g_pGameLevel)
         {
@@ -208,7 +218,7 @@ void CApplication::OnEvent(EVENT E, u64 P1, u64 P2)
                 Console->Execute("main_menu on");
             }
         }
-        R_ASSERT(0 != g_pGamePersistent);
+        R_ASSERT(nullptr != g_pGamePersistent);
         g_pGamePersistent->Disconnect();
     }
     else if (E == eConsole)
@@ -221,8 +231,8 @@ void CApplication::OnEvent(EVENT E, u64 P1, u64 P2)
     {
         LPSTR demo_file = LPSTR(P1);
 
-        R_ASSERT(0 == g_pGameLevel);
-        R_ASSERT(0 != g_pGamePersistent);
+        R_ASSERT(nullptr == g_pGameLevel);
+        R_ASSERT(nullptr != g_pGamePersistent);
 
         Console->Execute("main_menu off");
         Console->Hide();
@@ -254,11 +264,9 @@ void CApplication::LoadBegin()
     {
         loaded = false;
 
-#ifndef DEDICATED_SERVER
-        _InitializeFont(pFontSystem, "ui_font_letterica18_russian", 0);
+        if (!GEnv.isDedicatedServer)
+            _InitializeFont(pFontSystem, "ui_font_letterica18_russian", 0);
 
-        m_pRender->LoadBegin();
-#endif
         phase_timer.Start();
         load_stage = 0;
     }
@@ -273,16 +281,23 @@ void CApplication::LoadEnd()
         Msg("* phase cmem: %d K", Memory.mem_usage() / 1024);
         Console->Execute("stat_memory");
         loaded = true;
-        // DUMP_PHASE;
     }
 }
 
-void CApplication::destroy_loading_shaders()
+void CApplication::SetLoadingScreen(ILoadingScreen* newScreen)
 {
-    m_pRender->destroy_loading_shaders();
-    // hLevelLogo.destroy ();
-    // sh_progress.destroy ();
-    //. ::Sound->mute (false);
+    R_ASSERT(!loadingScreen);
+    loadingScreen = newScreen;
+}
+
+void CApplication::DestroyLoadingScreen()
+{
+    xr_delete(loadingScreen);
+}
+
+void CApplication::ShowLoadingScreen(bool show)
+{
+    loadingScreen->Show(show);
 }
 
 void CApplication::LoadDraw()
@@ -292,37 +307,52 @@ void CApplication::LoadDraw()
 
     Device.dwFrame += 1;
 
-    if (!Device.Begin())
+    if (!Device.RenderBegin())
         return;
 
-    if (g_dedicated_server)
+    if (GEnv.isDedicatedServer)
         Console->OnRender();
     else
         load_draw_internal();
 
-    Device.End();
+    Device.RenderEnd();
+}
+
+void CApplication::LoadForceDrop()
+{
+    loadingScreen->ForceDrop();
+}
+
+void CApplication::LoadForceFinish()
+{
+    loadingScreen->ForceFinish();
+}
+
+void CApplication::SetLoadStageTitle(pcstr _ls_title)
+{
+    loadingScreen->SetStageTitle(_ls_title);
 }
 
 void CApplication::LoadTitleInt(LPCSTR str1, LPCSTR str2, LPCSTR str3)
 {
-    xr_strcpy(ls_header, str1);
-    xr_strcpy(ls_tip_number, str2);
-    xr_strcpy(ls_tip, str3);
-    // LoadDraw ();
+    loadingScreen->SetStageTip(str1, str2, str3);
 }
+
 void CApplication::LoadStage()
 {
-    load_stage++;
     VERIFY(ll_dwReference);
     Msg("* phase time: %d ms", phase_timer.GetElapsed_ms());
     phase_timer.Start();
     Msg("* phase cmem: %d K", Memory.mem_usage() / 1024);
 
     if (g_pGamePersistent->GameType() == 1 && !xr_strcmp(g_pGamePersistent->m_game_params.m_alife, "alife"))
-        max_load_stage = 17;
+        max_load_stage = 18;
     else
         max_load_stage = 14;
+
+    loadingScreen->Show(true);
     LoadDraw();
+    ++load_stage;
 }
 
 void CApplication::LoadSwitch() {}
@@ -348,17 +378,17 @@ void CApplication::Level_Append(LPCSTR folder)
     {
         sLevelInfo LI;
         LI.folder = xr_strdup(folder);
-        LI.name = 0;
+        LI.name = nullptr;
         Levels.push_back(LI);
     }
 }
 
 void CApplication::Level_Scan()
 {
-    for (u32 i = 0; i < Levels.size(); i++)
+    for (auto& level : Levels)
     {
-        xr_free(Levels[i].folder);
-        xr_free(Levels[i].name);
+        xr_free(level.folder);
+        xr_free(level.name);
     }
     Levels.clear();
 
@@ -371,17 +401,29 @@ void CApplication::Level_Scan()
     FS.file_list_close(folder);
 }
 
-void gen_logo_name(string_path& dest, LPCSTR level_name, int num)
+void gen_logo_name(string_path& dest, LPCSTR level_name, int num = -1)
 {
-    strconcat(sizeof(dest), dest, "intro\\intro_", level_name);
+    strconcat(sizeof(dest), dest, "intro" DELIMITER "intro_", level_name);
 
     u32 len = xr_strlen(dest);
-    if (dest[len - 1] == '\\')
+    if (dest[len - 1] == _DELIMITER)
         dest[len - 1] = 0;
+
+    if (num < 0)
+        return;
 
     string16 buff;
     xr_strcat(dest, sizeof(dest), "_");
-    xr_strcat(dest, sizeof(dest), itoa(num + 1, buff, 10));
+    xr_strcat(dest, sizeof(dest), xr_itoa(num + 1, buff, 10));
+}
+
+// Return true if logo exists
+// Always sets the path even if logo doesn't exist
+bool set_logo_path(string_path& path, pcstr levelName, int count = -1)
+{
+    gen_logo_name(path, levelName, count);
+    string_path temp2;
+    return FS.exist(temp2, "$game_textures$", path, ".dds") || FS.exist(temp2, "$level$", path, ".dds");
 }
 
 void CApplication::Level_Set(u32 L)
@@ -389,52 +431,54 @@ void CApplication::Level_Set(u32 L)
     if (L >= Levels.size())
         return;
     FS.get_path("$level$")->_set(Levels[L].folder);
+    Level_Current = L;
 
     static string_path path;
+    path[0] = 0;
 
-    if (Level_Current != L)
+    int count = 0;
+    while (true)
     {
-        path[0] = 0;
+        if (set_logo_path(path, Levels[L].folder, count))
+            count++;
+        else
+            break;
+    }
 
-        Level_Current = L;
-
-        int count = 0;
-        while (true)
-        {
-            string_path temp2;
-            gen_logo_name(path, Levels[L].folder, count);
-            if (FS.exist(temp2, "$game_textures$", path, ".dds") || FS.exist(temp2, "$level$", path, ".dds"))
-                count++;
-            else
-                break;
-        }
-
-        if (count)
-        {
-            int num = ::Random.randI(count);
-            gen_logo_name(path, Levels[L].folder, num);
-        }
+    if (count)
+    {
+        const int num = ::Random.randI(count);
+        gen_logo_name(path, Levels[L].folder, num);
+    }
+    else if (!set_logo_path(path, Levels[L].folder))
+    {
+        if (!set_logo_path(path, "no_start_picture"))
+            path[0] = 0;
     }
 
     if (path[0])
-        m_pRender->setLevelLogo(path);
+        loadingScreen->SetLevelLogo(path);
 }
 
 int CApplication::Level_ID(LPCSTR name, LPCSTR ver, bool bSet)
 {
     int result = -1;
-    CLocatorAPI::archives_it it = FS.m_archives.begin();
-    CLocatorAPI::archives_it it_e = FS.m_archives.end();
+    auto it = FS.m_archives.begin();
+    auto it_e = FS.m_archives.end();
     bool arch_res = false;
 
     for (; it != it_e; ++it)
     {
         CLocatorAPI::archive& A = *it;
-        if (A.hSrcFile == NULL)
+#if defined(WINDOWS)
+        if (A.hSrcFile == nullptr)
+#elif defined(LINUX)
+        if (A.hSrcFile == 0)
+#endif
         {
             LPCSTR ln = A.header->r_string("header", "level_name");
             LPCSTR lv = A.header->r_string("header", "level_ver");
-            if (0 == stricmp(ln, name) && 0 == stricmp(lv, ver))
+            if (0 == xr_stricmp(ln, name) && 0 == xr_stricmp(lv, ver))
             {
                 FS.LoadArchive(A);
                 arch_res = true;
@@ -446,10 +490,10 @@ int CApplication::Level_ID(LPCSTR name, LPCSTR ver, bool bSet)
         Level_Scan();
 
     string256 buffer;
-    strconcat(sizeof(buffer), buffer, name, "\\");
+    strconcat(sizeof(buffer), buffer, name, DELIMITER);
     for (u32 I = 0; I < Levels.size(); ++I)
     {
-        if (0 == stricmp(buffer, Levels[I].folder))
+        if (0 == xr_stricmp(buffer, Levels[I].folder))
         {
             result = int(I);
             break;
@@ -466,21 +510,23 @@ int CApplication::Level_ID(LPCSTR name, LPCSTR ver, bool bSet)
 
 CInifile* CApplication::GetArchiveHeader(LPCSTR name, LPCSTR ver)
 {
-    CLocatorAPI::archives_it it = FS.m_archives.begin();
-    CLocatorAPI::archives_it it_e = FS.m_archives.end();
+    auto it = FS.m_archives.begin();
+    auto it_e = FS.m_archives.end();
 
     for (; it != it_e; ++it)
     {
         CLocatorAPI::archive& A = *it;
+        if (!A.header)
+            continue;
 
         LPCSTR ln = A.header->r_string("header", "level_name");
         LPCSTR lv = A.header->r_string("header", "level_ver");
-        if (0 == stricmp(ln, name) && 0 == stricmp(lv, ver))
+        if (0 == xr_stricmp(ln, name) && 0 == xr_stricmp(lv, ver))
         {
             return A.header;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 void CApplication::LoadAllArchives()
@@ -493,4 +539,17 @@ void CApplication::LoadAllArchives()
 }
 
 #pragma optimize("g", off)
-void CApplication::load_draw_internal() { m_pRender->load_draw_internal(*this); }
+void CApplication::load_draw_internal(bool precaching /*= false*/)
+{
+    if (precaching)
+    {
+        const u32 total = Device.dwPrecacheTotal;
+        loadingScreen->Update(total - Device.dwPrecacheFrame, total);
+    }
+
+    else if (loadingScreen->IsShown())
+        loadingScreen->Update(load_stage, max_load_stage);
+
+    else
+        GEnv.Render->ClearTarget();
+}

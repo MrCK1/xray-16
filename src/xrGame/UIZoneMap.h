@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ui/UIStatic.h"
+#include "xrUICore/Static/UIStatic.h"
 
 class CActor;
 class CUIMiniMap;
@@ -18,6 +18,7 @@ private:
     CUIStatic m_center;
     CUIStatic m_compass;
     CUIWindow m_clipFrame;
+    CUIStatic* m_pointerDistanceText;
     CUIStatic m_Counter;
     CUITextWnd m_Counter_text;
     u8 m_current_map_idx;

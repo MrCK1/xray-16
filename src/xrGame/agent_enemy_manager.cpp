@@ -31,11 +31,11 @@
 
 const float wounded_enemy_reached_distance = 3.f;
 
-const unsigned __int32 __c0 = 0x55555555;
-const unsigned __int32 __c1 = 0x33333333;
-const unsigned __int32 __c2 = 0x0f0f0f0f;
-const unsigned __int32 __c3 = 0x00ff00ff;
-const unsigned __int32 __c4 = 0x0000003f;
+const u32 __c0 = 0x55555555;
+const u32 __c1 = 0x33333333;
+const u32 __c2 = 0x0f0f0f0f;
+const u32 __c3 = 0x00ff00ff;
+const u32 __c4 = 0x0000003f;
 
 IC u32 population(const u32& b)
 {
@@ -394,7 +394,7 @@ template <typename T>
 IC void CAgentEnemyManager::setup_mask(
     xr_vector<T>& objects, CMemberEnemy& enemy, const squad_mask_type& non_combat_members)
 {
-    xr_vector<T>::iterator I = std::find(objects.begin(), objects.end(), enemy.m_object->ID());
+    auto I = std::find(objects.begin(), objects.end(), enemy.m_object->ID());
     if (I != objects.end())
     {
         (*I).m_squad_mask.assign((*I).m_squad_mask.get() | enemy.m_distribute_mask.get());
@@ -446,7 +446,7 @@ void CAgentEnemyManager::assign_wounded()
 #endif // DEBUG
 
     u32 previous_wounded_count = m_wounded.size();
-    WOUNDED_ENEMY* previous_wounded = (WOUNDED_ENEMY*)_alloca(previous_wounded_count * sizeof(WOUNDED_ENEMY));
+    WOUNDED_ENEMY* previous_wounded = (WOUNDED_ENEMY*)xr_alloca(previous_wounded_count * sizeof(WOUNDED_ENEMY));
     std::copy(m_wounded.begin(), m_wounded.end(), previous_wounded);
     m_wounded.clear();
 

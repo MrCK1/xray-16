@@ -9,9 +9,9 @@
 #include "pch_script.h"
 #include "script_zone.h"
 #include "script_game_object.h"
-#include "xrserver_objects_alife_monsters.h"
+#include "xrServer_Objects_ALife_Monsters.h"
 #include "xrEngine/xr_collide_form.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "game_object_space.h"
 
 #ifdef DEBUG
@@ -81,7 +81,7 @@ void CScriptZone::OnRender()
 {
     if (!bDebug)
         return;
-    GlobalEnv.DRender->OnFrameEnd();
+    GEnv.DRender->OnFrameEnd();
     // RCache.OnFrameEnd();
     Fvector l_half;
     l_half.set(.5f, .5f, .5f);

@@ -2,6 +2,7 @@
 
 #include "WeaponCustomPistol.h"
 #include "xrEngine/xr_collide_form.h"
+#include "xrCore/buffer_vector.h"
 
 class CWeaponKnife : public CWeapon
 {
@@ -17,7 +18,7 @@ protected:
 
     virtual void OnAnimationEnd(u32 state);
     virtual void OnMotionMark(u32 state, const motion_marks&);
-    virtual void OnStateSwitch(u32 S);
+    virtual void OnStateSwitch(u32 S, u32 oldState);
 
     void state_Attacking(float dt);
 
@@ -27,6 +28,10 @@ protected:
     u16 knife_material_idx;
 
 protected:
+    bool attackStarted;
+    bool hitEndAnimation;
+    bool oldStrikeMethod;
+
     ALife::EHitType m_eHitType;
 
     ALife::EHitType m_eHitType_1;
@@ -137,7 +142,7 @@ private:
         bool operator()(spartial_base_t::value_type const& left) const;
 
     private:
-        victim_filter& operator=(victim_filter const& copy){};
+        victim_filter& operator=(victim_filter const& copy) = delete;
 
         u16 m_except_id;
         CWeaponKnife* m_owner;
@@ -154,7 +159,7 @@ private:
         void operator()(spartial_base_t::value_type const& left);
 
     private:
-        best_victim_selector& operator=(best_victim_selector const& copy){};
+        best_victim_selector& operator=(best_victim_selector const& copy) = delete;
 
         Fvector m_start_pos;
         float m_min_dist;

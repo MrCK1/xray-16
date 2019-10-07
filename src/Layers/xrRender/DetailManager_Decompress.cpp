@@ -184,18 +184,18 @@ void CDetailManager::cache_Decompress(Slot* S)
             SlotItem& Item = *ItemP;
 
             // Position (XZ)
-            float rx = (float(x) / float(d_size)) * dm_slot_size + D.vis.box.min.x;
-            float rz = (float(z) / float(d_size)) * dm_slot_size + D.vis.box.min.z;
+            float rx = (float(x) / float(d_size)) * dm_slot_size + D.vis.box.vMin.x;
+            float rz = (float(z) / float(d_size)) * dm_slot_size + D.vis.box.vMin.z;
             Fvector Item_P;
 
 #ifndef DBG_SWITCHOFF_RANDOMIZE
-            Item_P.set(rx + r_jitter.randFs(jitter), D.vis.box.max.y, rz + r_jitter.randFs(jitter));
+            Item_P.set(rx + r_jitter.randFs(jitter), D.vis.box.vMax.y, rz + r_jitter.randFs(jitter));
 #else
-            Item_P.set(rx, D.vis.box.max.y, rz);
+            Item_P.set(rx, D.vis.box.vMax.y, rz);
 #endif
 
             // Position (Y)
-            float y = D.vis.box.min.y - 5;
+            float y = D.vis.box.vMin.y - 5;
             Fvector dir;
             dir.set(0, -1, 0);
 
@@ -239,13 +239,13 @@ void CDetailManager::cache_Decompress(Slot* S)
                 }
 #endif
             }
-            if (y < D.vis.box.min.y)
+            if (y < D.vis.box.vMin.y)
                 continue;
             Item_P.y = y;
 
 // Angles and scale
 #ifndef DBG_SWITCHOFF_RANDOMIZE
-            Item.scale = r_scale.randF(Dobj->m_fMinScale * 0.5f, Dobj->m_fMaxScale * 0.9f);
+            Item.scale = r_scale.randF(Dobj->m_fMinScale * 0.5f, Dobj->m_fMaxScale * 0.9f) * ps_current_detail_height;
 #else
             Item.scale = (Dobj->m_fMinScale * 0.5f + Dobj->m_fMaxScale * 0.9f) / 2;
 // Item.scale	= 0.1f;
@@ -299,24 +299,17 @@ gray255[3]						=	255.f*float(c_pal->a3)/15.f;
 
 // Vis-sorting
 #ifndef DBG_SWITCHOFF_RANDOMIZE
-            if (!UseVS())
-            {
-                // Always still on CPU pipe
+            if (Dobj->m_Flags.is(DO_NO_WAVING))
                 Item.vis_ID = 0;
-            }
             else
             {
-                if (Dobj->m_Flags.is(DO_NO_WAVING))
-                    Item.vis_ID = 0;
+                if (::Random.randI(0, 3) == 0)
+                    Item.vis_ID = 2; // Second wave
                 else
-                {
-                    if (::Random.randI(0, 3) == 0)
-                        Item.vis_ID = 2; // Second wave
-                    else
-                        Item.vis_ID = 1; // First wave
-                }
+                    Item.vis_ID = 1; // First wave
             }
 #else
+            // Always still on CPU pipe
             Item.vis_ID = 0;
 #endif
             // Save it

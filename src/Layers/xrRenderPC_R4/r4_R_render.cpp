@@ -25,6 +25,7 @@ void CRender::render_main(Fmatrix& m_ViewProjection, bool _fportals)
         //!!!
         //!!! BECAUSE OF PARALLEL HOM RENDERING TRY TO DELAY ACCESS TO HOM AS MUCH AS POSSIBLE
         //!!!
+        if (psDeviceFlags.test(rsDrawDynamic))
         {
             // Traverse object database
             g_SpatialSpace->q_frustum(
@@ -34,7 +35,6 @@ void CRender::render_main(Fmatrix& m_ViewProjection, bool _fportals)
             std::sort(lstRenderables.begin(), lstRenderables.end(), pred_sp_sort);
 
             // Determine visibility for dynamic part of scene
-            set_Object(0);
             u32 uID_LTRACK = 0xffffffff;
             if (phase == PHASE_NORMAL)
             {
@@ -73,74 +73,77 @@ void CRender::render_main(Fmatrix& m_ViewProjection, bool _fportals)
             );
 
         // Determine visibility for static geometry hierrarhy
-        for (u32 s_it = 0; s_it < PortalTraverser.r_sectors.size(); s_it++)
+        if (psDeviceFlags.test(rsDrawStatic))
         {
-            CSector* sector = (CSector*)PortalTraverser.r_sectors[s_it];
-            dxRender_Visual* root = sector->root();
-            for (u32 v_it = 0; v_it < sector->r_frustums.size(); v_it++)
+            for (u32 s_it = 0; s_it < PortalTraverser.r_sectors.size(); s_it++)
             {
-                set_Frustum(&(sector->r_frustums[v_it]));
-                add_Geometry(root);
+                CSector* sector = (CSector*)PortalTraverser.r_sectors[s_it];
+                dxRender_Visual* root = sector->root();
+                for (u32 v_it = 0; v_it < sector->r_frustums.size(); v_it++)
+                {
+                    add_Geometry(root, sector->r_frustums[v_it]);
+                }
             }
         }
 
         // Traverse frustums
-        for (u32 o_it = 0; o_it < lstRenderables.size(); o_it++)
+        if (psDeviceFlags.test(rsDrawDynamic))
         {
-            ISpatial* spatial = lstRenderables[o_it];
-            spatial->spatial_updatesector();
-            CSector* sector = (CSector*)spatial->GetSpatialData().sector;
-            if (0 == sector)
-                continue; // disassociated from S/P structure
-
-            if (spatial->GetSpatialData().type & STYPE_LIGHTSOURCE)
+            for (u32 o_it = 0; o_it < lstRenderables.size(); o_it++)
             {
-                // lightsource
-                light* L = (light*)(spatial->dcast_Light());
-                VERIFY(L);
-                float lod = L->get_LOD();
-                if (lod > EPS_L)
+                ISpatial* spatial = lstRenderables[o_it];
+                spatial->spatial_updatesector();
+                CSector* sector = (CSector*)spatial->GetSpatialData().sector;
+                if (0 == sector)
+                    continue; // disassociated from S/P structure
+
+                if (spatial->GetSpatialData().type & STYPE_LIGHTSOURCE)
                 {
-                    vis_data& vis = L->get_homdata();
-                    if (HOM.visible(vis))
-                        Lights.add_light(L);
-                }
-                continue;
-            }
-
-            if (PortalTraverser.i_marker != sector->r_marker)
-                continue; // inactive (untouched) sector
-            for (u32 v_it = 0; v_it < sector->r_frustums.size(); v_it++)
-            {
-                CFrustum& view = sector->r_frustums[v_it];
-                if (!view.testSphere_dirty(spatial->GetSpatialData().sphere.P, spatial->GetSpatialData().sphere.R))
+                    // lightsource
+                    light* L = (light*)(spatial->dcast_Light());
+                    VERIFY(L);
+                    float lod = L->get_LOD();
+                    if (lod > EPS_L)
+                    {
+                        vis_data& vis = L->get_homdata();
+                        if (HOM.visible(vis))
+                            Lights.add_light(L);
+                    }
                     continue;
-
-                if (spatial->GetSpatialData().type & STYPE_RENDERABLE)
-                {
-                    // renderable
-                    IRenderable* renderable = spatial->dcast_Renderable();
-                    VERIFY(renderable);
-
-                    // Occlusion
-                    //	casting is faster then using getVis method
-                    vis_data& v_orig = ((dxRender_Visual*)renderable->GetRenderData().visual)->vis;
-                    vis_data v_copy = v_orig;
-                    v_copy.box.xform(renderable->GetRenderData().xform);
-                    BOOL bVisible = HOM.visible(v_copy);
-                    v_orig.marker = v_copy.marker;
-                    v_orig.accept_frame = v_copy.accept_frame;
-                    v_orig.hom_frame = v_copy.hom_frame;
-                    v_orig.hom_tested = v_copy.hom_tested;
-                    if (!bVisible)
-                        break; // exit loop on frustums
-
-                    // Rendering
-                    set_Object(renderable);
-                    renderable->renderable_Render();
-                    set_Object(0);
                 }
-                break; // exit loop on frustums
+
+                if (PortalTraverser.i_marker != sector->r_marker)
+                    continue; // inactive (untouched) sector
+                for (u32 v_it = 0; v_it < sector->r_frustums.size(); v_it++)
+                {
+                    CFrustum& view = sector->r_frustums[v_it];
+                    if (!view.testSphere_dirty(spatial->GetSpatialData().sphere.P, spatial->GetSpatialData().sphere.R))
+                        continue;
+
+                    if (spatial->GetSpatialData().type & STYPE_RENDERABLE)
+                    {
+                        // renderable
+                        IRenderable* renderable = spatial->dcast_Renderable();
+                        VERIFY(renderable);
+
+                        // Occlusion
+                        //	casting is faster then using getVis method
+                        vis_data& v_orig = ((dxRender_Visual*)renderable->GetRenderData().visual)->vis;
+                        vis_data v_copy = v_orig;
+                        v_copy.box.xform(renderable->GetRenderData().xform);
+                        BOOL bVisible = HOM.visible(v_copy);
+                        v_orig.marker = v_copy.marker;
+                        v_orig.accept_frame = v_copy.accept_frame;
+                        v_orig.hom_frame = v_copy.hom_frame;
+                        v_orig.hom_tested = v_copy.hom_tested;
+                        if (!bVisible)
+                            break; // exit loop on frustums
+
+                        // Rendering
+                        renderable->renderable_Render(renderable);
+                    }
+                    break; // exit loop on frustums
+                }
             }
         }
         if (g_pGameLevel && (phase == PHASE_NORMAL))
@@ -148,7 +151,6 @@ void CRender::render_main(Fmatrix& m_ViewProjection, bool _fportals)
     }
     else
     {
-        set_Object(0);
         if (g_pGameLevel && (phase == PHASE_NORMAL))
             g_hud->Render_Last(); // HUD
     }
@@ -239,8 +241,8 @@ void CRender::Render()
     //.	VERIFY					(g_pGameLevel && g_pGameLevel->pHUD);
 
     // Configure
-    RImplementation.o.distortion = FALSE; // disable distorion
-    Fcolor sun_color = ((light*)Lights.sun_adapted._get())->color;
+    o.distortion = FALSE; // disable distorion
+    Fcolor sun_color = ((light*)Lights.sun._get())->color;
     BOOL bSUN = ps_r2_ls_flags.test(R2FLAG_SUN) && (u_diffuse2s(sun_color.r, sun_color.g, sun_color.b) > EPS);
     if (o.sunstatic)
         bSUN = FALSE;
@@ -248,7 +250,6 @@ void CRender::Render()
 
     // HOM
     ViewBase.CreateFromMatrix(Device.mFullTransform, FRUSTUM_P_LRTB + FRUSTUM_P_FAR);
-    View = 0;
     if (!ps_r2_ls_flags.test(R2FLAG_EXP_MT_CALC))
     {
         HOM.Enable();
@@ -259,7 +260,7 @@ void CRender::Render()
     if (ps_r2_ls_flags.test(R2FLAG_ZFILL))
     {
         PIX_EVENT(DEFER_Z_FILL);
-        RImplementation.BasicStats.Culling.Begin();
+        BasicStats.Culling.Begin();
         float z_distance = ps_r2_zfill;
         Fmatrix m_zfill, m_project;
         m_project.build_projection(deg2rad(Device.fFOV /* *Device.fASPECT*/), Device.fASPECT, VIEWPORT_NEAR,
@@ -270,7 +271,7 @@ void CRender::Render()
         phase = PHASE_SMAP;
         render_main(m_zfill, false);
         r_pmask(true, false); // disable priority "1"
-        RImplementation.BasicStats.Culling.End();
+        BasicStats.Culling.End();
 
         // flush
         Target->phase_scene_prepare();
@@ -285,7 +286,7 @@ void CRender::Render()
 
     //*******
     // Sync point
-    RImplementation.BasicStats.WaitS.Begin();
+    BasicStats.WaitS.Begin();
     if (1)
     {
         CTimer T;
@@ -304,14 +305,14 @@ void CRender::Render()
             }
         }
     }
-    RImplementation.BasicStats.WaitS.End();
+    BasicStats.WaitS.End();
     q_sync_count = (q_sync_count + 1) % HW.Caps.iGPUNum;
     // CHK_DX										(q_sync_point[q_sync_count]->Issue(D3DISSUE_END));
     CHK_DX(EndQuery(q_sync_point[q_sync_count]));
 
     //******* Main calc - DEFERRER RENDERER
     // Main calc
-    RImplementation.BasicStats.Culling.Begin();
+    BasicStats.Culling.Begin();
     r_pmask(true, false, true); // enable priority "0",+ capture wmarks
     if (bSUN)
         set_Recorder(&main_coarse_structure);
@@ -321,7 +322,7 @@ void CRender::Render()
     render_main(Device.mFullTransform, true);
     set_Recorder(NULL);
     r_pmask(true, false); // disable priority "1"
-    RImplementation.BasicStats.Culling.End();
+    BasicStats.Culling.End();
 
     BOOL split_the_scene_to_minimize_wait = FALSE;
     if (ps_r2_ls_flags.test(R2FLAG_EXP_SPLIT_SCENE))
@@ -353,12 +354,12 @@ void CRender::Render()
     Target->phase_occq();
     LP_normal.clear();
     LP_pending.clear();
-    if (RImplementation.o.dx10_msaa)
-        RCache.set_ZB(RImplementation.Target->rt_MSAADepth->pZRT);
+    if (o.dx10_msaa)
+        RCache.set_ZB(Target->rt_MSAADepth->pZRT);
     {
         PIX_EVENT(DEFER_TEST_LIGHT_VIS);
         // perform tests
-        u32 count = 0;
+        auto count = 0;
         light_Package& LP = Lights.package;
 
         // stats
@@ -370,7 +371,7 @@ void CRender::Render()
         count = _max(count, LP.v_point.size());
         count = _max(count, LP.v_spot.size());
         count = _max(count, LP.v_shadowed.size());
-        for (u32 it = 0; it < count; it++)
+        for (auto it = 0; it < count; it++)
         {
             if (it < LP.v_point.size())
             {
@@ -411,11 +412,11 @@ void CRender::Render()
         // skybox can be drawn here
         if (0)
         {
-            if (!RImplementation.o.dx10_msaa)
+            if (!o.dx10_msaa)
                 Target->u_setrt(Target->rt_Generic_0, Target->rt_Generic_1, 0, HW.pBaseZB);
             else
                 Target->u_setrt(
-                    Target->rt_Generic_0_r, Target->rt_Generic_1, 0, RImplementation.Target->rt_MSAADepth->pZRT);
+                    Target->rt_Generic_0_r, Target->rt_Generic_1, 0, Target->rt_MSAADepth->pZRT);
             RCache.set_CullMode(CULL_NONE);
             RCache.set_Stencil(FALSE);
 
@@ -473,7 +474,7 @@ void CRender::Render()
     }
 
     // full screen pass to mark msaa-edge pixels in highest stencil bit
-    if (RImplementation.o.dx10_msaa)
+    if (o.dx10_msaa)
     {
         PIX_EVENT(MARK_MSAA_EDGES);
         Target->mark_msaa_edges();
@@ -490,7 +491,7 @@ void CRender::Render()
     if (bSUN)
     {
         PIX_EVENT(DEFER_SUN);
-        RImplementation.Stats.l_visible++;
+        Stats.l_visible++;
         if (!ps_r2_ls_flags_ext.is(R2FLAGEXT_SUN_OLD))
             render_sun_cascades();
         else
@@ -509,7 +510,7 @@ void CRender::Render()
         RCache.set_xform_project(Device.mProject);
         RCache.set_xform_view(Device.mView);
         // Stencil - write 0x1 at pixel pos -
-        if (!RImplementation.o.dx10_msaa)
+        if (!o.dx10_msaa)
             RCache.set_Stencil(
                 TRUE, D3DCMP_ALWAYS, 0x01, 0xff, 0xff, D3DSTENCILOP_KEEP, D3DSTENCILOP_REPLACE, D3DSTENCILOP_KEEP);
         else
@@ -519,7 +520,7 @@ void CRender::Render()
         // (TRUE,D3DCMP_ALWAYS,0x00,0xff,0xff,D3DSTENCILOP_KEEP,D3DSTENCILOP_REPLACE,D3DSTENCILOP_KEEP);
         RCache.set_CullMode(CULL_CCW);
         RCache.set_ColorWriteEnable();
-        RImplementation.r_dsgraph_render_emissive();
+        r_dsgraph_render_emissive();
     }
 
     // Lighting, non dependant on OCCQ
@@ -548,7 +549,7 @@ void CRender::Render()
 void CRender::render_forward()
 {
     VERIFY(0 == mapDistort.size());
-    RImplementation.o.distortion = RImplementation.o.distortion_enabled; // enable distorion
+    o.distortion = o.distortion_enabled; // enable distorion
 
     //******* Main render - second order geometry (the one, that doesn't support deffering)
     //.todo: should be done inside "combine" with estimation of of luminance, tone-mapping, etc.
@@ -565,5 +566,21 @@ void CRender::render_forward()
         g_pGamePersistent->Environment().RenderLast(); // rain/thunder-bolts
     }
 
-    RImplementation.o.distortion = FALSE; // disable distorion
+    o.distortion = FALSE; // disable distorion
+}
+
+// Перед началом рендера мира --#SM+#-- +SecondVP+
+void CRender::BeforeWorldRender() {}
+
+// После рендера мира и пост-эффектов --#SM+#-- +SecondVP+
+void CRender::AfterWorldRender()
+{
+    if (Device.m_SecondViewport.IsSVPFrame())
+    {
+        // Делает копию бэкбуфера (текущего экрана) в рендер-таргет второго вьюпорта
+        ID3DTexture2D* pBuffer = NULL;
+        HW.m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBuffer);
+        HW.pContext->CopyResource(Target->rt_secondVP->pSurface, pBuffer);
+        pBuffer->Release(); // Корректно очищаем ссылку на бэкбуфер (иначе игра зависнет в опциях)
+    }
 }

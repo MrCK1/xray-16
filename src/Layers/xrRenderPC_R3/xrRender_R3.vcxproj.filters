@@ -112,9 +112,6 @@
     <Filter Include="Interfase implementations\FactoryPtr">
       <UniqueIdentifier>{605a02cf-f225-491f-aa13-2c58b67d8ee7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Interfase implementations\ApplicationRender">
-      <UniqueIdentifier>{90b62e38-8e71-486e-b933-f6a7a5d6a033}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Interfase implementations\RainRender">
       <UniqueIdentifier>{2b8091fb-c54e-4cb6-aa83-cdd0068d8ef3}</UniqueIdentifier>
     </Filter>
@@ -237,16 +234,16 @@
     <ClInclude Include="..\xrRender\Light_DB.h">
       <Filter>Lights</Filter>
     </ClInclude>
-    <ClInclude Include="light_gi.h">
+    <ClInclude Include="..\xrRender\light_gi.h">
       <Filter>Lights</Filter>
     </ClInclude>
     <ClInclude Include="..\xrRender\Light_Package.h">
       <Filter>Lights</Filter>
     </ClInclude>
-    <ClInclude Include="Light_Render_Direct.h">
+    <ClInclude Include="..\xrRender\Light_Render_Direct.h">
       <Filter>Lights</Filter>
     </ClInclude>
-    <ClInclude Include="light_smapvis.h">
+    <ClInclude Include="..\xrRender\light_smapvis.h">
       <Filter>Lights</Filter>
     </ClInclude>
     <ClInclude Include="..\xrRender\LightTrack.h">
@@ -309,7 +306,7 @@
     <ClInclude Include="blender_ssao.h">
       <Filter>Shading templates</Filter>
     </ClInclude>
-    <ClInclude Include="dx10MinMaxSMBlender.h">
+    <ClInclude Include="..\xrRenderDX10\dx10MinMaxSMBlender.h">
       <Filter>Shading templates</Filter>
     </ClInclude>
     <ClInclude Include="..\xrRender\uber_deffer.h">
@@ -383,9 +380,6 @@
     </ClInclude>
     <ClInclude Include="..\xrRender\ColorMapManager.h">
       <Filter>Core_Target\ColorMap</Filter>
-    </ClInclude>
-    <ClInclude Include="..\xrRender\HW.h">
-      <Filter>Refactored\HW</Filter>
     </ClInclude>
     <ClInclude Include="..\xrRender\HWCaps.h">
       <Filter>Refactored\HW</Filter>
@@ -552,12 +546,6 @@
     <ClInclude Include="..\..\Include\xrRender\FactoryPtr.h">
       <Filter>Interfase implementations\FactoryPtr</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\xrRender\ApplicationRender.h">
-      <Filter>Interfase implementations\ApplicationRender</Filter>
-    </ClInclude>
-    <ClInclude Include="..\xrRender\dxApplicationRender.h">
-      <Filter>Interfase implementations\ApplicationRender</Filter>
-    </ClInclude>
     <ClInclude Include="..\xrRender\dxRainRender.h">
       <Filter>Interfase implementations\RainRender</Filter>
     </ClInclude>
@@ -699,11 +687,17 @@
     <ClInclude Include="..\xrRender\light.h">
       <Filter>Lights</Filter>
     </ClInclude>
-    <ClInclude Include="..\xrRender\RenderAllocator.hpp">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="..\xrRender\D3DXRenderBase.h">
       <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="blender_fxaa.h">
+      <Filter>Shading templates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\xrRender\KinematicsAddBoneTransform.hpp">
+      <Filter>Refactored\Execution &amp; 3D\Visuals\Skeleton</Filter>
+    </ClInclude>
+    <ClInclude Include="..\xrRenderDX10\dx10HW.h">
+      <Filter>Refactored\HW</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -729,9 +723,6 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="r2_R_lights.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="r2_R_sun.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="r2_sector_detect.cpp">
@@ -782,9 +773,6 @@
     <ClCompile Include="..\xrRender\DetailManager_Decompress.cpp">
       <Filter>Details</Filter>
     </ClCompile>
-    <ClCompile Include="..\xrRender\DetailManager_soft.cpp">
-      <Filter>Details</Filter>
-    </ClCompile>
     <ClCompile Include="..\xrRender\DetailManager_VS.cpp">
       <Filter>Details</Filter>
     </ClCompile>
@@ -812,22 +800,22 @@
     <ClCompile Include="..\xrRender\Light_DB.cpp">
       <Filter>Lights</Filter>
     </ClCompile>
-    <ClCompile Include="light_GI.cpp">
+    <ClCompile Include="..\xrRender\light_GI.cpp">
       <Filter>Lights</Filter>
     </ClCompile>
     <ClCompile Include="..\xrRender\Light_Package.cpp">
       <Filter>Lights</Filter>
     </ClCompile>
-    <ClCompile Include="Light_Render_Direct.cpp">
+    <ClCompile Include="..\xrRender\Light_Render_Direct.cpp">
       <Filter>Lights</Filter>
     </ClCompile>
-    <ClCompile Include="Light_Render_Direct_ComputeXFS.cpp">
+    <ClCompile Include="..\xrRender\Light_Render_Direct_ComputeXFS.cpp">
       <Filter>Lights</Filter>
     </ClCompile>
-    <ClCompile Include="light_smapvis.cpp">
+    <ClCompile Include="..\xrRender\light_smapvis.cpp">
       <Filter>Lights</Filter>
     </ClCompile>
-    <ClCompile Include="light_vis.cpp">
+    <ClCompile Include="..\xrRender\light_vis.cpp">
       <Filter>Lights</Filter>
     </ClCompile>
     <ClCompile Include="..\xrRender\LightTrack.cpp">
@@ -887,7 +875,7 @@
     <ClCompile Include="blender_ssao.cpp">
       <Filter>Shading templates</Filter>
     </ClCompile>
-    <ClCompile Include="dx10MinMaxSMBlender.cpp">
+    <ClCompile Include="..\xrRenderDX10\dx10MinMaxSMBlender.cpp">
       <Filter>Shading templates</Filter>
     </ClCompile>
     <ClCompile Include="..\xrRender\uber_deffer.cpp">
@@ -1037,9 +1025,6 @@
     <ClCompile Include="..\xrRenderDX10\dx10HW.cpp">
       <Filter>Refactored\HW</Filter>
     </ClCompile>
-    <ClCompile Include="..\xrRender\HWCaps.cpp">
-      <Filter>Refactored\HW</Filter>
-    </ClCompile>
     <ClCompile Include="..\xrRender\R_Backend.cpp">
       <Filter>Refactored\Backend</Filter>
     </ClCompile>
@@ -1187,9 +1172,6 @@
     <ClCompile Include="..\xrRender\dxLensFlareRender.cpp">
       <Filter>Interfase implementations\LensFlare</Filter>
     </ClCompile>
-    <ClCompile Include="..\xrRender\dxApplicationRender.cpp">
-      <Filter>Interfase implementations\ApplicationRender</Filter>
-    </ClCompile>
     <ClCompile Include="..\xrRender\dxRainRender.cpp">
       <Filter>Interfase implementations\RainRender</Filter>
     </ClCompile>
@@ -1280,8 +1262,29 @@
     <ClCompile Include="..\xrRender\Debug\dxPixEventWrapper.cpp">
       <Filter>Debug</Filter>
     </ClCompile>
-    <ClCompile Include="..\xrRender\RenderAllocator.cpp">
+    <ClCompile Include="r3_R_sun.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="blender_fxaa.cpp">
+      <Filter>Shading templates</Filter>
+    </ClCompile>
+    <ClCompile Include="r3_rendertarget_phase_FXAA.cpp">
+      <Filter>Core_Target</Filter>
+    </ClCompile>
+    <ClCompile Include="r3_shaders.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\xrRender\D3DXRenderBase.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\xrRenderDX10\dx10HWCaps.cpp">
+      <Filter>Refactored\HW</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\..\OpenXRay.natvis" />
   </ItemGroup>
 </Project>

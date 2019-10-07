@@ -1,69 +1,78 @@
 #include "stdafx.h"
-#include "resource.h"
-#ifdef INGAME_EDITOR
+#include "xr_3da/resource.h"
+#include "SDL.h"
+
 #include "Include/editor/ide.hpp"
 #include "engine_impl.hpp"
-#endif
+#include "xr_input.h"
 #include "GameFont.h"
 #include "PerformanceAlert.hpp"
-
 #include "xrCore/ModuleLookup.hpp"
 
-extern LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+SDL_HitTestResult WindowHitTest(SDL_Window* win, const SDL_Point* area, void* data);
 
-#ifdef INGAME_EDITOR
-void CRenderDevice::initialize_editor()
+void CRenderDevice::initialize_weather_editor()
 {
-    m_editor_module = XRay::LoadLibrary("xrWeatherEditor");
-    if (!m_editor_module)
-    {
-        Msg("! cannot load library \"xrWeatherEditor\"");
+    m_editor_module = XRay::LoadModule("xrWeatherEditor");
+    if (!m_editor_module->IsLoaded())
         return;
-    }
-    m_editor_initialize = (initialize_function_ptr)XRay::GetProcAddress(m_editor_module, "initialize");
+
+    m_editor_initialize = (initialize_function_ptr)m_editor_module->GetProcAddress("initialize");
     VERIFY(m_editor_initialize);
-    m_editor_finalize = (finalize_function_ptr)XRay::GetProcAddress(m_editor_module, "finalize");
+
+    m_editor_finalize = (finalize_function_ptr)m_editor_module->GetProcAddress("finalize");
     VERIFY(m_editor_finalize);
+#if !defined(LINUX)
     m_engine = new engine_impl();
     m_editor_initialize(m_editor, m_engine);
+#endif
     VERIFY(m_editor);
-    m_hWnd = m_editor->view_handle();
-    VERIFY(m_hWnd != INVALID_HANDLE_VALUE);
+
+    m_sdlWnd = SDL_CreateWindowFrom(m_editor->view_handle());
+    R_ASSERT3(m_sdlWnd, "Unable to create SDL window from editor", SDL_GetError());
+
+    GEnv.isEditor = true;
 }
-#endif // #ifdef INGAME_EDITOR
 
 void CRenderDevice::Initialize()
 {
     Log("Initializing Engine...");
     TimerGlobal.Start();
     TimerMM.Start();
-#ifdef INGAME_EDITOR
-    if (strstr(Core.Params, "-editor"))
-        initialize_editor();
-#endif
-    // Unless a substitute hWnd has been specified, create a window to render into
-    if (!m_hWnd)
+
+    if (strstr(Core.Params, "-weather"))
+        initialize_weather_editor();
+
+    if (!m_sdlWnd)
     {
-        const char* wndclass = "_XRAY_1.5";
-        // Register the windows class
-        HINSTANCE hInstance = (HINSTANCE)GetModuleHandle(0);
-        WNDCLASS wndClass = {0, WndProc, 0, 0, hInstance, LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1)),
-            LoadCursor(NULL, IDC_ARROW), (HBRUSH)GetStockObject(BLACK_BRUSH), NULL, wndclass};
-        RegisterClass(&wndClass);
-        // Set the window's initial style
-        m_dwWindowStyle = WS_BORDER | WS_DLGFRAME;
-        // Set the window's initial width
-        RECT rc;
-        SetRect(&rc, 0, 0, 640, 480);
-        AdjustWindowRect(&rc, m_dwWindowStyle, FALSE);
-        // Create the render window
-        m_hWnd = CreateWindowEx(WS_EX_TOPMOST, wndclass, "S.T.A.L.K.E.R.: Call of Pripyat", m_dwWindowStyle,
-            CW_USEDEFAULT, CW_USEDEFAULT, (rc.right - rc.left), (rc.bottom - rc.top), 0L, 0, hInstance, 0L);
+        Uint32 flags = SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN |
+            SDL_WINDOW_RESIZABLE;
+
+        if (psDeviceFlags.test(rsRGL))
+        {
+            flags |= SDL_WINDOW_OPENGL;
+
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+            SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+            SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+            SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+
+            if (!strstr(Core.Params, "-no_gl_context"))
+            {
+                SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+                SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+            }
+        }
+
+        pcstr title = READ_IF_EXISTS(pSettingsOpenXRay, r_string, "window", 
+                                    "title", "S.T.A.L.K.E.R.: Call of Pripyat");
+        
+        m_sdlWnd = SDL_CreateWindow(title, 0, 0, 640, 480, flags);
+        R_ASSERT3(m_sdlWnd, "Unable to create SDL window", SDL_GetError());
+        SDL_SetWindowHitTest(m_sdlWnd, WindowHitTest, nullptr);
+        SDL_SetWindowMinimumSize(m_sdlWnd, 256, 192);
+        xrDebug::SetWindowHandler(this);
     }
-    // Save window properties
-    m_dwWindowStyle = GetWindowLong(m_hWnd, GWL_STYLE);
-    GetWindowRect(m_hWnd, &m_rcWindowBounds);
-    GetClientRect(m_hWnd, &m_rcWindowClient);
 }
 
 void CRenderDevice::DumpStatistics(IGameFont& font, IPerformanceAlert* alert)
@@ -73,4 +82,52 @@ void CRenderDevice::DumpStatistics(IGameFont& font, IPerformanceAlert* alert)
     font.OutNext("TPS:          %2.2f M", stats.fTPS);
     if (alert && stats.fFPS < 30)
         alert->Print(font, "FPS       < 30:   %3.1f", stats.fFPS);
+}
+
+SDL_HitTestResult WindowHitTest(SDL_Window* /*window*/, const SDL_Point* pArea, void* /*data*/)
+{
+    if (!Device.AllowWindowDrag)
+        return SDL_HITTEST_NORMAL;
+
+    SDL_Point area = *pArea; // copy
+    const auto& rect = Device.m_rcWindowClient;
+
+    // size of additional interactive area (in pixels)
+    constexpr int hit = 15;
+    constexpr int fix = 65535; // u32(-1)
+
+    // Workaround for SDL bug 
+    if (area.x + hit >= fix && rect.w <= fix - hit)
+        area.x -= fix;
+
+    const bool leftSide = area.x <= rect.x + hit;
+    const bool topSide = area.y <= rect.y + hit;
+    const bool bottomSide = area.y >= rect.h - hit;
+    const bool rightSide = area.x >= rect.w - hit;
+
+    if (leftSide && topSide)
+        return SDL_HITTEST_RESIZE_TOPLEFT;
+
+    if (rightSide && topSide)
+        return SDL_HITTEST_RESIZE_TOPRIGHT;
+
+    if (rightSide && bottomSide)
+        return SDL_HITTEST_RESIZE_BOTTOMRIGHT;
+
+    if (leftSide && bottomSide)
+        return SDL_HITTEST_RESIZE_BOTTOMLEFT;
+
+    if (topSide)
+        return SDL_HITTEST_RESIZE_TOP;
+
+    if (rightSide)
+        return SDL_HITTEST_RESIZE_RIGHT;
+
+    if (bottomSide)
+        return SDL_HITTEST_RESIZE_BOTTOM;
+
+    if (leftSide)
+        return SDL_HITTEST_RESIZE_LEFT;
+
+    return SDL_HITTEST_DRAGGABLE;
 }

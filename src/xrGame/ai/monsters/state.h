@@ -8,6 +8,8 @@
 #include "debug_text_tree.h"
 #endif
 
+inline TTime current_time() { return Device.dwTimeGlobal; }
+
 template <typename _Object>
 class CState
 {
@@ -63,15 +65,16 @@ protected:
 private:
     void free_mem();
 
-    typedef xr_map<u32, CSState*> SubStates;
+    using SubStates = xr_map<u32, CSState*>;
     SubStates substates;
-    typedef typename xr_map<u32, CSState*>::iterator STATE_MAP_IT;
+    using STATE_MAP_IT = typename xr_map<u32, CSState*>::iterator;
 };
 
 template <typename _Object>
 class CStateMove : public CState<_Object>
 {
-    typedef CState<_Object> inherited;
+protected:
+    using inherited = CState<_Object>;
 
 public:
     CStateMove(_Object* obj, void* data = 0) : inherited(obj, data) {}
@@ -79,7 +82,7 @@ public:
     virtual void initialize()
     {
         inherited::initialize();
-        object->path().prepare_builder();
+        this->object->path().prepare_builder();
     }
 };
 

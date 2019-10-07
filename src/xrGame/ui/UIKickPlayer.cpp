@@ -2,15 +2,16 @@
 #include "UIKickPlayer.h"
 #include "UIVotingCategory.h"
 #include "UIXmlInit.h"
-#include "UI3tButton.h"
-#include "UIListBox.h"
-#include "UIListBoxItem.h"
-#include "UISpinNum.h"
+#include "xrUICore/Buttons/UI3tButton.h"
+#include "xrUICore/ListBox/UIListBox.h"
+#include "xrUICore/ListBox/UIListBoxItem.h"
+#include "xrUICore/SpinBox/UISpinNum.h"
 #include "UIGameCustom.h"
+#include "xrUICore/Windows/UIFrameWindow.h"
 #include "Level.h"
 #include "game_cl_base.h"
 #include "game_cl_teamdeathmatch.h"
-#include "xrEngine/xr_ioconsole.h"
+#include "xrEngine/XR_IOConsole.h"
 
 CUIKickPlayer::CUIKickPlayer()
 {
@@ -82,10 +83,9 @@ void CUIKickPlayer::InitKick(CUIXml& xml_doc)
     m_ban_sec_label->Show(false);
 }
 
-#include <dinput.h>
 bool CUIKickPlayer::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
-    if (dik == DIK_ESCAPE)
+    if (dik == SDL_SCANCODE_ESCAPE)
     {
         OnBtnCancel();
         return true;
@@ -132,7 +132,7 @@ void CUIKickPlayer::OnBtnOk()
 void CUIKickPlayer::OnBtnCancel() { HideDialog(); }
 IC bool DM_Compare_Players(game_PlayerState* v1, game_PlayerState* v2);
 
-DEFINE_VECTOR(game_PlayerState*, ItemVec, ItemIt);
+using ItemVec = xr_vector<game_PlayerState*>;
 
 void CUIKickPlayer::Update()
 {
@@ -155,13 +155,13 @@ void CUIKickPlayer::Update()
     for (; I != E; ++I)
     {
         game_PlayerState* pI = I->second;
-        if (m_selected_item_text.size() && !stricmp(pI->getName(), m_selected_item_text.c_str()))
+        if (m_selected_item_text.size() && !xr_stricmp(pI->getName(), m_selected_item_text.c_str()))
             bHasSelected = true;
 
         fit = std::find(m_current_set.begin(), m_current_set.end(), pI);
         if (fit == m_current_set.end())
             bNeedRefresh = true;
-        else if (stricmp((*fit)->getName(), pI->getName()))
+        else if (xr_stricmp((*fit)->getName(), pI->getName()))
             bNeedRefresh = true;
     }
     if (m_current_set.size() != items.size())

@@ -12,6 +12,8 @@
 #include "xrScriptEngine/ScriptExporter.hpp"
 #include "xrScriptEngine/script_space_forward.hpp"
 #include "xrScriptEngine/Functor.hpp"
+#include "xrCore/Threading/Lock.hpp"
+#include "xrCommon/xr_unordered_map.h"
 
 struct lua_State;
 
@@ -73,24 +75,25 @@ public:
 
 private:
     static Lock stateMapLock;
-    static xr_hash_map<lua_State*, CScriptEngine*>* stateMap;
+    static xr_unordered_map<lua_State*, CScriptEngine*> stateMap;
     lua_State* m_virtual_machine;
     CScriptThread* m_current_thread;
     bool m_reload_modules;
     string128 m_last_no_file;
-    u32 m_last_no_file_length;
+    size_t m_last_no_file_length;
     static string4096 g_ca_stdout;
     bool logReenterability = false;
     bool bindingsDumped = false;
     char* scriptBuffer = nullptr;
     size_t scriptBufferSize = 0;
+    bool m_is_editor;
 
 protected:
     CScriptProcessStorage m_script_processes;
     int m_stack_level;
-#ifdef DEBUG
+
     CMemoryWriter m_output; // for call stack
-#endif
+
 #ifdef USE_DEBUGGER
 #ifndef USE_LUA_STUDIO
     CScriptDebugger* m_scriptDebugger;
@@ -101,20 +104,18 @@ protected:
 #endif
 
 public:
-#ifdef DEBUG
     bool m_stack_is_ready;
-#endif
 
 private:
     static CScriptEngine* GetInstance(lua_State* state);
     static bool RegisterState(lua_State* state, CScriptEngine* scriptEngine);
     static bool UnregisterState(lua_State* state);
-    bool no_file_exists(LPCSTR file_name, u32 string_length);
-    void add_no_file(LPCSTR file_name, u32 string_length);
+    bool no_file_exists(pcstr file_name, size_t string_length);
+    void add_no_file(pcstr file_name, size_t string_length);
 
 protected:
     int vscript_log(LuaMessageType luaMessageType, LPCSTR caFormat, va_list marker);
-    bool parse_namespace(LPCSTR caNamespaceName, LPSTR b, u32 b_size, LPSTR c, u32 c_size);
+    bool parse_namespace(pcstr caNamespaceName, pstr b, size_t b_size, pstr c, size_t c_size);
     bool do_file(LPCSTR caScriptName, LPCSTR caNameSpaceName);
     void reinit();
 
@@ -136,26 +137,30 @@ public:
     luabind::object name_space(LPCSTR namespace_name);
     int error_log(LPCSTR caFormat, ...);
     int script_log(LuaMessageType message, LPCSTR caFormat, ...);
-    static bool print_output(lua_State* L, LPCSTR caScriptName, int iErrorCode = 0, const char* caErrorText = NULL);
+    static bool print_output(lua_State* L, pcstr caScriptName, int iErrorCode = 0, pcstr caErrorText = nullptr);
 
 private:
     static void print_error(lua_State* L, int iErrorCode);
+    static bool onErrorCallback(lua_State* L, pcstr scriptName, int errorCode, pcstr err = nullptr);
 
 public:
     static void on_error(lua_State* state);
-#ifdef DEBUG
+
     void flush_log();
-    void print_stack();
-#endif
+    void print_stack(lua_State* L = nullptr);
+
+    void LogTable(lua_State* l, pcstr S, int level);
+    void LogVariable(lua_State* l, pcstr name, int level);
+
     using ExporterFunc = XRay::ScriptExporter::Node::ExporterFunc;
-    CScriptEngine();
+    CScriptEngine(bool is_editor = false);
     virtual ~CScriptEngine();
     void init(ExporterFunc exporterFunc, bool loadGlobalNamespace);
     virtual void unload();
     static int lua_panic(lua_State* L);
     static void lua_error(lua_State* L);
     static int lua_pcall_failed(lua_State* L);
-#if !XRAY_EXCEPTIONS
+#if 1 //!XRAY_EXCEPTIONS
     static void lua_cast_failed(lua_State* L, const luabind::type_id& info);
 #endif
 #ifdef DEBUG
@@ -172,7 +177,7 @@ public:
     bool process_file(LPCSTR file_name);
     bool process_file(LPCSTR file_name, bool reload_modules);
     bool function_object(LPCSTR function_to_call, luabind::object& object, int type = LUA_TFUNCTION);
-    void parse_script_namespace(const char* name, char* ns, u32 nsSize, char* func, u32 funcSize);
+    void parse_script_namespace(pcstr name, pstr ns, size_t nsSize, pstr func, size_t funcSize);
     template <typename TResult>
     IC bool functor(LPCSTR function_to_call, luabind::functor<TResult>& lua_function);
 #ifdef USE_DEBUGGER
@@ -189,12 +194,12 @@ public:
 #endif
 #endif
     void collect_all_garbage();
-    static u32 GetMemoryUsage();
 
     CScriptProcess* CreateScriptProcess(shared_str name, shared_str scripts);
     CScriptThread* CreateScriptThread(LPCSTR caNamespaceName, bool do_string = false, bool reload = false);
     // This function is called from CScriptThread destructor
     void DestroyScriptThread(const CScriptThread* thread);
+    bool is_editor();
 };
 
 template <typename TResult>

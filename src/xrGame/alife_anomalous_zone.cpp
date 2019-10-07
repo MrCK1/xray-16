@@ -6,7 +6,7 @@
 //	Description : ALife anomalous zone class
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "xrServer_Objects_ALife_Monsters.h"
 #include "ai_space.h"
 #include "alife_simulator.h"
@@ -72,7 +72,7 @@ void CSE_ALifeAnomalousZone::spawn_artefacts				()
     typedef std::pair<shared_str,float>	Weight;
     typedef buffer_vector<Weight>		Weights;
     Weights weights			(
-        _alloca(n*sizeof(Weight)),
+        xr_alloca(n*sizeof(Weight)),
         n
     );
 
@@ -131,4 +131,4 @@ void CSE_ALifeAnomalousZone::on_spawn()
     //	spawn_artefacts			();
 }
 
-bool CSE_ALifeAnomalousZone::keep_saved_data_anyway() const { return (true); }
+bool CSE_ALifeAnomalousZone::keep_saved_data_anyway() const /* noexcept */ { return true; }

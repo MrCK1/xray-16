@@ -1,14 +1,14 @@
 #include "StdAfx.h"
 #include "UIVote.h"
-#include "UIStatic.h"
-#include "UI3tButton.h"
-#include "UIListBox.h"
-#include "UIFrameWindow.h"
+#include "xrUICore/Static/UIStatic.h"
+#include "xrUICore/Buttons/UI3tButton.h"
+#include "xrUICore/ListBox/UIListBox.h"
+#include "xrUICore/Windows/UIFrameWindow.h"
 #include "UIXmlInit.h"
 #include "Level.h"
 #include "game_cl_base.h"
 #include "game_cl_teamdeathmatch.h"
-#include "xrEngine/xr_ioconsole.h"
+#include "xrEngine/XR_IOConsole.h"
 
 CUIVote::CUIVote()
 {
@@ -47,7 +47,7 @@ CUIVote::CUIVote()
 void CUIVote::Init()
 {
     CUIXml xml_doc;
-    xml_doc.Load(CONFIG_PATH, UI_PATH, "voting_category.xml");
+    xml_doc.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "voting_category.xml");
     CUIXmlInit::InitWindow(xml_doc, "vote", 0, this);
     CUIXmlInit::InitStatic(xml_doc, "vote:background", 0, bkgrnd);
     CUIXmlInit::InitTextWnd(xml_doc, "vote:msg", 0, msg);
@@ -78,15 +78,13 @@ void CUIVote::Update()
     if (m_prev_upd_time > Device.dwTimeContinual - 1000)
         return;
     m_prev_upd_time = Device.dwTimeContinual;
-    game_cl_GameState::PLAYERS_MAP_IT I = Game().players.begin();
-    game_cl_GameState::PLAYERS_MAP_IT E = Game().players.end();
+    auto I = Game().players.begin();
+    auto E = Game().players.end();
 
-    DEFINE_VECTOR(game_PlayerState*, ItemVec, ItemIt);
+    using ItemVec = xr_vector<game_PlayerState*>;
     ItemVec items;
     for (; I != E; ++I)
-    {
         items.push_back(I->second);
-    };
 
     std::sort(items.begin(), items.end(), DM_Compare_Players);
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "uigamecustom.h"
+#include "UIGameCustom.h"
 #include "ui/UIDialogWnd.h"
 #include "xrAICore/Navigation/game_graph_space.h"
 
@@ -26,6 +26,7 @@ public:
     virtual void SetClGame(game_cl_GameState* g);
     virtual bool IR_UIOnKeyboardPress(int dik);
     virtual void OnFrame();
+    void OnUIReset() override;
 
     void StartTalk(bool disable_break);
     void StartTrade(CInventoryOwner* pActorInv, CInventoryOwner* pOtherOwner);
@@ -35,7 +36,9 @@ public:
     void ChangeLevel(GameGraph::_GRAPH_ID game_vert_id, u32 level_vert_id, Fvector pos, Fvector ang, Fvector pos2,
         Fvector ang2, bool b, const shared_str& message, bool b_allow_change_level);
 
-    virtual void HideShownDialogs();
+    void HideShownDialogs() override;
+    void ReinitDialogs() override;
+
 #ifdef DEBUG
     virtual void Render();
 #endif
@@ -67,7 +70,8 @@ public:
     virtual ~CChangeLevelWnd(){};
     virtual void SendMessage(CUIWindow* pWnd, s16 msg, void* pData);
     virtual bool WorkInPause() const { return true; }
-    virtual void Show();
-    virtual void Hide();
+    void Show(bool status) override;
+    void ShowDialog(bool bDoHideIndicators) override;
+    void HideDialog() override;
     virtual bool OnKeyboardAction(int dik, EUIMessages keyboard_action);
 };

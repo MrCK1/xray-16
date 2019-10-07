@@ -6,10 +6,12 @@
 //	Description : vision client
 ////////////////////////////////////////////////////////////////////////////
 
+#pragma once
 #ifndef VISION_CLIENT_H
 #define VISION_CLIENT_H
 
-#include "xrEngine/feel_vision.h"
+#include "xrEngine/ISheduled.h"
+#include "xrEngine/Feel_Vision.h"
 
 class IGameObject;
 class CEntity;

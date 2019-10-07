@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "Text_Console.h"
 #include "line_editor.h"
+#include "SDL_syswm.h"
+#include "x_ray.h"
 
 extern char const* const ioc_prompt;
 extern char const* const ch_cursor;
@@ -104,9 +106,9 @@ void CTextConsole::CreateLogWnd()
     lf.lfUnderline = 0;
     lf.lfStrikeOut = 0;
     lf.lfCharSet = DEFAULT_CHARSET;
-    lf.lfOutPrecision = OUT_STRING_PRECIS;
+    lf.lfOutPrecision = OUT_TT_PRECIS;
     lf.lfClipPrecision = CLIP_STROKE_PRECIS;
-    lf.lfQuality = DRAFT_QUALITY;
+    lf.lfQuality = CLEARTYPE_NATURAL_QUALITY;
     lf.lfPitchAndFamily = VARIABLE_PITCH | FF_SWISS;
     xr_sprintf(lf.lfFaceName, sizeof(lf.lfFaceName), "");
 
@@ -140,17 +142,34 @@ void CTextConsole::Initialize()
 {
     inherited::Initialize();
 
-    m_pMainWnd = &Device.m_hWnd;
     m_dwLastUpdateTime = Device.dwTimeGlobal;
     m_last_time = Device.dwTimeGlobal;
+
+    m_server_info.ResetData();
+}
+
+void CTextConsole::OnDeviceInitialize()
+{
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    if (SDL_GetWindowWMInfo(Device.m_sdlWnd, &info))
+    {
+        switch (info.subsystem)
+        {
+        case SDL_SYSWM_WINDOWS:
+            m_pMainWnd = &info.info.win.window;
+            break;
+        default: break;
+        }
+    }
+    else
+        Log("Couldn't get window information: ", SDL_GetError());
 
     CreateConsoleWnd();
     CreateLogWnd();
 
     ShowWindow(m_hConsoleWnd, SW_SHOW);
     UpdateWindow(m_hConsoleWnd);
-
-    m_server_info.ResetData();
 }
 
 void CTextConsole::Destroy()
@@ -226,7 +245,7 @@ void CTextConsole::DrawLog(HDC hDC, RECT* pRect)
     LPCSTR s_cur = ec().str_before_cursor();
 
     u32 cur_len = xr_strlen(s_cur) + xr_strlen(ch_cursor) + 1;
-    PSTR buf = (PSTR)_alloca(cur_len * sizeof(char));
+    PSTR buf = (PSTR)xr_alloca(cur_len * sizeof(char));
     xr_strcpy(buf, cur_len, s_cur);
     xr_strcat(buf, cur_len, ch_cursor);
     buf[cur_len - 1] = 0;
@@ -249,9 +268,9 @@ void CTextConsole::DrawLog(HDC hDC, RECT* pRect)
     TextOut(hDC, xb, Height - tm.tmHeight - 3, s_edt, xr_strlen(s_edt));
 
     SetTextColor(hDC, RGB(205, 205, 225));
-    u32 log_line = LogFile->size() - 1;
+    u32 log_line = LogFile.size() - 1;
     string16 q, q2;
-    itoa(log_line, q, 10);
+    xr_itoa(log_line, q, 10);
     xr_strcpy(q2, sizeof(q2), "[");
     xr_strcat(q2, sizeof(q2), q);
     xr_strcat(q2, sizeof(q2), "]");
@@ -260,14 +279,14 @@ void CTextConsole::DrawLog(HDC hDC, RECT* pRect)
     TextOut(hDC, Width - 8 * qn, Height - tm.tmHeight - tm.tmHeight, q2, qn);
 
     int ypos = Height - tm.tmHeight - tm.tmHeight;
-    for (int i = LogFile->size() - 1 - scroll_delta; i >= 0; --i)
+    for (int i = LogFile.size() - 1 - scroll_delta; i >= 0; --i)
     {
         ypos -= tm.tmHeight;
         if (ypos < y_top_max)
         {
             break;
         }
-        LPCSTR ls = ((*LogFile)[i]).c_str();
+        LPCSTR ls = LogFile[i].c_str();
 
         if (!ls)
         {
@@ -324,4 +343,49 @@ void CTextConsole::OnFrame()
      */ InvalidateRect(m_hConsoleWnd, NULL, FALSE);
     SetCursor(LoadCursor(NULL, IDC_ARROW));
     // m_bNeedUpdate = true;
+}
+
+void TextLoadingScreen::Initialize()
+{
+
+}
+
+void TextLoadingScreen::Show(bool status)
+{
+
+}
+
+bool TextLoadingScreen::IsShown()
+{
+    return false;
+}
+
+void TextLoadingScreen::Update(int stagesCompleted, int stagesTotal)
+{
+
+}
+
+void TextLoadingScreen::ForceDrop()
+{
+
+}
+
+void TextLoadingScreen::ForceFinish()
+{
+
+}
+
+void TextLoadingScreen::SetLevelLogo(cpcstr name)
+{
+
+}
+
+void TextLoadingScreen::SetStageTitle(cpcstr title)
+{
+
+}
+
+void TextLoadingScreen::SetStageTip(cpcstr header, cpcstr tipNumber, cpcstr tip)
+{
+
 }

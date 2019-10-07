@@ -1,15 +1,15 @@
-#ifndef ALDEVICELIST_H
-#define ALDEVICELIST_H
+#pragma once
 
 #include "openal/al.h"
 #include "openal/alc.h"
+#include "xrCore/_std_extensions.h"
 
-#define AL_GENERIC_HARDWARE "Generic Hardware"
-#define AL_GENERIC_SOFTWARE "Generic Software"
+constexpr pcstr AL_GENERIC_HARDWARE = "Generic Hardware";
+constexpr pcstr AL_GENERIC_SOFTWARE = "Generic Software";
 
 struct ALDeviceDesc
 {
-    string256 name;
+    string256 name = { 0 };
     int minor_ver;
     int major_ver;
     union ESndProps
@@ -27,7 +27,7 @@ struct ALDeviceDesc
         u16 storage;
     };
     ESndProps props;
-    ALDeviceDesc(LPCSTR nm, int mn, int mj)
+    ALDeviceDesc(pcstr nm, int mn, int mj)
     {
         xr_strcpy(name, nm);
         minor_ver = mn;
@@ -39,7 +39,6 @@ struct ALDeviceDesc
 
 class ALDeviceList
 {
-private:
     xr_vector<ALDeviceDesc> m_devices;
     string256 m_defaultDeviceName;
     void Enumerate();
@@ -48,11 +47,9 @@ public:
     ALDeviceList();
     ~ALDeviceList();
 
-    u32 GetNumDevices() { return m_devices.size(); }
+    u32 GetNumDevices() const { return m_devices.size(); }
     const ALDeviceDesc& GetDeviceDesc(u32 index) { return m_devices[index]; }
-    LPCSTR GetDeviceName(u32 index);
+    pcstr GetDeviceName(u32 index) const;
     void GetDeviceVersion(u32 index, int* major, int* minor);
     void SelectBestDevice();
 };
-
-#endif // ALDEVICELIST_H

@@ -6,13 +6,13 @@
 //	Description : Templates for monster "Rat"
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
-#include "ai/Monsters/rats/ai_rat.h"
+#include "StdAfx.h"
+#include "ai/monsters/rats/ai_rat.h"
 #include "ai/ai_monsters_misc.h"
 #include "xrAICore/Navigation/game_graph.h"
 #include "magic_box3.h"
 #include "Include/xrRender/RenderVisual.h"
-#include "xrAICore/Navigation/ai_object_location.h"
+#include "xrAICore/Navigation/ai_object_location_impl.h"
 #include "xrAICore/Navigation/level_graph.h"
 #include "movement_manager.h"
 #include "location_manager.h"
@@ -22,8 +22,8 @@
 #include "restricted_object.h"
 #include "xrAICore/Navigation/PatrolPath/patrol_path.h"
 #include "debug_renderer.h"
-#include "ai/Monsters/ai_monster_squad_manager.h"
-#include "ai/Monsters/ai_monster_squad.h"
+#include "ai/monsters/ai_monster_squad_manager.h"
+#include "ai/monsters/ai_monster_squad.h"
 
 IC bool CAI_Rat::bfCheckIfOutsideAIMap(Fvector& tTemp1)
 {
@@ -335,10 +335,10 @@ void CAI_Rat::move(bool bCanAdjustSpeed, bool bStraightForward)
     m_bCanAdjustSpeed = bCanAdjustSpeed;
     m_bStraightForward = bStraightForward;
 
-    Fvector tSafeHPB = m_tHPB;
-    Fvector tSavedPosition = Position();
-    SRotation tSavedTorsoTarget = movement().m_body.target;
-    float fSavedDHeading = m_fDHeading;
+    const Fvector tSafeHPB = m_tHPB; //-V821
+    const Fvector tSavedPosition = Position(); //-V821
+    const SRotation tSavedTorsoTarget = movement().m_body.target; //-V821
+    const float fSavedDHeading = m_fDHeading; //-V821
 
     if (bCanAdjustSpeed)
         select_speed();

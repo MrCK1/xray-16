@@ -9,7 +9,6 @@ using namespace xray_nvi;
 #ifdef XR_DXT_DBG_BUMP_STAGES_DIR
 #include "xrCore/Media/Image.hpp"
 using namespace XRay::Media;
-#pragma comment(lib, "xrCore.lib")
 #endif
 
 enum KernelType
@@ -47,7 +46,7 @@ Fvector vunpack(s32 x, s32 y, s32 z)
     return pck;
 }
 
-Fvector vunpack(Ivector src) { return vunpack(src.x, src.y, src.z); }
+Fvector vunpack(const Ivector& src) { return vunpack(src.x, src.y, src.z); }
 Ivector vpack(Fvector src)
 {
     src.normalize();
@@ -59,11 +58,11 @@ Ivector vpack(Fvector src)
     float e_best = flt_max;
     int r = bx, g = by, b = bz;
     int d = 2;
-    for (int x = _max(bx - d, 0); x <= _min(bx + d, 255); x++)
+    for (int x = std::max(bx - d, 0); x <= std::min(bx + d, 255); x++)
     {
-        for (int y = _max(by - d, 0); y <= _min(by + d, 255); y++)
+        for (int y = std::max(by - d, 0); y <= std::min(by + d, 255); y++)
         {
-            for (int z = _max(bz - d, 0); z <= _min(bz + d, 255); z++)
+            for (int z = std::max(bz - d, 0); z <= std::min(bz + d, 255); z++)
             {
                 _v = vunpack(x, y, z);
                 float m = _v.magnitude();
@@ -100,7 +99,7 @@ void CalculateNormalMap(NVI_Image* pSrc, ConvolutionKernel* pKernels, int num_ke
     conv.Initialize(&pSrc, pKernels, num_kernels, wrap);
     int size_x = (int)pSrc->GetWidth();
     int size_y = (int)pSrc->GetHeight();
-    DWORD* pArray = (DWORD*)pSrc->GetImageDataPointer();
+    auto pArray = (DWORD*)pSrc->GetImageDataPointer();
     assert(pArray != NULL);
     // Now run the kernel over the source image area and write out the values.
     // coordinates of source image (not padded)
@@ -508,7 +507,7 @@ u32 hsample(s32 w, s32 h, s32 p, s32 x, s32 y, u8* src)
     return color_get_R(*((u32*)(src + y * p) + x));
 }
 
-#include "ETextureParams.h"
+#include "Layers/xrRender/ETextureParams.h"
 #include "Image_DXTC.h"
 
 extern int DXTCompressImage(LPCSTR out_name, u8* raw_data, u32 w, u32 h, u32 pitch, STextureParams* fmt, u32 depth);
@@ -652,12 +651,12 @@ int DXTCompressBump(
             fmt0.type = STextureParams::ttImage;
             fmt0.fmt = STextureParams::tfDXT5;
             string256 out_name1;
-            strcpy(out_name1, out_name);
+            xr_strcpy(out_name1, out_name);
             if (strext(out_name1))
             {
                 *strext(out_name1) = 0;
             }
-            strcat(out_name1, "#.dds");
+            xr_strcat(out_name1, "#.dds");
             res |= DXTCompressImage(out_name1, T_normal_1D, w, h, pitch, &fmt0, depth);
             free(T_height_pf);
             free(T_normal_1D);

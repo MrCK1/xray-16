@@ -1,12 +1,12 @@
 #pragma once
 
-#include "grenade.h"
+#include "Grenade.h"
 
 class CF1 : public CGrenade
 {
     typedef CGrenade inherited;
 
 public:
-    CF1(void);
-    virtual ~CF1(void);
+    CF1() {}
+    virtual ~CF1() {}
 };

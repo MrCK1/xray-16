@@ -1,7 +1,4 @@
-///////////////////////////////////////////////////////////////////////
-
-#ifndef PH_SHELL
-#define PH_SHELL
+#pragma once
 
 class CPHShell;
 class CPHShellSplitterHolder;
@@ -9,7 +6,7 @@ class CPHShellSplitterHolder;
 #include "PHElement.h"
 #include "PHDefs.h"
 #include "PHShellSplitter.h"
-#include "phmovestorage.h"
+#include "PHMoveStorage.h"
 #include "physics_scripted.h"
 
 class CPhysicsShellAnimator;
@@ -64,13 +61,12 @@ public:
     virtual void DisableObject();
     virtual void SetAirResistance(dReal linear = default_k_l, dReal angular = default_k_w)
     {
-        xr_vector<CPHElement*>::iterator i;
-        for (i = elements.begin(); elements.end() != i; ++i)
-            (*i)->SetAirResistance(linear, angular);
+        for (auto& it : elements)
+            it->SetAirResistance(linear, angular);
     }
     virtual void GetAirResistance(float& linear, float& angular)
     {
-        (*elements.begin())->GetAirResistance(linear, angular);
+        elements.front()->GetAirResistance(linear, angular);
     }
     virtual void add_Joint(CPhysicsJoint* J);
 
@@ -133,13 +129,12 @@ public:
     virtual void setForce(const Fvector& force);
     virtual void set_JointResistance(float force)
     {
-        JOINT_I i;
-        for (i = joints.begin(); joints.end() != i; ++i)
+        for (auto& it : joints)
         {
-            (*i)->SetForce(force);
-            (*i)->SetVelocity();
+            it->SetForce(force);
+            it->SetVelocity();
+            //it->SetForceAndVelocity(force);
         }
-        //(*i)->SetForceAndVelocity(force);
     }
     virtual void set_DynamicLimits(float l_limit = default_l_limit, float w_limit = default_w_limit);
     virtual void set_DynamicScales(float l_scale = default_l_scale, float w_scale = default_w_scale);
@@ -315,5 +310,3 @@ IC void CPHShell::SetObjVsShellTransform(const Fmatrix& root_transform)
     m_object_in_root.invert();
     SetNotActivating();
 }
-
-#endif

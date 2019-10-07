@@ -6,7 +6,7 @@
 //	Description : Stalker danger in direction actions classes
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "stalker_danger_in_direction_actions.h"
 #include "ai/stalker/ai_stalker.h"
 #include "script_game_object.h"
@@ -145,6 +145,11 @@ void CStalkerActionDangerInDirectionLookOut::execute()
 {
     inherited::execute();
 
+    //Alundaio: This action should verify the danger object exists; sanity
+    if (!object().memory().danger().selected())
+        return;
+    //Alundaio: END
+
     //	CMemoryInfo							mem_object =
     // object().memory().memory(object().memory().danger().selected()->object());
     //
@@ -230,6 +235,11 @@ void CStalkerActionDangerInDirectionHoldPosition::execute()
     //
     //	if (!mem_object.m_object)
     //		return;
+
+    //Alundaio:
+    if (!object().memory().danger().selected())
+        return;
+    //-Alundaio
 
     Fvector position = object().memory().danger().selected()->position();
 

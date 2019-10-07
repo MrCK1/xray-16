@@ -1,23 +1,41 @@
 #pragma once
-#include "xrCore/xrCore.h"
+#include "xrCore/_types.h"
+
+#include "SDL.h"
 
 class XRCORE_API Event
 {
-private:
     void* handle;
+#if defined(LINUX)
+    struct EventHandle
+    {
+        pthread_mutex_t mutex;
+        pthread_cond_t cond;
+        bool signaled;
+    };
+
+private:
+    EventHandle m_id;
+#endif
 
 public:
-    Event();
-    ~Event();
+    Event() noexcept;
+    Event(std::nullptr_t) noexcept;
+    Event(void* event) noexcept;
+    ~Event() noexcept;
 
     // Reset the event to the unsignalled state.
-    void Reset();
+    void Reset() noexcept;
     // Set the event to the signalled state.
-    void Set();
+    void Set() noexcept;
     // Wait indefinitely for the object to become signalled.
-    void Wait() const;
-    // Wait, with a time limit, for the object to become signalled.
-    bool Wait(u32 millisecondsTimeout) const;
+    void Wait() noexcept;
+    /*! \brief Wait, with a time limit, for the object to become signalled
 
-    void* GetHandle() const { return handle; }
+        \return True if the object becomes signalled in the time limit, false otherwise
+    */
+    bool Wait(u32 millisecondsTimeout) noexcept;
+
+    void* GetHandle() const noexcept { return handle; }
+    bool Valid() const noexcept { return handle != nullptr; }
 };

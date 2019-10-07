@@ -1,9 +1,13 @@
+#pragma once
 #ifndef PH_COMMANDER_H
 #define PH_COMMANDER_H
+#include "xrPhysics/IPHWorld.h"
+#include "xrCore/Threading/Lock.hpp"
+
 class CPHReqBase;
 class CPHReqComparerV;
-#include "xrPhysics/iphworld.h"
 class CPhysicsShell;
+
 class CPHReqBase
 {
 public:
@@ -63,13 +67,13 @@ public:
 #endif
 };
 
-DEFINE_VECTOR(CPHCall*, PHCALL_STORAGE, PHCALL_I);
+using PHCALL_STORAGE = xr_vector<CPHCall*>;
+using PHCALL_I = PHCALL_STORAGE::iterator;
 class CPHCommander : public IPHWorldUpdateCallbck
 {
     Lock lock;
     PHCALL_STORAGE m_calls;
-    PHCALL_STORAGE m_calls_as_add_buffer;
-    PHCALL_STORAGE m_calls_as_remove_buffer;
+    xr_unordered_map<CPHCall*, bool> m_callsUpdateDeferred;
 
 public:
     ~CPHCommander();
@@ -79,39 +83,20 @@ public:
         CPHCondition* condition, CPHReqComparerV* cmp_condition, CPHAction* action, CPHReqComparerV* cmp_action);
     void add_call(CPHCondition* condition, CPHAction* action);
     void add_call_threadsafety(CPHCondition* condition, CPHAction* action);
+    void AddCallDeferred(CPHCondition* condition, CPHAction* action);
 
-    void remove_call(PHCALL_I i);
     bool has_call(CPHReqComparerV* cmp_condition, CPHReqComparerV* cmp_action);
     PHCALL_I find_call(CPHReqComparerV* cmp_condition, CPHReqComparerV* cmp_action);
     void remove_call(CPHReqComparerV* cmp_condition, CPHReqComparerV* cmp_action);
     void remove_calls(CPHReqComparerV* cmp_object);
     void remove_calls_threadsafety(CPHReqComparerV* cmp_object);
+    void RemoveCallsDeferred(CPHReqComparerV* comparer);
 
+    void UpdateDeferred();
     void update();
     void update_threadsafety();
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    void add_call_unique_as(
-        CPHCondition* condition, CPHReqComparerV* cmp_condition, CPHAction* action, CPHReqComparerV* cmp_action);
-    void add_call_as(CPHCondition* condition, CPHAction* action);
-
-    void remove_call_as(PHCALL_I i);
-    PHCALL_I find_call_as(CPHReqComparerV* cmp_condition, CPHReqComparerV* cmp_action);
-    void remove_call_as(CPHReqComparerV* cmp_condition, CPHReqComparerV* cmp_action);
-    void remove_calls_as(CPHReqComparerV* cmp_object);
-
-    void update_as();
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
     void clear();
-
-private:
-    IC bool add_call_unique(CPHCondition* condition, CPHReqComparerV* cmp_condition, CPHAction* action,
-        CPHReqComparerV* cmp_action, PHCALL_STORAGE& cs);
-    IC void add_call(CPHCondition* condition, CPHAction* action, PHCALL_STORAGE& cs);
-
-    IC void remove_call(PHCALL_I i, PHCALL_STORAGE& cs);
-    IC PHCALL_I find_call(CPHReqComparerV* cmp_condition, CPHReqComparerV* cmp_action, PHCALL_STORAGE& cs);
-    IC void remove_call(CPHReqComparerV* cmp_condition, CPHReqComparerV* cmp_action, PHCALL_STORAGE& cs);
-    IC void remove_calls(CPHReqComparerV* cmp_object, PHCALL_STORAGE& cs);
 
 private:
     virtual void update_step() { update_threadsafety(); }

@@ -1,46 +1,46 @@
 #include "pch_script.h"
 #include "UIGameTutorial.h"
-#include "UIWindow.h"
-#include "UIStatic.h"
+#include "xrUICore/Windows/UIWindow.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "UIXmlInit.h"
 #include "Common/object_broker.h"
 #include "xrEngine/xr_input.h"
 #include "xr_level_controller.h"
 #include "xrScriptEngine/script_engine.hpp"
 #include "ai_space.h"
-#include "xrEngine/xr_ioconsole.h"
+#include "xrEngine/XR_IOConsole.h"
 #include "UIGameCustom.h"
 #include "UIActorMenu.h"
 #include "UIPdaWnd.h"
+#include "xrScriptEngine/Functor.hpp"
 
 extern ENGINE_API BOOL bShowPauseString;
 
 void CallFunction(shared_str const& func)
 {
     luabind::functor<void> functor_to_call;
-    bool functor_exists = ai().script_engine().functor(func.c_str(), functor_to_call);
+    const bool functor_exists = GEnv.ScriptEngine->functor(func.c_str(), functor_to_call);
     THROW3(functor_exists, "Cannot find script function described in tutorial item ", func.c_str());
     if (functor_to_call.is_valid())
         functor_to_call();
 }
 
-void CallFunctions(xr_vector<shared_str>& v)
+void CallFunctions(xr_vector<shared_str>& functions)
 {
-    xr_vector<shared_str>::const_iterator it = v.begin();
-    for (; it != v.end(); ++it)
-        CallFunction(*it);
+    for (const auto& f : functions)
+        CallFunction(f);
 }
 
 void CUISequenceItem::Load(CUIXml* xml, int idx)
 {
-    XML_NODE* _stored_root = xml->GetLocalRoot();
+    XML_NODE _stored_root = xml->GetLocalRoot();
     xml->SetLocalRoot(xml->NavigateToNode("item", idx));
     int disabled_cnt = xml->GetNodesNum(xml->GetLocalRoot(), "disabled_key");
 
     for (int i = 0; i < disabled_cnt; ++i)
     {
         LPCSTR str = xml->Read("disabled_key", i, NULL);
-        m_disabled_actions.push_back(action_name_to_id(str));
+        m_disabled_actions.push_back(ActionNameToId(str));
     }
 
     int j;
@@ -63,7 +63,7 @@ void CUISequenceItem::Load(CUIXml* xml, int idx)
 bool CUISequenceItem::AllowKey(int dik)
 {
     xr_vector<int>::iterator it =
-        std::find(m_disabled_actions.begin(), m_disabled_actions.end(), get_binded_action(dik));
+        std::find(m_disabled_actions.begin(), m_disabled_actions.end(), GetBindedAction(dik));
     if (it == m_disabled_actions.end())
         return true;
     else
@@ -81,7 +81,7 @@ void CUISequenceItem::Start()
     CallFunctions(m_start_lua_functions);
     if (m_onframe_lua_function.size())
     {
-        bool functor_exists = ai().script_engine().functor(m_onframe_lua_function.c_str(), m_onframe_functor);
+        bool functor_exists = GEnv.ScriptEngine->functor(m_onframe_lua_function.c_str(), m_onframe_functor);
         THROW3(
             functor_exists, "Cannot find script function described in tutorial item ", m_onframe_lua_function.c_str());
     }
@@ -93,44 +93,60 @@ bool CUISequenceItem::Stop(bool bForce)
     return true;
 }
 
-CUISequencer::CUISequencer() { m_flags.zero(); }
+CUISequencer::CUISequencer()
+{
+    m_UIWindow = nullptr;
+    m_pStoredInputReceiver = nullptr;
+    m_flags.zero();
+}
 void CUISequencer::Start(LPCSTR tutor_name)
 {
-    VERIFY(m_sequencer_items.size() == 0);
+    // Skip any tutorial except "game_loaded" and "intro_game", on load screen
+    if (load_screen_renderer.IsActive() && xr_strcmp(tutor_name, "game_loaded") != 0 &&
+        xr_strcmp(tutor_name, "intro_game") != 0)
+        return;
+
+    VERIFY(m_sequencer_items.empty());
+    
+    CUIXml uiXml;
+    uiXml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "game_tutorials.xml");
+
+    const int items_count = uiXml.GetNodesNum(tutor_name, 0, "item");
+    if (items_count <= 0)
+    {
+        Msg("! can't find tutorial [%s]", tutor_name);
+        Destroy();
+        return;
+    }
+
+    uiXml.SetLocalRoot(uiXml.NavigateToNode(tutor_name, 0));
+
     Device.seqFrame.Add(this, REG_PRIORITY_LOW - 10000);
 
     m_UIWindow = new CUIWindow();
-
-    CUIXml uiXml;
-    uiXml.Load(CONFIG_PATH, UI_PATH, "game_tutorials.xml");
-
-    int items_count = uiXml.GetNodesNum(tutor_name, 0, "item");
-    VERIFY(items_count > 0);
-    uiXml.SetLocalRoot(uiXml.NavigateToNode(tutor_name, 0));
 
     m_flags.set(etsPlayEachItem, !!uiXml.ReadInt("play_each_item", 0, 0));
     m_flags.set(etsPersistent, !!uiXml.Read("persistent", 0, 0));
     m_flags.set(etsOverMainMenu, !!uiXml.Read("over_main_menu", 0, 0));
     int render_prio = uiXml.ReadInt("render_prio", 0, -2);
 
-    CUIXmlInit xml_init;
     if (UI().is_widescreen() && uiXml.NavigateToNode("global_wnd_16", 0))
     {
-        xml_init.AssignColor("tut_gray", color_rgba(255, 255, 255, 255));
-        xml_init.InitWindow(uiXml, "global_wnd_16", 0, m_UIWindow);
+        CUIXmlInit::AssignColor("tut_gray", color_rgba(255, 255, 255, 255));
+        CUIXmlInit::InitWindow(uiXml, "global_wnd_16", 0, m_UIWindow);
     }
     else
     {
-        xml_init.AssignColor("tut_gray", color_rgba(100, 100, 100, 255));
-        xml_init.InitWindow(uiXml, "global_wnd", 0, m_UIWindow);
+        CUIXmlInit::AssignColor("tut_gray", color_rgba(100, 100, 100, 255));
+        CUIXmlInit::InitWindow(uiXml, "global_wnd", 0, m_UIWindow);
     }
 
-    XML_NODE* bk = uiXml.GetLocalRoot();
+    XML_NODE bk = uiXml.GetLocalRoot();
     uiXml.SetLocalRoot(uiXml.NavigateToNode("global_wnd", 0));
     {
         LPCSTR str = uiXml.Read("pause_state", 0, "ignore");
-        m_flags.set(etsNeedPauseOn, 0 == _stricmp(str, "on"));
-        m_flags.set(etsNeedPauseOff, 0 == _stricmp(str, "off"));
+        m_flags.set(etsNeedPauseOn, 0 == xr_stricmp(str, "on"));
+        m_flags.set(etsNeedPauseOff, 0 == xr_stricmp(str, "off"));
     }
 
     LPCSTR snd_name = uiXml.Read("sound", 0, "");
@@ -147,7 +163,7 @@ void CUISequencer::Start(LPCSTR tutor_name)
     for (int i = 0; i < items_count; ++i)
     {
         LPCSTR _tp = uiXml.ReadAttrib("item", i, "type", "");
-        bool bVideo = 0 == _stricmp(_tp, "video");
+        bool bVideo = 0 == xr_stricmp(_tp, "video");
         CUISequenceItem* pItem = 0;
         if (bVideo)
             pItem = new CUISequenceVideoItem(this);
@@ -196,7 +212,7 @@ CUISequenceItem* CUISequencer::GetNextItem()
         if (f.size() == 0)
             break;
 
-        bool functor_exists = ai().script_engine().functor(f.c_str(), functor_to_call);
+        bool functor_exists = GEnv.ScriptEngine->functor(f.c_str(), functor_to_call);
         THROW3(functor_exists, "Cannot find script function described in tutorial item ", f.c_str());
 
         bool call_result = true;
@@ -228,22 +244,24 @@ void CUISequencer::Destroy()
     m_global_sound.stop();
     Device.seqFrame.Remove(this);
     Device.seqRender.Remove(this);
-    delete_data(m_sequencer_items);
-    delete_data(m_UIWindow);
+    if (!m_sequencer_items.empty())
+        delete_data(m_sequencer_items);
+    if (m_UIWindow)
+        delete_data(m_UIWindow);
     IR_Release();
     m_flags.set(etsActive, FALSE);
-    m_pStoredInputReceiver = NULL;
+    m_pStoredInputReceiver = nullptr;
 
     if (!m_on_destroy_event.empty())
         m_on_destroy_event();
 
     if (g_tutorial == this)
     {
-        g_tutorial = NULL;
+        g_tutorial = nullptr;
     }
     if (g_tutorial2 == this)
     {
-        g_tutorial2 = NULL;
+        g_tutorial2 = nullptr;
     }
 }
 
@@ -382,10 +400,10 @@ void CUISequencer::IR_OnKeyboardHold(int dik)
         m_pStoredInputReceiver->IR_OnKeyboardHold(dik);
 }
 
-void CUISequencer::IR_OnMouseWheel(int direction)
+void CUISequencer::IR_OnMouseWheel(int x, int y)
 {
     if (!GrabInput() && m_pStoredInputReceiver)
-        m_pStoredInputReceiver->IR_OnMouseWheel(direction);
+        m_pStoredInputReceiver->IR_OnMouseWheel(x, y);
 }
 
 void CUISequencer::IR_OnKeyboardPress(int dik)
@@ -397,7 +415,7 @@ void CUISequencer::IR_OnKeyboardPress(int dik)
     if (m_sequencer_items.size())
         b &= m_sequencer_items.front()->AllowKey(dik);
 
-    bool binded = is_binded(kQUIT, dik);
+    bool binded = IsBinded(kQUIT, dik);
     if (b && binded)
     {
         Stop();
@@ -433,7 +451,7 @@ void CUISequencer::IR_OnActivate()
     {
         if (IR_GetKeyState(i))
         {
-            EGameActions action = get_binded_action(i);
+            EGameActions action = GetBindedAction(i);
             switch (action)
             {
             case kFWD:
@@ -448,7 +466,9 @@ void CUISequencer::IR_OnActivate()
             case kACCEL:
             case kL_LOOKOUT:
             case kR_LOOKOUT:
-            case kWPN_FIRE: { IR_OnKeyboardPress(i);
+            case kWPN_FIRE:
+            {
+                IR_OnKeyboardPress(i);
             }
             break;
             };

@@ -1,7 +1,7 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UINewsItemWnd.h"
 #include "UIXmlInit.h"
-#include "UIStatic.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "game_news.h"
 #include "date_time.h"
 #include "UIInventoryUtilities.h"
@@ -13,8 +13,8 @@ void CUINewsItemWnd::Init(CUIXml& uiXml, LPCSTR start_from)
 {
     CUIXmlInit::InitWindow(uiXml, start_from, 0, this);
 
-    XML_NODE* stored_root = uiXml.GetLocalRoot();
-    XML_NODE* node = uiXml.NavigateToNode(start_from, 0);
+    XML_NODE stored_root = uiXml.GetLocalRoot();
+    XML_NODE node = uiXml.NavigateToNode(start_from, 0);
     uiXml.SetLocalRoot(node);
 
     m_UIImage = UIHelper::CreateStatic(uiXml, "image", this);
@@ -29,7 +29,7 @@ void CUINewsItemWnd::Setup(GAME_NEWS_DATA& news_data)
 {
     shared_str time_str = InventoryUtilities::GetTimeAndDateAsString(news_data.receive_time);
     u32 sz = (time_str.size() + 5) * sizeof(char);
-    PSTR str = (PSTR)_alloca(sz);
+    PSTR str = (PSTR)xr_alloca(sz);
     xr_strcpy(str, sz, time_str.c_str());
     xr_strcat(str, sz, " -");
     m_UIDate->SetText(str);

@@ -1,20 +1,24 @@
+#pragma once
 #ifndef xrXMLParserH
 #define xrXMLParserH
-#pragma once
-
-#include "Common/Platform.hpp"
-
-const LPCSTR CONFIG_PATH = "$game_config$";
-const LPCSTR UI_PATH = "ui";
 
 #include "tinyxml.h"
 
-typedef TiXmlNode XML_NODE;
-typedef TiXmlAttribute XML_ATTRIBUTE;
+#include "xrCommon/xr_vector.h"
+#include "xrCore/xrstring.h"
 
-class XRCORE_API XMLDocument
+// XXX: interesting idea is to have variable configs folder. Need we?
+static constexpr pcstr CONFIG_PATH = _game_config_;
+static constexpr pcstr UI_PATH_DEFAULT = "ui";
+static constexpr pcstr UI_PATH_DEFAULT_WITH_DELIMITER = "ui" DELIMITER;
+XRCORE_API extern pcstr UI_PATH;
+XRCORE_API extern pcstr UI_PATH_WITH_DELIMITER;
+
+using XML_NODE = TiXmlNode*;
+using XML_DOC  = TiXmlDocument;
+
+class XRCORE_API XMLDocument : public Noncopyable
 {
-    void Load(LPCSTR path_alias, LPCSTR xml_filename);
 
 public:
     string_path m_xml_file_name;
@@ -22,73 +26,73 @@ public:
     virtual ~XMLDocument();
     void ClearInternal();
 
-    void Load(LPCSTR path_alias, LPCSTR path, LPCSTR xml_filename);
+    bool Load(pcstr path_alias, pcstr xml_filename, bool fatal = true);
+    bool Load(pcstr path_alias, pcstr path, pcstr xml_filename, bool fatal = true);
+    bool Load(pcstr path_alias, pcstr path, pcstr path2, pcstr xml_filename, bool fatal = true);
+
+    // Set XML directly. Doesn't support #include directive
+    bool Set(pcstr text, bool fatal = true);
 
     //чтение элементов
-    LPCSTR Read(LPCSTR path, int index, LPCSTR default_str_val);
-    LPCSTR Read(XML_NODE* start_node, LPCSTR path, int index, LPCSTR default_str_val);
-    LPCSTR Read(XML_NODE* node, LPCSTR default_str_val);
+    pcstr Read(pcstr path, const size_t index, pcstr default_str_val) const;
+    pcstr Read(XML_NODE start_node, pcstr path, const size_t index, pcstr default_str_val) const;
+    pcstr Read(XML_NODE node, pcstr default_str_val) const;
 
-    int ReadInt(LPCSTR path, int index, int default_int_val);
-    int ReadInt(XML_NODE* start_node, LPCSTR path, int index, int default_int_val);
-    int ReadInt(XML_NODE* node, int default_int_val);
+    int ReadInt(pcstr path, const size_t index, const int default_int_val) const;
+    int ReadInt(XML_NODE start_node, pcstr path, const size_t index, const int default_int_val) const;
+    int ReadInt(XML_NODE node, const int default_int_val) const;
 
-    float ReadFlt(LPCSTR path, int index, float default_flt_val);
-    float ReadFlt(XML_NODE* start_node, LPCSTR path, int index, float default_flt_val);
-    float ReadFlt(XML_NODE* node, float default_flt_val);
+    float ReadFlt(pcstr path, const size_t index, float default_flt_val) const;
+    float ReadFlt(XML_NODE start_node, pcstr path, const size_t index, float default_flt_val) const;
+    float ReadFlt(XML_NODE node, float default_flt_val) const;
 
-    LPCSTR ReadAttrib(LPCSTR path, int index, LPCSTR attrib, LPCSTR default_str_val = "");
-    LPCSTR ReadAttrib(XML_NODE* start_node, LPCSTR path, int index, LPCSTR attrib, LPCSTR default_str_val = "");
-    LPCSTR ReadAttrib(XML_NODE* node, LPCSTR attrib, LPCSTR default_str_val);
+    pcstr ReadAttrib(pcstr path, const size_t index, pcstr attrib, pcstr default_str_val = "") const;
+    pcstr ReadAttrib(XML_NODE start_node, pcstr path, const size_t index, pcstr attrib, pcstr default_str_val = "") const;
+    pcstr ReadAttrib(XML_NODE node, pcstr attrib, pcstr default_str_val) const;
 
-    int ReadAttribInt(LPCSTR path, int index, LPCSTR attrib, int default_int_val = 0);
-    int ReadAttribInt(XML_NODE* start_node, LPCSTR path, int index, LPCSTR attrib, int default_int_val = 0);
-    int ReadAttribInt(XML_NODE* node, LPCSTR attrib, int default_int_val);
+    int ReadAttribInt(pcstr path, const size_t index, pcstr attrib, int default_int_val = 0) const;
+    int ReadAttribInt(XML_NODE start_node, pcstr path, const size_t index, pcstr attrib, const int default_int_val = 0) const;
+    int ReadAttribInt(XML_NODE node, pcstr attrib, const int default_int_val) const;
 
-    float ReadAttribFlt(LPCSTR path, int index, LPCSTR attrib, float default_flt_val = 0.0f);
-    float ReadAttribFlt(XML_NODE* start_node, LPCSTR path, int index, LPCSTR attrib, float default_flt_val = 0.0f);
-    float ReadAttribFlt(XML_NODE* node, LPCSTR attrib, float default_flt_val = 0.0f);
+    float ReadAttribFlt(pcstr path, const size_t index, pcstr attrib, const float default_flt_val = 0.0f) const;
+    float ReadAttribFlt(XML_NODE start_node, pcstr path, const size_t index, pcstr attrib, const float default_flt_val = 0.0f) const;
+    float ReadAttribFlt(XML_NODE node, pcstr attrib, const float default_flt_val = 0.0f) const;
 
-    XML_NODE* SearchForAttribute(LPCSTR path, int index, LPCSTR tag_name, LPCSTR attrib, LPCSTR attrib_value_pattern);
-    XML_NODE* SearchForAttribute(XML_NODE* start_node, LPCSTR tag_name, LPCSTR attrib, LPCSTR attrib_value_pattern);
+    XML_NODE SearchForAttribute(pcstr path, const size_t index, pcstr tag_name, pcstr attrib, pcstr attrib_value_pattern) const;
+    XML_NODE SearchForAttribute(XML_NODE start_node, pcstr tag_name, pcstr attrib, pcstr attrib_value_pattern) const;
 
     //возвращает количество узлов с заданым именем
-    int GetNodesNum(LPCSTR path, int index, LPCSTR tag_name);
-    int GetNodesNum(XML_NODE* node, LPCSTR tag_name);
+    size_t GetNodesNum(pcstr path, const size_t index, pcstr tag_name) const;
+    size_t GetNodesNum(XML_NODE node, pcstr tag_name, bool includingComments = true) const;
 
-#ifdef DEBUG // debug & mixed
     //проверка того, что аттрибуты у тегов уникальны
     //(если не NULL, то уникальность нарушена и возврашается имя
     //повторяющегося атрибута)
-    LPCSTR CheckUniqueAttrib(XML_NODE* start_node, LPCSTR tag_name, LPCSTR attrib_name);
-#endif
+    pcstr CheckUniqueAttrib(XML_NODE start_node, pcstr tag_name, pcstr attrib_name);
 
     //переместиться по XML дереву
     //путь задается в форме PARENT:CHILD:CHIDLS_CHILD
     // node_index - номер, если узлов с одним именем несколько
-    XML_NODE* NavigateToNode(LPCSTR path, int node_index = 0);
-    XML_NODE* NavigateToNode(XML_NODE* start_node, LPCSTR path, int node_index = 0);
-    XML_NODE* NavigateToNodeWithAttribute(LPCSTR tag_name, LPCSTR attrib_name, LPCSTR attrib_value);
+    XML_NODE NavigateToNode(pcstr path, const size_t node_index = 0) const;
+    XML_NODE NavigateToNode(XML_NODE start_node, pcstr path, const size_t node_index = 0) const;
+    XML_NODE NavigateToNodeWithAttribute(pcstr tag_name, pcstr attrib_name, pcstr attrib_value);
 
-    void SetLocalRoot(XML_NODE* pLocalRoot) { m_pLocalRoot = pLocalRoot; }
-    XML_NODE* GetLocalRoot() { return m_pLocalRoot; }
-    XML_NODE* GetRoot() { return m_root; }
+    void SetLocalRoot(XML_NODE pLocalRoot) { m_pLocalRoot = pLocalRoot; }
+    XML_NODE GetLocalRoot() const { return m_pLocalRoot; }
+    XML_NODE GetRoot() const { return m_root; }
+
 protected:
-    XML_NODE* m_root;
-    XML_NODE* m_pLocalRoot;
+    XML_NODE m_root;
+    XML_NODE m_pLocalRoot;
 
-#ifdef DEBUG // debug & mixed
     //буфферный вектор для проверки уникальность аттрибутов
     xr_vector<shared_str> m_AttribValues;
-#endif
-public:
-    virtual shared_str correct_file_name(LPCSTR path, LPCSTR fn) { return fn; }
-private:
-    XMLDocument(const XMLDocument& copy);
-    void operator=(const XMLDocument& copy);
 
-    typedef TiXmlElement XML_ELEM;
-    TiXmlDocument m_Doc;
+public:
+    virtual shared_str correct_file_name(pcstr path, pcstr fn) { return fn; }
+
+private:
+    XML_DOC m_Doc;
 };
 
 #endif // xrXMLParserH

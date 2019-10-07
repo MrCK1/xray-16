@@ -1,15 +1,15 @@
 #include "pch_script.h"
 #include "GameTask.h"
-#include "ui/xrUIXmlParser.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 #include "encyclopedia_article.h"
 #include "map_location.h"
 #include "map_spot.h"
 #include "map_manager.h"
 
 #include "Level.h"
-#include "actor.h"
+#include "Actor.h"
 #include "xrScriptEngine/script_engine.hpp"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "script_game_object.h"
 #include "ai_space.h"
 #include "alife_object_registry.h"
@@ -17,19 +17,20 @@
 #include "alife_story_registry.h"
 #include "game_object_space.h"
 #include "Common/object_broker.h"
-#include "ui/uitexturemaster.h"
+#include "xrUICore/XML/UITextureMaster.h"
 
 CGameTask::CGameTask()
+    : m_map_object_id(0), m_TimeToComplete(0), m_priority(0)
 {
     m_ReceiveTime = 0;
     m_FinishTime = 0;
     m_timer_finish = 0;
-    m_Title = NULL;
-    m_Description = NULL;
-    m_ID = NULL;
+    m_Title = nullptr;
+    m_Description = nullptr;
+    m_ID = nullptr;
     m_task_type = eTaskTypeDummy;
     m_task_state = eTaskStateDummy;
-    m_linked_map_location = NULL;
+    m_linked_map_location = nullptr;
     m_read = false;
 }
 
@@ -267,7 +268,7 @@ void SScriptTaskHelper::init_functors(xr_vector<shared_str>& v_src, task_state_f
 
     for (u32 idx = 0; it != it_e; ++it, ++idx)
     {
-        bool functor_exists = ai().script_engine().functor(*(*it), v_dest[idx]);
+        bool functor_exists = GEnv.ScriptEngine->functor(*(*it), v_dest[idx]);
         if (!functor_exists)
             Log("Cannot find script function described in task objective  ", *(*it));
     }

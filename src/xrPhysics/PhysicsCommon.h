@@ -1,8 +1,7 @@
-#ifndef PHYSICS_COMMON_H
-#define PHYSICS_COMMON_H
+#pragma once
 
 #include "DisablingParams.h"
-#include "physicsexternalcommon.h"
+#include "PhysicsExternalCommon.h"
 
 extern XRPHYSICS_API const float default_l_limit;
 extern XRPHYSICS_API const float default_w_limit;
@@ -52,5 +51,3 @@ IC void MulSprDmp(float& cfm, float& erp, float mul_spring, float mul_damping)
     cfm *= factor;
     erp *= (factor * mul_spring);
 }
-
-#endif // PHYSICS_COMMON_H

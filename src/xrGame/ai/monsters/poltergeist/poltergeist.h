@@ -1,7 +1,7 @@
 #pragma once
-#include "ai/Monsters/BaseMonster/base_monster.h"
-#include "ai/Monsters/telekinesis.h"
-#include "ai/Monsters/energy_holder.h"
+#include "ai/monsters/basemonster/base_monster.h"
+#include "ai/monsters/telekinesis.h"
+#include "ai/monsters/energy_holder.h"
 
 class CPhysicsShellHolder;
 class CStateManagerPoltergeist;
@@ -71,11 +71,11 @@ public:
     virtual void on_activate();
     virtual void on_deactivate();
     virtual void Hit(SHit* pHDS);
-    virtual char* get_monster_class_name() { return "poltergeist"; }
+    pcstr get_monster_class_name() override { return "poltergeist"; }
     bool detected_enemy();
     float get_fly_around_distance() const { return m_fly_around_distance; }
     float get_fly_around_change_direction_time() const { return m_fly_around_change_direction_time; }
-    virtual void renderable_Render();
+    void renderable_Render(IRenderable* root) override;
 
     IC CPolterSpecialAbility* ability() { return (m_flame ? m_flame : m_tele); }
     IC bool is_hidden() { return state_invisible; }
@@ -234,7 +234,7 @@ public:
     };
 
 private:
-    DEFINE_VECTOR(SFlameElement*, FLAME_ELEMS_VEC, FLAME_ELEMS_IT);
+    using FLAME_ELEMS_VEC = xr_vector<SFlameElement*>;
     FLAME_ELEMS_VEC m_flames;
 
 public:

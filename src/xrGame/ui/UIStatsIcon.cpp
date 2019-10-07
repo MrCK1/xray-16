@@ -1,6 +1,6 @@
 #include "StdAfx.h"
 #include "UIStatsIcon.h"
-#include "UITextureMaster.h"
+#include "xrUICore/XML/UITextureMaster.h"
 #include "UIInventoryUtilities.h"
 
 #include "Include/xrRender/UIShader.h"
@@ -44,7 +44,7 @@ void CUIStatsIcon::InitTexInfo()
     m_tex_info[ARTEFACT][1] = m_tex_info[ARTEFACT][0];
 
     // death
-    m_tex_info[DEATH][0].sh->create("hud\\default", "ui\\ui_mp_icon_kill");
+    m_tex_info[DEATH][0].sh->create("hud" DELIMITER "default", "ui" DELIMITER "ui_mp_icon_kill");
     m_tex_info[DEATH][1] = m_tex_info[DEATH][0];
     m_tex_info[DEATH][0].rect.x1 = 32;
     m_tex_info[DEATH][0].rect.y1 = 202;
@@ -82,7 +82,7 @@ void CUIStatsIcon::SetValue(LPCSTR str)
         if (strstr(str, "green"))
             team = 0;
 
-        int rank = atoi(strstr(str, "0")) - 1;
+        const int rank = atoi(strchr(str, '0')) - 1;
 
         SetShader(m_tex_info[rank][team].sh);
         SetTextureRect(m_tex_info[rank][team].rect);

@@ -9,12 +9,11 @@
 //////////////////////////////////////////////////////////////////////////
 
 #pragma once
-#include "customzone.h"
+#include "CustomZone.h"
 #include "ai/monsters/telekinesis.h"
 
 class CBaseGraviZone : public CCustomZone
 {
-private:
     typedef CCustomZone inherited;
 
 public:

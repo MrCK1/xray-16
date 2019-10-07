@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "pch_script.h"
-#include "xrPhysics/physicsshell.h"
+#include "xrPhysics/PhysicsShell.h"
 #include "xrPhysics/phvalide.h"
 #include "ai_crow.h"
 #include "Level.h"
@@ -15,19 +15,25 @@
 #include "Include/xrRender/Kinematics.h"
 #include "Include/xrRender/KinematicsAnimated.h"
 #include "Actor.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "game_object_space.h"
 #include "script_game_object.h"
-#include "hit.h"
+#include "Hit.h"
 #ifdef DEBUG
 
 #endif
 
-void CAI_Crow::SAnim::Load(IKinematicsAnimated* visual, LPCSTR prefix)
+void CAI_Crow::SAnim::Load(IKinematicsAnimated* visual, cpcstr prefix, cpcstr prefix2)
 {
     const MotionID& M = visual->ID_Cycle_Safe(prefix);
     if (M)
         m_Animations.push_back(M);
+    else
+    {
+        const MotionID& M2 = visual->ID_Cycle_Safe(prefix2);
+        if (M2)
+            m_Animations.push_back(M2);
+    }
     for (int i = 0; (i < MAX_ANIM_COUNT) && (m_Animations.size() < MAX_ANIM_COUNT); ++i)
     {
         string128 sh_anim;
@@ -35,6 +41,14 @@ void CAI_Crow::SAnim::Load(IKinematicsAnimated* visual, LPCSTR prefix)
         const MotionID& M = visual->ID_Cycle_Safe(sh_anim);
         if (M)
             m_Animations.push_back(M);
+        else
+        {
+            xr_sprintf(sh_anim, "%s_%d", prefix2, i);
+            const MotionID& M2 = visual->ID_Cycle_Safe(sh_anim);
+
+            if (M2)
+                m_Animations.push_back(M2);
+        }
     }
     R_ASSERT(m_Animations.size());
 }
@@ -45,7 +59,7 @@ void CAI_Crow::SSound::Load(LPCSTR prefix)
     if (FS.exist(fn, "$game_sounds$", prefix, ".ogg"))
     {
         m_Sounds.push_back(ref_sound());
-        ::Sound->create(m_Sounds.back(), prefix, st_Effect, sg_SourceType);
+        GEnv.Sound->create(m_Sounds.back(), prefix, st_Effect, sg_SourceType);
     }
     for (int i = 0; (i < MAX_SND_COUNT) && (m_Sounds.size() < MAX_SND_COUNT); ++i)
     {
@@ -54,7 +68,7 @@ void CAI_Crow::SSound::Load(LPCSTR prefix)
         if (FS.exist(fn, "$game_sounds$", name, ".ogg"))
         {
             m_Sounds.push_back(ref_sound());
-            ::Sound->create(m_Sounds.back(), name, st_Effect, sg_SourceType);
+            GEnv.Sound->create(m_Sounds.back(), name, st_Effect, sg_SourceType);
         }
     }
     R_ASSERT(m_Sounds.size());
@@ -70,7 +84,7 @@ void CAI_Crow::SSound::SetPosition(const Fvector& pos)
 void CAI_Crow::SSound::Unload()
 {
     for (int i = 0; i < (int)m_Sounds.size(); ++i)
-        ::Sound->destroy(m_Sounds[i]);
+        GEnv.Sound->destroy(m_Sounds[i]);
 }
 
 void cb_OnHitEndPlaying(CBlend* B) { ((CAI_Crow*)B->CallbackParam)->OnHitEndPlaying(B); }
@@ -100,6 +114,8 @@ void CAI_Crow::init()
     fIdleSoundDelta = 10.f;
     fIdleSoundTime = fIdleSoundDelta;
     bPlayDeathIdle = false;
+    o_workload_frame = 0;
+    o_workload_rframe = 0;
 }
 
 void CAI_Crow::Load(LPCSTR section)
@@ -115,7 +131,7 @@ void CAI_Crow::Load(LPCSTR section)
     //////////////////////////////////////////////////////////////////////////
 
     // sounds
-    m_Sounds.m_idle.Load("monsters\\crow\\idle");
+    m_Sounds.m_idle.Load("monsters" DELIMITER "crow" DELIMITER "idle");
     // play defaut
 
     fSpeed = pSettings->r_float(section, "speed");
@@ -137,14 +153,33 @@ BOOL CAI_Crow::net_Spawn(CSE_Abstract* DC)
     // animations
     IKinematicsAnimated* M = smart_cast<IKinematicsAnimated*>(Visual());
     R_ASSERT(M);
-    m_Anims.m_death.Load(M, "death");
-    m_Anims.m_death_dead.Load(M, "death_drop");
-    m_Anims.m_death_idle.Load(M, "death_idle");
-    m_Anims.m_fly.Load(M, "fly_fwd");
-    m_Anims.m_idle.Load(M, "fly_idle");
+    m_Anims.m_death.Load(M, "death", "norm_death");
+    m_Anims.m_death_dead.Load(M, "death_drop", "norm_death_dead");
+    m_Anims.m_death_idle.Load(M, "death_idle", "norm_death_idle");
+    m_Anims.m_fly.Load(M, "fly_fwd", "norm_fly_fwd");
+    m_Anims.m_idle.Load(M, "fly_idle", "norm_idle");
 
-    // disable UpdateCL, enable only on HIT
-    processing_deactivate();
+    o_workload_frame = 0;
+    o_workload_rframe = 0;
+
+    if (GetfHealth() > 0)
+    {
+        st_current = ECrowStates::eFlyIdle;
+        st_target = ECrowStates::eFlyIdle;
+
+        // disable UpdateCL, enable only on HIT
+        processing_deactivate();
+    }
+    else
+    {
+        st_current = ECrowStates::eDeathFall;
+        st_target = ECrowStates::eDeathDead;
+
+        // Crow is already dead, need to enable physics
+        processing_activate();
+        CreateSkeleton();
+    }
+
     VERIFY2(valid_pos(Position()), dbg_valide_pos_string(Position(), this, "CAI_Crow::net_Spawn"));
     return R;
 }
@@ -289,10 +324,10 @@ void CAI_Crow::UpdateCL()
         XFORM().set(m_pPhysicsShell->mXFORM);
     }
 }
-void CAI_Crow::renderable_Render()
+void CAI_Crow::renderable_Render(IRenderable* root)
 {
-    UpdateWorkload(Device.fTimeDelta);
-    inherited::renderable_Render();
+    UpdateWorkload(Device.fTimeDelta * (Device.dwFrame - o_workload_frame));
+    inherited::renderable_Render(root);
     o_workload_rframe = Device.dwFrame;
 }
 void CAI_Crow::shedule_Update(u32 DT)
@@ -344,14 +379,14 @@ void CAI_Crow::shedule_Update(u32 DT)
         {
             fIdleSoundTime = fIdleSoundDelta + fIdleSoundDelta * Random.randF(-0.5f, 0.5f);
             // if (st_current==eFlyIdle)
-            ::Sound->play_at_pos(m_Sounds.m_idle.GetRandom(), H_Root(), Position());
+            GEnv.Sound->play_at_pos(m_Sounds.m_idle.GetRandom(), H_Root(), Position());
         }
         fIdleSoundTime -= fDT;
     }
     m_Sounds.m_idle.SetPosition(Position());
 
     // work
-    if (o_workload_rframe == (Device.dwFrame - 1))
+    if (o_workload_rframe >= (Device.dwFrame - 2))
         ;
     else
         UpdateWorkload(fDT);

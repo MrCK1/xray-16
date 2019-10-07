@@ -1,18 +1,15 @@
-#ifndef FactoryPtr_included
-#define FactoryPtr_included
 #pragma once
 
 #include "RenderFactory.h"
-#include "Include/xrAPI/xrAPI.h"
 
 #define FACTORY_PTR_INSTANCIATE(Class)\
     template <>\
     inline void FactoryPtr<I##Class>::CreateObject(void)\
-    { m_pObject = GlobalEnv.RenderFactory->Create##Class(); }\
+    { m_pObject = GEnv.RenderFactory->Create##Class(); }\
     template <>\
     inline void FactoryPtr<I##Class>::DestroyObject(void)\
     {\
-        GlobalEnv.RenderFactory->Destroy##Class(m_pObject);\
+        GEnv.RenderFactory->Destroy##Class(m_pObject);\
         m_pObject = NULL;\
     }
 
@@ -39,7 +36,7 @@ public:
     // unspecified bool type
     typedef T const* (FactoryPtr::*unspecified_bool_type)() const;
     operator unspecified_bool_type() const { return (!m_pObject ? 0 : &FactoryPtr::get); }
-    bool operator!() const { return m_pObject == 0; }
+    bool operator!() const { return m_pObject == nullptr; }
 private:
     void CreateObject();
     void DestroyObject();
@@ -56,7 +53,6 @@ FACTORY_PTR_INSTANCIATE(ConsoleRender)
 #ifdef DEBUG
 FACTORY_PTR_INSTANCIATE(ObjectSpaceRender)
 #endif // DEBUG
-FACTORY_PTR_INSTANCIATE(ApplicationRender)
 FACTORY_PTR_INSTANCIATE(WallMarkArray)
 #endif // _EDITOR
 
@@ -83,5 +79,3 @@ void FactoryPtr<IStatsRender>::DestroyObject(void)
     m_pObject = NULL;
 }
 */
-
-#endif // FactoryPtr_included

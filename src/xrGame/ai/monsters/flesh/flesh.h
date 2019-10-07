@@ -1,6 +1,6 @@
 #pragma once
-#include "ai/Monsters/BaseMonster/base_monster.h"
-#include "ai/Monsters/controlled_entity.h"
+#include "ai/monsters/basemonster/base_monster.h"
+#include "ai/monsters/controlled_entity.h"
 
 class CAI_Flesh : public CBaseMonster, public CControlledEntity<CAI_Flesh>
 {
@@ -17,7 +17,8 @@ public:
     virtual void CheckSpecParams(u32 spec_params);
 
     virtual bool ability_can_drag() { return true; }
-    virtual char* get_monster_class_name() { return "flesh"; }
+    pcstr get_monster_class_name() override { return "flesh"; }
+
 private:
     bool ConeSphereIntersection(
         Fvector ConeVertex, float ConeAngle, Fvector ConeDir, Fvector SphereCenter, float SphereRadius);

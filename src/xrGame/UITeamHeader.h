@@ -1,8 +1,8 @@
 #ifndef UI_TEAM_HEADER
 #define UI_TEAM_HEADER
 
-#include "ui/UIWindow.h"
-#include "ui/xrUIXmlParser.h"
+#include "xrUICore/Windows/UIWindow.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 #include "ui/UIXmlInit.h"
 
 #include "game_cl_base.h"
@@ -28,7 +28,7 @@ private:
     TranslatedStrings m_translated_strings;
 
     UITeamState const* const m_parent;
-    XML_NODE* m_team_header_root;
+    XML_NODE m_team_header_root;
 
     void InitColumnsStatics(CUIXml& uiXml);
     void InitFieldsStatics(CUIXml& uiXml);

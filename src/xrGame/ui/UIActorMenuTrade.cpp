@@ -1,23 +1,23 @@
 #include "pch_script.h"
 #include "UIActorMenu.h"
-#include "UI3tButton.h"
+#include "xrUICore/Buttons/UI3tButton.h"
 #include "UIDragDropListEx.h"
 #include "UIDragDropReferenceList.h"
 #include "UICharacterInfo.h"
-#include "UIFrameLineWnd.h"
+#include "xrUICore/Windows/UIFrameLineWnd.h"
 #include "UICellItem.h"
 #include "UIInventoryUtilities.h"
 #include "UICellItemFactory.h"
 #include "InventoryOwner.h"
 #include "Inventory.h"
-#include "Trade.h"
+#include "trade.h"
 #include "Entity.h"
 #include "Actor.h"
 #include "Weapon.h"
 #include "trade_parameters.h"
 #include "inventory_item_object.h"
 #include "string_table.h"
-#include "ai/monsters/BaseMonster/base_monster.h"
+#include "ai/monsters/basemonster/base_monster.h"
 #include "ai_space.h"
 #include "xrScriptEngine/script_engine.hpp"
 #include "UIGameSP.h"
@@ -28,7 +28,8 @@ void CUIActorMenu::InitTradeMode()
     m_pInventoryBagList->Show(false);
     m_PartnerCharacterInfo->Show(true);
     m_PartnerMoney->Show(true);
-    m_pQuickSlot->Show(true);
+    if (m_pQuickSlot)
+        m_pQuickSlot->Show(true);
 
     m_pTradeActorBagList->Show(true);
     m_pTradeActorList->Show(true);
@@ -41,8 +42,12 @@ void CUIActorMenu::InitTradeMode()
 
     m_PartnerBottomInfo->Show(true);
     m_PartnerWeight->Show(true);
-    m_trade_buy_button->Show(true);
-    m_trade_sell_button->Show(true);
+    if (m_trade_button)
+        m_trade_button->Show(true);
+    if (m_trade_buy_button)
+        m_trade_buy_button->Show(true);
+    if (m_trade_sell_button)
+        m_trade_sell_button->Show(true);
 
     VERIFY(m_pPartnerInvOwner);
     m_pPartnerInvOwner->StartTrading();
@@ -139,8 +144,12 @@ void CUIActorMenu::DeInitTradeMode()
 
     m_PartnerBottomInfo->Show(false);
     m_PartnerWeight->Show(false);
-    m_trade_buy_button->Show(false);
-    m_trade_sell_button->Show(false);
+    if (m_trade_button)
+        m_trade_button->Show(false);
+    if (m_trade_buy_button)
+        m_trade_buy_button->Show(false);
+    if (m_trade_sell_button)
+        m_trade_sell_button->Show(false);
 
     if (!CurrentGameUI())
         return;
@@ -370,7 +379,7 @@ void CUIActorMenu::UpdatePartnerBag()
         m_PartnerMoney->SetText(buf);
     }
 
-    LPCSTR kg_str = CStringTable().translate("st_kg").c_str();
+    LPCSTR kg_str = StringTable().translate("st_kg").c_str();
     float total = CalcItemsWeight(m_pTradePartnerBagList);
     xr_sprintf(buf, "%.1f %s", total, kg_str);
     m_PartnerWeight->SetText(buf);
@@ -385,7 +394,7 @@ void CUIActorMenu::UpdatePartnerBag()
 
 void CUIActorMenu::UpdatePrices()
 {
-    LPCSTR kg_str = CStringTable().translate("st_kg").c_str();
+    LPCSTR kg_str = StringTable().translate("st_kg").c_str();
 
     UpdateActor();
     UpdatePartnerBag();
@@ -419,6 +428,49 @@ void CUIActorMenu::UpdatePrices()
     m_PartnerTradePrice->SetWndPos(pos);
     //	pos.x = pos.x - m_PartnerTradeCaption->GetWndSize().x - 5.0f;
     //	m_PartnerTradeCaption->SetWndPos( pos );
+}
+
+void CUIActorMenu::OnBtnPerformTrade(CUIWindow* w, void* d)
+{
+    if (m_pTradeActorList->ItemsCount() == 0 && m_pTradePartnerList->ItemsCount() == 0)
+    {
+        return;
+    }
+
+    int actor_money = (int)m_pActorInvOwner->get_money();
+    int partner_money = (int)m_pPartnerInvOwner->get_money();
+    int actor_price = (int)CalcItemsPrice(m_pTradeActorList, m_partner_trade, true);
+    int partner_price = (int)CalcItemsPrice(m_pTradePartnerList, m_partner_trade, false);
+
+    int delta_price = actor_price - partner_price;
+    actor_money += delta_price;
+    partner_money -= delta_price;
+
+    if ((actor_money >= 0) && (partner_money >= 0) && (actor_price >= 0 || partner_price > 0))
+    {
+        m_partner_trade->OnPerformTrade(partner_price, actor_price);
+
+        TransferItems(m_pTradeActorList, m_pTradePartnerBagList, m_partner_trade, true);
+        TransferItems(m_pTradePartnerList, m_pTradeActorBagList, m_partner_trade, false);
+    }
+    else
+    {
+        if (actor_money < 0)
+        {
+            CallMessageBoxOK("not_enough_money_actor");
+        }
+        else if (partner_money < 0)
+        {
+            CallMessageBoxOK("not_enough_money_partner");
+        }
+        else
+        {
+            CallMessageBoxOK("trade_dont_make");
+        }
+    }
+    SetCurrentItem(nullptr);
+
+    UpdateItemsPlace();
 }
 
 void CUIActorMenu::OnBtnPerformTradeBuy(CUIWindow* w, void* d)
@@ -532,3 +584,28 @@ void CUIActorMenu::TransferItems(
     pTrade->pThis.inv_owner->set_money(pTrade->pThis.inv_owner->get_money(), true);
     pTrade->pPartner.inv_owner->set_money(pTrade->pPartner.inv_owner->get_money(), true);
 }
+
+//Alundaio: Donate current item while in trade menu
+void CUIActorMenu::DonateCurrentItem(CUICellItem* cell_item)
+{
+    if (!m_partner_trade || !m_pTradePartnerList)
+        return;
+
+    CUIDragDropListEx* invlist = GetListByType(iActorBag);
+    if (!invlist->IsOwner(cell_item))
+        return;
+
+    PIItem item = static_cast<PIItem>(cell_item->m_pData);
+    if (!item)
+        return;
+
+    CUICellItem* itm = invlist->RemoveItem(cell_item, false);
+
+    m_partner_trade->TransferItem(item, true, true);
+
+    m_pTradePartnerList->SetItem(itm);
+
+    SetCurrentItem(nullptr);
+    UpdateItemsPlace();
+}
+//-Alundaio

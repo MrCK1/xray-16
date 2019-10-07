@@ -41,7 +41,7 @@ class CAI_Crow : public CEntity
         typedef svector<MotionID, MAX_ANIM_COUNT> MotionSVec;
         MotionSVec m_Animations;
         const MotionID& GetRandom() { return m_Animations[Random.randI(0, m_Animations.size())]; }
-        void Load(IKinematicsAnimated* visual, LPCSTR prefix);
+        void Load(IKinematicsAnimated* visual, cpcstr prefix, cpcstr prefix2);
     };
 
     struct SSound
@@ -121,7 +121,7 @@ public:
     virtual void net_Destroy();
     virtual BOOL renderable_ShadowGenerate() { return FALSE; }
     virtual BOOL renderable_ShadowReceive() { return FALSE; }
-    virtual void renderable_Render();
+    void renderable_Render(IRenderable* root) override;
     virtual void shedule_Update(u32 DT);
     virtual void UpdateCL();
 

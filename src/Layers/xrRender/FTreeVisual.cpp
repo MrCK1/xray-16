@@ -1,11 +1,11 @@
 #include "stdafx.h"
-#pragma hdrstop
 
 #include "xrEngine/IGame_Persistent.h"
 #include "xrEngine/IGame_Level.h"
 #include "xrEngine/Environment.h"
 #include "xrCore/FMesh.hpp"
 #include "FTreeVisual.h"
+#include "Layers/xrRenderGL/glBufferPool.h"
 
 shared_str m_xform;
 shared_str m_xform_v;
@@ -23,7 +23,7 @@ void FTreeVisual::Load(const char* N, IReader* data, u32 dwFlags)
 {
     dxRender_Visual::Load(N, data, dwFlags);
 
-    D3DVERTEXELEMENT9* vFormat = NULL;
+    D3DVERTEXELEMENT9* vFormat = nullptr;
 
     // read vertices
     R_ASSERT(data->find_chunk(OGF_GCONTAINER));
@@ -34,8 +34,7 @@ void FTreeVisual::Load(const char* N, IReader* data, u32 dwFlags)
         vCount = data->r_u32();
         vFormat = RImplementation.getVB_Format(ID);
 
-        VERIFY(NULL == p_rm_Vertices);
-
+        VERIFY(nullptr == p_rm_Vertices);
         p_rm_Vertices = RImplementation.getVB(ID);
         p_rm_Vertices->AddRef();
 
@@ -46,7 +45,7 @@ void FTreeVisual::Load(const char* N, IReader* data, u32 dwFlags)
         iCount = data->r_u32();
         dwPrimitives = iCount / 3;
 
-        VERIFY(NULL == p_rm_Indices);
+        VERIFY(nullptr == p_rm_Indices);
         p_rm_Indices = RImplementation.getIB(ID);
         p_rm_Indices->AddRef();
     }
@@ -87,16 +86,27 @@ struct FTreeVisual_setup
     Fvector4 wave;
     Fvector4 wind;
 
-    FTreeVisual_setup() { dwFrame = 0; }
+    FTreeVisual_setup(): dwFrame(0), scale(0) {}
+
     void calculate()
     {
         dwFrame = Device.dwFrame;
 
+        const float tm_rot = PI_MUL_2 * Device.fTimeGlobal / ps_r__Tree_w_rot;
+
         // Calc wind-vector3, scale
-        float tm_rot = PI_MUL_2 * Device.fTimeGlobal / ps_r__Tree_w_rot;
+
         wind.set(_sin(tm_rot), 0, _cos(tm_rot), 0);
         wind.normalize();
+
+#if RENDER!=R_R1
+        CEnvDescriptor& env = *g_pGamePersistent->Environment().CurrentEnv;
+        float fValue = env.m_fTreeAmplitudeIntensity;
+        wind.mul(fValue); // dir1*amplitude
+#else
         wind.mul(ps_r__Tree_w_amp); // dir1*amplitude
+#endif
+
         scale = 1.f / float(FTreeVisual_quant);
 
         // setup constants
@@ -106,7 +116,7 @@ struct FTreeVisual_setup
     }
 };
 
-void FTreeVisual::Render(float LOD)
+void FTreeVisual::Render(float /*LOD*/)
 {
     static FTreeVisual_setup tvs;
     if (tvs.dwFrame != Device.dwFrame)
@@ -143,18 +153,14 @@ void FTreeVisual::Copy(dxRender_Visual* pSrc)
     FTreeVisual* pFrom = dynamic_cast<FTreeVisual*>(pSrc);
 
     PCOPY(rm_geom);
-
     PCOPY(p_rm_Vertices);
     if (p_rm_Vertices)
         p_rm_Vertices->AddRef();
-
     PCOPY(vBase);
     PCOPY(vCount);
-
     PCOPY(p_rm_Indices);
     if (p_rm_Indices)
         p_rm_Indices->AddRef();
-
     PCOPY(iBase);
     PCOPY(iCount);
     PCOPY(dwPrimitives);
@@ -184,7 +190,7 @@ void FTreeVisual_ST::Copy(dxRender_Visual* pSrc) { inherited::Copy(pSrc); }
 //-----------------------------------------------------------------------------------
 FTreeVisual_PM::FTreeVisual_PM(void)
 {
-    pSWI = 0;
+    pSWI = nullptr;
     last_lod = 0;
 }
 FTreeVisual_PM::~FTreeVisual_PM(void) {}

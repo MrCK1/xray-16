@@ -1,9 +1,9 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "monster_corpse_manager.h"
-#include "BaseMonster/base_monster.h"
+#include "basemonster/base_monster.h"
 #include "xrAICore/Navigation/ai_object_location.h"
 
-CMonsterCorpseManager::CMonsterCorpseManager()
+CMonsterCorpseManager::CMonsterCorpseManager(): vertex(0), time_last_seen(0)
 {
     monster = 0;
     corpse = 0;

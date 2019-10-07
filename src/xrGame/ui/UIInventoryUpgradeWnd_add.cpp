@@ -9,17 +9,17 @@
 #include "pch_script.h"
 #include "Common/object_broker.h"
 #include "UIInventoryUpgradeWnd.h"
-#include "xrUIXmlParser.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 #include "UIXmlInit.h"
 #include "string_table.h"
 
 void CUIInventoryUpgradeWnd::LoadCellsBacks(CUIXml& uiXml)
 {
-    XML_NODE* stored_root = uiXml.GetLocalRoot();
+    XML_NODE stored_root = uiXml.GetLocalRoot();
 
     int cnt = uiXml.GetNodesNum("cell_states", 0, "state");
 
-    XML_NODE* node = uiXml.NavigateToNode("cell_states", 0);
+    XML_NODE node = uiXml.NavigateToNode("cell_states", 0);
     uiXml.SetLocalRoot(node);
     for (int i_st = 0; i_st < cnt; ++i_st)
     {
@@ -119,23 +119,34 @@ bool CUIInventoryUpgradeWnd::VerirfyCells()
 
 void CUIInventoryUpgradeWnd::LoadSchemes(CUIXml& uiXml)
 {
-    XML_NODE* stored_root = uiXml.GetLocalRoot();
+    XML_NODE stored_root = uiXml.GetLocalRoot();
 
-    XML_NODE* tmpl_root = uiXml.NavigateToNode("templates", 0);
+    XML_NODE tmpl_root = uiXml.NavigateToNode("templates", 0);
     uiXml.SetLocalRoot(tmpl_root);
 
+    const float widescreenMultiplier = (UI().is_widescreen() ? 0.8f : 1.0f);
+    Frect t_cell_border;
     Frect t_cell_item;
+
+    const bool border = !!uiXml.NavigateToNode("cell_border");
+
+    if (border)
+    {
+        t_cell_border.x1 = uiXml.ReadAttribFlt("cell_border", 0, "x");
+        t_cell_border.y1 = uiXml.ReadAttribFlt("cell_border", 0, "y");
+        t_cell_border.x2 = t_cell_border.x1 + uiXml.ReadAttribFlt("cell_border", 0, "width") * widescreenMultiplier;
+        t_cell_border.y2 = t_cell_border.y1 + uiXml.ReadAttribFlt("cell_border", 0, "height");
+    }
 
     t_cell_item.x1 = uiXml.ReadAttribFlt("cell_item", 0, "x");
     t_cell_item.y1 = uiXml.ReadAttribFlt("cell_item", 0, "y");
-    t_cell_item.x2 =
-        t_cell_item.x1 + uiXml.ReadAttribFlt("cell_item", 0, "width") * (UI().is_widescreen() ? 0.8f : 1.0f);
+    t_cell_item.x2 = t_cell_item.x1 + uiXml.ReadAttribFlt("cell_item", 0, "width") * widescreenMultiplier;
     t_cell_item.y2 = t_cell_item.y1 + uiXml.ReadAttribFlt("cell_item", 0, "height");
 
     int tmpl_count = uiXml.GetNodesNum(tmpl_root, "template");
     for (int i_tmpl = 0; i_tmpl < tmpl_count; ++i_tmpl)
     {
-        XML_NODE* tmpl_node = uiXml.NavigateToNode("template", i_tmpl);
+        XML_NODE tmpl_node = uiXml.NavigateToNode("template", i_tmpl);
         uiXml.SetLocalRoot(tmpl_node);
 
         Scheme* scheme = new Scheme();
@@ -148,17 +159,23 @@ void CUIInventoryUpgradeWnd::LoadSchemes(CUIXml& uiXml)
         int clm_count = uiXml.GetNodesNum(tmpl_node, "column");
         for (int i_clm = 0; i_clm < clm_count; ++i_clm)
         {
-            XML_NODE* clm_node = uiXml.NavigateToNode("column", i_clm);
+            XML_NODE clm_node = uiXml.NavigateToNode("column", i_clm);
             uiXml.SetLocalRoot(clm_node);
 
             int cell_cnt = uiXml.GetNodesNum(clm_node, "cell");
             for (int i_cell = 0; i_cell < cell_cnt; ++i_cell)
             {
-                UIUpgrade* item = new UIUpgrade(this);
-                item->load_from_xml(uiXml, i_clm, i_cell, t_cell_item);
-                CUIUpgradePoint* item_point = new CUIUpgradePoint(item);
-                item_point->load_from_xml(uiXml, i_cell);
-                item->attach_point(item_point);
+                UIUpgrade* item = new UIUpgrade(this, border);
+                item->load_from_xml(uiXml, i_clm, i_cell, border ? &t_cell_border : nullptr, t_cell_item);
+
+                pcstr point_x = uiXml.ReadAttrib("cell", i_cell, "point_x", nullptr);
+                pcstr point_y = uiXml.ReadAttrib("cell", i_cell, "point_y", nullptr);
+                if (point_x || point_y)
+                {
+                    CUIUpgradePoint* item_point = new CUIUpgradePoint(item);
+                    item_point->load_from_xml(uiXml, i_cell);
+                    item->attach_point(item_point);
+                }
 
                 scheme->cells.push_back(item);
             } // for i_cell

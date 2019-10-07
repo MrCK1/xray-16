@@ -26,14 +26,8 @@ IC const CCoverManager& CAI_Space::cover_manager() const
     VERIFY(m_cover_manager);
     return (*m_cover_manager);
 }
-// XXX: [ai] delete
-IC CScriptEngine& CAI_Space::script_engine() const
-{
-    VERIFY(GlobalEnv.ScriptEngine);
-    return (*GlobalEnv.ScriptEngine);
-}
 
-IC moving_objects& CAI_Space::moving_objects() const
+IC moving_objects& CAI_Space::get_moving_objects() const
 {
     VERIFY(m_moving_objects);
     return (*m_moving_objects);
@@ -45,12 +39,4 @@ IC doors::manager& CAI_Space::doors() const
     return (*m_doors_manager);
 }
 
-IC CAI_Space& ai()
-{
-    if (!g_ai_space)
-    {
-        g_ai_space = new CAI_Space();
-        g_ai_space->init();
-    }
-    return (*g_ai_space);
-}
+IC CAI_Space& ai() { return CAI_Space::GetInstance(); }

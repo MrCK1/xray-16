@@ -5,7 +5,7 @@
 #include "stdafx.h"
 #pragma hdrstop
 
-#include "blender_BmmD.h"
+#include "Blender_BmmD.h"
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -17,10 +17,10 @@ CBlender_BmmD::CBlender_BmmD()
     xr_strcpy(oT2_Name, "$null");
     xr_strcpy(oT2_xform, "$null");
     description.version = 3;
-    xr_strcpy(oR_Name, "detail\\detail_grnd_grass"); //"$null");
-    xr_strcpy(oG_Name, "detail\\detail_grnd_asphalt"); //"$null");
-    xr_strcpy(oB_Name, "detail\\detail_grnd_earth"); //"$null");
-    xr_strcpy(oA_Name, "detail\\detail_grnd_yantar"); //"$null");
+    xr_strcpy(oR_Name, "detail" DELIMITER "detail_grnd_grass"); //"$null");
+    xr_strcpy(oG_Name, "detail" DELIMITER "detail_grnd_asphalt"); //"$null");
+    xr_strcpy(oB_Name, "detail" DELIMITER "detail_grnd_earth"); //"$null");
+    xr_strcpy(oA_Name, "detail" DELIMITER "detail_grnd_yantar"); //"$null");
 }
 
 CBlender_BmmD::~CBlender_BmmD() {}
@@ -90,8 +90,8 @@ void CBlender_BmmD::Compile(CBlender_Compile& C)
     }
     else
     {
-        if (C.L_textures.size() < 2)
-            xrDebug::Fatal(DEBUG_INFO, "Not enought textures for shader, base tex: %s", *C.L_textures[0]);
+        R_ASSERT3(C.L_textures.size() >= 2, "Not enought textures for shader, base tex: %s", *C.L_textures[0]);
+
         switch (C.iElement)
         {
         case SE_R1_NORMAL_HQ:
@@ -109,17 +109,19 @@ void CBlender_BmmD::Compile(CBlender_Compile& C)
             C.r_End();
             break;
         case SE_R1_LPOINT:
-            C.r_Pass("impl_point", "add_point", FALSE, TRUE, FALSE, TRUE, D3DBLEND_ONE, D3DBLEND_ONE, TRUE);
+            C.r_Pass("impl_point_dt", "add_point_dt", FALSE, TRUE, FALSE, TRUE, D3DBLEND_ONE, D3DBLEND_ONE, TRUE);
             C.r_Sampler("s_base", C.L_textures[0]);
             C.r_Sampler_clf("s_lmap", TEX_POINT_ATT);
             C.r_Sampler_clf("s_att", TEX_POINT_ATT);
+            C.r_Sampler("s_detail", oT2_Name);
             C.r_End();
             break;
         case SE_R1_LSPOT:
-            C.r_Pass("impl_spot", "add_spot", FALSE, TRUE, FALSE, TRUE, D3DBLEND_ONE, D3DBLEND_ONE, TRUE);
+            C.r_Pass("impl_spot_dt", "add_spot_dt", FALSE, TRUE, FALSE, TRUE, D3DBLEND_ONE, D3DBLEND_ONE, TRUE);
             C.r_Sampler("s_base", C.L_textures[0]);
-            C.r_Sampler_clf("s_lmap", "internal\\internal_light_att", true);
+            C.r_Sampler_clf("s_lmap", "internal" DELIMITER "internal_light_att", true);
             C.r_Sampler_clf("s_att", TEX_SPOT_ATT);
+            C.r_Sampler("s_detail", oT2_Name);
             C.r_End();
             break;
         case SE_R1_LMODELS:
@@ -181,6 +183,60 @@ void CBlender_BmmD::Compile(CBlender_Compile& C)
         C.r_End();
         break;
     }
+}
+#elif RENDER==R_GL
+//////////////////////////////////////////////////////////////////////////
+// GL
+//////////////////////////////////////////////////////////////////////////
+#include "uber_deffer.h"
+void	CBlender_BmmD::Compile	(CBlender_Compile& C)
+{
+	IBlender::Compile		(C);
+	// codepath is the same, only the shaders differ
+	// ***only pixel shaders differ***
+	string256				mask;
+	strconcat				(sizeof(mask),mask,C.L_textures[0].c_str(),"_mask");
+	switch(C.iElement) 
+	{
+	case SE_R2_NORMAL_HQ: 		// deffer
+		uber_deffer		(C, true,	"impl","impl",false,oT2_Name[0]?oT2_Name:0,true);
+		C.r_Sampler		("s_mask",	mask);
+		C.r_Sampler		("s_lmap",	C.L_textures[1]);
+
+		C.r_Sampler		("s_dt_r",	oR_Name,	false,	D3DTADDRESS_WRAP,	D3DTEXF_ANISOTROPIC,D3DTEXF_LINEAR,	D3DTEXF_ANISOTROPIC);
+		C.r_Sampler		("s_dt_g",	oG_Name,	false,	D3DTADDRESS_WRAP,	D3DTEXF_ANISOTROPIC,D3DTEXF_LINEAR,	D3DTEXF_ANISOTROPIC);
+		C.r_Sampler		("s_dt_b",	oB_Name,	false,	D3DTADDRESS_WRAP,	D3DTEXF_ANISOTROPIC,D3DTEXF_LINEAR,	D3DTEXF_ANISOTROPIC);
+		C.r_Sampler		("s_dt_a",	oA_Name,	false,	D3DTADDRESS_WRAP,	D3DTEXF_ANISOTROPIC,D3DTEXF_LINEAR,	D3DTEXF_ANISOTROPIC);
+
+		C.r_Sampler		("s_dn_r",	strconcat(sizeof(mask),mask,oR_Name,"_bump")	);
+		C.r_Sampler		("s_dn_g",	strconcat(sizeof(mask),mask,oG_Name,"_bump") );
+		C.r_Sampler		("s_dn_b",	strconcat(sizeof(mask),mask,oB_Name,"_bump") );
+		C.r_Sampler		("s_dn_a",	strconcat(sizeof(mask),mask,oA_Name,"_bump") );
+
+		C.r_Stencil		( TRUE,D3DCMP_ALWAYS,0xff,0x7f,D3DSTENCILOP_KEEP,D3DSTENCILOP_REPLACE,D3DSTENCILOP_KEEP);
+		C.r_StencilRef	(0x01);
+
+		C.r_End			();
+		break;
+	case SE_R2_NORMAL_LQ: 		// deffer
+		uber_deffer		(C, false,	"base","impl",false,oT2_Name[0]?oT2_Name:0,true);
+
+		C.r_Sampler		("s_lmap",	C.L_textures[1]);
+
+		C.r_Stencil		( TRUE,D3DCMP_ALWAYS,0xff,0x7f,D3DSTENCILOP_KEEP,D3DSTENCILOP_REPLACE,D3DSTENCILOP_KEEP);
+		C.r_StencilRef	(0x01);
+
+		C.r_End			();
+		break;
+	case SE_R2_SHADOW:			// smap
+		//if (RImplementation.o.HW_smap)	C.r_Pass	("shadow_direct_base","dumb",	FALSE,TRUE,TRUE,FALSE);
+		//else							C.r_Pass	("shadow_direct_base","shadow_direct_base",FALSE);
+		C.r_Pass	("shadow_direct_base","dumb",	FALSE,TRUE,TRUE,FALSE);
+		C.r_Sampler		("s_base",C.L_textures[0]);
+		C.r_ColorWriteEnable(false, false, false, false);
+		C.r_End			();
+		break;
+	}
 }
 #else
 //////////////////////////////////////////////////////////////////////////

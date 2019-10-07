@@ -2,9 +2,11 @@
 
 #include "CameraDefs.h"
 #include "xrCore/PostProcess/PPInfo.hpp"
+#include "xrCommon/xr_list.h"
+#include "xrCommon/xr_vector.h"
 
-DEFINE_LIST(CEffectorCam*, EffectorCamVec, EffectorCamIt);
-DEFINE_VECTOR(CEffectorPP*, EffectorPPVec, EffectorPPIt);
+using EffectorCamVec = xr_list<CEffectorCam*>;
+using EffectorPPVec = xr_vector<CEffectorPP*>;
 
 #define effCustomEffectorStartID 10000
 
@@ -60,7 +62,7 @@ public:
         float fFAR_Dest, u32 flags);
     void UpdateFromCamera(const CCameraBase* C);
 
-    void ApplyDevice(float _viewport_near);
+    void ApplyDevice();
     static void ResetPP();
 
     CCameraManager(bool bApplyOnUpdate);

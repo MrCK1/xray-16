@@ -1,9 +1,9 @@
-#include "stdafx.h"
-#include "phcollisiondamagereceiver.h"
+#include "StdAfx.h"
+#include "PHCollisionDamageReceiver.h"
 #include "xrPhysics/IPhysicsShellHolder.h"
 #include "xrCore/xr_ini.h"
 #include "Include/xrRender/Kinematics.h"
-#include "xrPhysics/geometry.h"
+#include "xrPhysics/Geometry.h"
 #include "xrPhysics/PhysicsShell.h"
 
 #include "xrMessages.h"
@@ -21,7 +21,7 @@ void CPHCollisionDamageReceiver::Init()
     if (ini->section_exist("collision_damage"))
     {
         CInifile::Sect& data = ini->r_section("collision_damage");
-        for (CInifile::SectCIt I = data.Data.begin(); I != data.Data.end(); I++)
+        for (auto I = data.Data.cbegin(); I != data.Data.cend(); ++I)
         {
             const CInifile::Item& item = *I;
             u16 index = K->LL_BoneID(*item.first);

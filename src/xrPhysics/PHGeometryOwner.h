@@ -1,10 +1,12 @@
-#ifndef PH_GEOMETRY_OWNER_H
-#define PH_GEOMETRY_OWNER_H
+#pragma once
+
 #include "Geometry.h"
 #include "xrEngine/GameMtlLib.h"
 
-DEFINE_VECTOR(CODEGeom*, GEOM_STORAGE, GEOM_I)
-typedef xr_vector<CODEGeom*>::const_iterator GEOM_CI;
+using GEOM_STORAGE = xr_vector<CODEGeom*>;
+using GEOM_I = GEOM_STORAGE::iterator;
+using GEOM_CI = GEOM_STORAGE::const_iterator;
+
 struct SBoneShape;
 class IKinematics;
 
@@ -118,7 +120,7 @@ void t_get_extensions(
 {
     lo_ext = dInfinity;
     hi_ext = -dInfinity;
-    xr_vector<geometry_type *>::const_iterator i = geoms.begin(), e = geoms.end();
+    auto i = geoms.begin(), e = geoms.end();
     for (; i != e; ++i)
     {
         float temp_lo_ext, temp_hi_ext;
@@ -129,5 +131,3 @@ void t_get_extensions(
             hi_ext = temp_hi_ext;
     }
 }
-
-#endif

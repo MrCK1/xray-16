@@ -9,12 +9,11 @@
 #pragma once
 
 IC CTradeParameters::CTradeParameters(const shared_str& section)
-    : m_buy(CTradeFactors(pSettings->r_float(section, "buy_price_factor_hostile"),
-          pSettings->r_float(section, "buy_price_factor_friendly"))),
+    : buy_item_condition_factor(0),
+      m_buy(CTradeFactors(pSettings->r_float(section, "buy_price_factor_hostile"),
+                          pSettings->r_float(section, "buy_price_factor_friendly"))),
       m_sell(CTradeFactors(pSettings->r_float(section, "sell_price_factor_hostile"),
-          pSettings->r_float(section, "sell_price_factor_friendly")))
-{
-}
+                           pSettings->r_float(section, "sell_price_factor_friendly"))) {}
 
 IC void CTradeParameters::clear()
 {
@@ -74,8 +73,8 @@ IC void CTradeParameters::process(_action_type type, CInifile& ini_file, const s
     _action.clear();
 
     CInifile::Sect& S = ini_file.r_section(section);
-    CInifile::SectCIt I = S.Data.begin();
-    CInifile::SectCIt E = S.Data.end();
+    auto I = S.Data.cbegin();
+    auto E = S.Data.cend();
     for (; I != E; ++I)
     {
         if (!(*I).second.size())

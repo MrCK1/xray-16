@@ -1,16 +1,16 @@
-#include "stdafx.h"
-#include "grenade.h"
+#include "StdAfx.h"
+#include "Grenade.h"
 #include "xrPhysics/PhysicsShell.h"
 //.#include "WeaponHUD.h"
-#include "entity.h"
+#include "Entity.h"
 #include "ParticlesObject.h"
-#include "actor.h"
-#include "inventory.h"
+#include "Actor.h"
+#include "Inventory.h"
 #include "Level.h"
-#include "xrmessages.h"
+#include "xrMessages.h"
 #include "xr_level_controller.h"
 #include "game_cl_base.h"
-#include "xrserver_objects_alife.h"
+#include "xrServer_Objects_ALife.h"
 
 #define GRENADE_REMOVE_TIME 30000
 const float default_grenade_detonation_threshold_hit = 100;
@@ -89,7 +89,7 @@ void CGrenade::OnH_A_Chield()
     inherited::OnH_A_Chield();
 }
 
-void CGrenade::State(u32 state)
+void CGrenade::State(u32 state, u32 old_state)
 {
     switch (state)
     {
@@ -120,7 +120,7 @@ void CGrenade::State(u32 state)
     }
     break;
     };
-    inherited::State(state);
+    inherited::State(state, old_state);
 }
 
 bool CGrenade::DropGrenade()
@@ -136,8 +136,12 @@ bool CGrenade::DropGrenade()
 
 void CGrenade::DiscardState()
 {
-    if (IsGameTypeSingle() && (GetState() == eReady || GetState() == eThrow))
-        OnStateSwitch(eIdle);
+    if (IsGameTypeSingle())
+    {
+        u32 state = GetState();
+        if (state == eReady || state == eThrow)
+            OnStateSwitch(eIdle, state);
+    }
 }
 
 void CGrenade::SendHiddenItem()

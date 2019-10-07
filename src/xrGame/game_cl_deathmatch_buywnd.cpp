@@ -1,10 +1,10 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "game_cl_deathmatch.h"
 #include "Level.h"
-#include "actor.h"
-#include "inventory.h"
+#include "Actor.h"
+#include "Inventory.h"
 #include "xrServer_Objects_ALife_Items.h"
-#include "weapon.h"
+#include "Weapon.h"
 #include "WeaponMagazinedWGrenade.h"
 #include "WeaponKnife.h"
 #include "xr_level_controller.h"
@@ -117,8 +117,8 @@ void game_cl_Deathmatch::OnBuyMenu_Ok()
 void game_cl_Deathmatch::OnBuyMenu_DefaultItems()
 {
     //---------------------------------------------------------
-    /*	PRESET_ITEMS_it It = PlayerDefItems.begin();
-	PRESET_ITEMS_it Et = PlayerDefItems.end();
+    /*	auto It = PlayerDefItems.begin();
+	auto Et = PlayerDefItems.end();
 	for ( ; It != Et; ++It) 
 	{
 		s16	ItemID = (*It);
@@ -147,7 +147,7 @@ void game_cl_Deathmatch::SetBuyMenuItems(PRESET_ITEMS* pItems, BOOL OnlyPreset)
         // defusing all weapons
         u32 max_addammo_count = pCurActor->inventory().m_all.size();
         aditional_ammo_t add_ammo(
-            _alloca(sizeof(aditional_ammo_t::value_type) * (max_addammo_count * 2)), (max_addammo_count * 2));
+            xr_alloca(sizeof(aditional_ammo_t::value_type) * (max_addammo_count * 2)), (max_addammo_count * 2));
         TryToDefuseAllWeapons(add_ammo);
 
         //проверяем слоты
@@ -244,7 +244,7 @@ void game_cl_Deathmatch::SetBuyMenuItems(PRESET_ITEMS* pItems, BOOL OnlyPreset)
                 pCurBuyMenu->ItemToRuck(pItem->object().cNameSect(), Addons);
             }
         };
-        for (auto item : add_ammo)
+        for (const auto& item : add_ammo)
             AdditionalAmmoInserter(item);
     }
     else
@@ -253,9 +253,9 @@ void game_cl_Deathmatch::SetBuyMenuItems(PRESET_ITEMS* pItems, BOOL OnlyPreset)
         u8 KnifeSlot, KnifeIndex;
         pCurBuyMenu->GetWeaponIndexByName("mp_wpn_knife", KnifeSlot, KnifeIndex);
         //---------------------------------------------------------
-        PRESET_ITEMS TmpPresetItems;
-        PRESET_ITEMS_it It = pItems->begin();
-        PRESET_ITEMS_it Et = pItems->end();
+
+        auto It = pItems->begin();
+        auto Et = pItems->end();
         for (; It != Et; ++It)
         {
             PresetItem PIT = *It;
@@ -290,7 +290,7 @@ void game_cl_Deathmatch::CheckItem(PIItem pItem, PRESET_ITEMS* pPresetItems, BOO
             return;
     }
     //-----------------------------------------------------
-    PRESET_ITEMS_it PresetItemIt = std::find(pPresetItems->begin(), pPresetItems->end(), BigID);
+    auto PresetItemIt = std::find(pPresetItems->begin(), pPresetItems->end(), BigID);
     if (OnlyPreset)
     {
         if (PresetItemIt == pPresetItems->end())
@@ -299,7 +299,7 @@ void game_cl_Deathmatch::CheckItem(PIItem pItem, PRESET_ITEMS* pPresetItems, BOO
 
     if (SlotID == INV_SLOT_2)
     {
-        PRESET_ITEMS_it DefPistolIt = std::find(PlayerDefItems.begin(), PlayerDefItems.end(), BigID);
+        auto DefPistolIt = std::find(PlayerDefItems.begin(), PlayerDefItems.end(), BigID);
         if (DefPistolIt != PlayerDefItems.end() && PresetItemIt == pPresetItems->end())
             return;
     }
@@ -419,7 +419,7 @@ void game_cl_Deathmatch::LoadDefItemsForRank(IBuyWnd* pBuyMenu)
     char tmp[5];
     for (int i = 1; i <= local_player->rank; i++)
     {
-        strconcat(sizeof(RankStr), RankStr, "rank_", itoa(i, tmp, 10));
+        strconcat(sizeof(RankStr), RankStr, "rank_", xr_itoa(i, tmp, 10));
         if (!pSettings->section_exist(RankStr))
             continue;
         for (u32 it = 0; it < PlayerDefItems.size(); it++)
@@ -491,9 +491,9 @@ void game_cl_Deathmatch::LoadDefItemsForRank(IBuyWnd* pBuyMenu)
     u8 KnifeSlot, KnifeIndex;
     pCurBuyMenu->GetWeaponIndexByName("mp_wpn_knife", KnifeSlot, KnifeIndex);
     //---------------------------------------------------------
-    PRESET_ITEMS TmpPresetItems;
-    PRESET_ITEMS_it It = PlayerDefItems.begin();
-    PRESET_ITEMS_it Et = PlayerDefItems.end();
+
+    auto It = PlayerDefItems.begin();
+    auto Et = PlayerDefItems.end();
     for (; It != Et; ++It)
     {
         PresetItem PIT = *It;

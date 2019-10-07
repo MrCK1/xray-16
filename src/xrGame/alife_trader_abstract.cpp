@@ -6,7 +6,7 @@
 //	Description : ALife trader abstract class
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "xrServer_Objects_ALife_Monsters.h"
 #include "alife_simulator.h"
 #include "specific_character.h"
@@ -16,6 +16,7 @@
 #include "alife_graph_registry.h"
 #include "xrServer.h"
 #include "alife_schedule_registry.h"
+#include "xrServerEntities/xrMessages.h"
 
 #ifdef DEBUG
 extern Flags32 psAI_Flags;
@@ -48,8 +49,8 @@ void CSE_ALifeTraderAbstract::spawn_supplies()
         {
 #pragma warning(push)
 #pragma warning(disable : 4238)
-            CInifile ini(&IReader((void*)(*dynamic_object->m_ini_string), xr_strlen(dynamic_object->m_ini_string)),
-                FS.get_path("$game_config$")->m_Path);
+            IReader reader((void*)(*dynamic_object->m_ini_string), xr_strlen(dynamic_object->m_ini_string));
+            CInifile ini(&reader, FS.get_path("$game_config$")->m_Path);
 #pragma warning(pop)
 
             if (ini.section_exist("dont_spawn_character_supplies"))
@@ -160,18 +161,23 @@ void add_online_impl(CSE_ALifeDynamicObject* object, const bool& update_registri
     clientID.set(
         object->alife().server().GetServerClient() ? object->alife().server().GetServerClient()->ID.value() : 0);
 
-    ALife::OBJECT_IT I = object->children.begin();
-    ALife::OBJECT_IT E = object->children.end();
-    for (; I != E; ++I)
+    for (auto& it : object->children)
     {
-        //	this was for the car only
-        //		if (*I == ai().alife().graph().actor()->ID)
-        //			continue;
-        //
-        CSE_ALifeDynamicObject* l_tpALifeDynamicObject = ai().alife().objects().object(*I);
+        //Alundaio:
+        if (it == ai().alife().graph().actor()->ID)
+            continue;
+        //-Alundaio
+
+        CSE_ALifeDynamicObject* l_tpALifeDynamicObject = ai().alife().objects().object(it);
+        if (!l_tpALifeDynamicObject)
+            continue;
+
         CSE_ALifeInventoryItem* l_tpALifeInventoryItem = smart_cast<CSE_ALifeInventoryItem*>(l_tpALifeDynamicObject);
-        R_ASSERT2(l_tpALifeInventoryItem, "Non inventory item object has parent?!");
-        l_tpALifeInventoryItem->base()->s_flags.or (M_SPAWN_UPDATE);
+        if (!l_tpALifeInventoryItem)
+            continue;
+
+        //R_ASSERT2(l_tpALifeInventoryItem, "Non inventory item object has parent?!");
+        l_tpALifeInventoryItem->base()->s_flags._or (M_SPAWN_UPDATE);
         CSE_Abstract* l_tpAbstract = smart_cast<CSE_Abstract*>(l_tpALifeInventoryItem);
         object->alife().server().entity_Destroy(l_tpAbstract);
 
@@ -190,7 +196,7 @@ void add_online_impl(CSE_ALifeDynamicObject* object, const bool& update_registri
         l_tpALifeDynamicObject->o_Position = object->o_Position;
         l_tpALifeDynamicObject->m_tNodeID = object->m_tNodeID;
         object->alife().server().Process_spawn(tNetPacket, clientID, FALSE, l_tpALifeInventoryItem->base());
-        l_tpALifeDynamicObject->s_flags.and (u16(-1) ^ M_SPAWN_UPDATE);
+        l_tpALifeDynamicObject->s_flags._and (u16(-1) ^ M_SPAWN_UPDATE);
         l_tpALifeDynamicObject->m_bOnline = true;
     }
 

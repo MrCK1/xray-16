@@ -14,7 +14,21 @@ public:
     virtual void Compile(CBlender_Compile& C)
     {
         C.r_Pass("sky2", "sky2", FALSE, TRUE, FALSE);
-#if defined(USE_DX10) || defined(USE_DX11)
+#ifdef USE_OGL
+        if (HW.Caps.geometry.bVTF)
+        {
+            C.r_Sampler_clf("s_sky0", "$null");
+            C.r_Sampler_clf("s_sky1", "$null");
+            C.r_Sampler_rtf("s_tonemap", "$user$tonemap"); //. hack
+		}
+        else
+        {
+            C.r_Sampler_clf("s_sky0", r2_T_sky0);
+            C.r_Sampler_clf("s_sky1", r2_T_sky1);
+            C.r_Sampler_rtf("s_tonemap", r2_RT_luminance_cur);
+        }
+        C.PassSET_ZB(FALSE, FALSE);
+#elif defined(USE_DX10) || defined(USE_DX11)
         // C.r_Sampler_clf		("s_sky0",		"$null"			);
         // C.r_Sampler_clf		("s_sky1",		"$null"			);
         C.r_dx10Texture("s_sky0", "$null");

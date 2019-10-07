@@ -4,25 +4,30 @@
 
 // Common
 extern ECORE_API u32 ps_r_sun_shafts; //=	0;
-extern ECORE_API xr_token qsun_shafts_token[];
+extern ECORE_API const xr_token qsun_shafts_token[];
+
+extern ECORE_API u32 ps_r2_smapsize;
+extern ECORE_API const xr_token qsmapsize_token[];
 
 extern ECORE_API u32 ps_r_ssao; //	=	0;
-extern ECORE_API xr_token qssao_token[];
+extern ECORE_API const xr_token qssao_token[];
 
 extern ECORE_API u32 ps_r_ssao_mode;
-extern ECORE_API xr_token qssao_mode_token[];
+extern ECORE_API const xr_token qssao_mode_token[];
 
 extern ECORE_API u32 ps_r_sun_quality; //	=	0;
-extern ECORE_API xr_token qsun_quality_token[];
+extern ECORE_API const xr_token qsun_quality_token[];
 
 extern ECORE_API u32 ps_r3_msaa; //	=	0;
-extern ECORE_API xr_token qmsaa_token[];
+extern ECORE_API const xr_token qmsaa_token[];
 
 extern ECORE_API u32 ps_r3_msaa_atest; //=	0;
-extern ECORE_API xr_token qmsaa__atest_token[];
+extern ECORE_API const xr_token qmsaa__atest_token[];
 
 extern ECORE_API u32 ps_r3_minmax_sm; //	=	0;
-extern ECORE_API xr_token qminmax_sm_token[];
+extern ECORE_API const xr_token qminmax_sm_token[];
+
+extern ECORE_API int ps_r2_fxaa;
 
 extern ENGINE_API int ps_r__Supersample;
 extern ECORE_API int ps_r__LightSleepFrames;
@@ -30,6 +35,7 @@ extern ECORE_API int ps_r__LightSleepFrames;
 extern ECORE_API float ps_r__Detail_l_ambient;
 extern ECORE_API float ps_r__Detail_l_aniso;
 extern ECORE_API float ps_r__Detail_density;
+extern ECORE_API float ps_r__Detail_height;
 
 extern ECORE_API float ps_r__Tree_w_rot;
 extern ECORE_API float ps_r__Tree_w_speed;
@@ -49,15 +55,16 @@ extern ECORE_API float ps_r__ssaDISCARD;
 extern ECORE_API float ps_r__ssaDONTSORT;
 extern ECORE_API float ps_r__ssaHZBvsTEX;
 extern ECORE_API int ps_r__tf_Anisotropic;
+extern ECORE_API float ps_r__tf_Mipbias;
 
 // R1
 extern ECORE_API float ps_r1_ssaLOD_A;
 extern ECORE_API float ps_r1_ssaLOD_B;
-extern ECORE_API float ps_r1_tf_Mipbias;
 extern ECORE_API float ps_r1_lmodel_lerp;
 extern ECORE_API float ps_r1_dlights_clip;
 extern ECORE_API float ps_r1_pps_u;
 extern ECORE_API float ps_r1_pps_v;
+extern ECORE_API int ps_r1_force_geomx;
 
 // R1-specific
 extern ECORE_API int ps_r1_GlowsPerFrame; // r1-only
@@ -74,7 +81,6 @@ enum
 // R2
 extern ECORE_API float ps_r2_ssaLOD_A;
 extern ECORE_API float ps_r2_ssaLOD_B;
-extern ECORE_API float ps_r2_tf_Mipbias;
 
 // R2-specific
 extern ECORE_API Flags32 ps_r2_ls_flags; // r2-only
@@ -130,6 +136,7 @@ extern ECORE_API Fvector3 ps_r2_dof;
 extern ECORE_API float ps_r2_dof_sky; //	distance to sky
 extern ECORE_API float ps_r2_dof_kernel_size; //	7.0f
 
+extern ECORE_API int ps_r3_dyn_wet_surf_opt;
 extern ECORE_API float ps_r3_dyn_wet_surf_near; // 10.0f
 extern ECORE_API float ps_r3_dyn_wet_surf_far; // 30.0f
 extern ECORE_API int ps_r3_dyn_wet_surf_sm_res; // 256
@@ -197,6 +204,5 @@ enum
 
 extern void xrRender_initconsole();
 extern BOOL xrRender_test_hw();
-extern void xrRender_apply_tf();
 
 #endif

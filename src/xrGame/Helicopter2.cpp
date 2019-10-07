@@ -6,12 +6,12 @@
 #include "Include/xrRender/Kinematics.h"
 #include "xrEngine/LightAnimLibrary.h"
 
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "ai/stalker/ai_stalker.h"
 #include "CustomZone.h"
 #include "xrPhysics/MathUtils.h"
 
-#include "actor.h"
+#include "Actor.h"
 #include "physics_game.h"
 
 bool CHelicopter::isObjectVisible(IGameObject* O)
@@ -230,7 +230,7 @@ void CHelicopter::PHHit(SHit& H)
 #include "team_hierarchy_holder.h"
 #include "squad_hierarchy_holder.h"
 
-#include "xrPhysics/extendedgeom.h"
+#include "xrPhysics/ExtendedGeom.h"
 void CollisionCallbackDead(bool& do_colide, bool bo1, dContact& c, SGameMtl* material_1, SGameMtl* material_2)
 {
     do_colide = true;
@@ -415,7 +415,7 @@ float t_1(float t10, float t11)
     else if (t11 < 0)
         return t10;
     else
-        return _min(t10, t11);
+        return std::min(t10, t11);
 }
 
 float t_0(float V0, float V1, float a0, float a1, float t1) { return (V1 - V0 - a1 * t1) / a0; }

@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "game_cl_mp.h"
 #include "game_cl_mp_snd_messages.h"
 #include "Level.h"
@@ -44,7 +44,7 @@ struct sound_ptr_search_predicate
 void game_cl_mp::PlaySndMessage(u32 ID)
 {
     sound_ptr_search_predicate tmp_predicate(ID);
-    SNDMESSAGES_it it = std::find_if(m_pSndMessages.begin(), m_pSndMessages.end(), tmp_predicate);
+    auto it = std::find_if(m_pSndMessages.begin(), m_pSndMessages.end(), tmp_predicate);
     if (it == m_pSndMessages.end())
     {
         R_ASSERT2(0, "No such sound!!!");

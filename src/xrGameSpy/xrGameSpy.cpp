@@ -35,12 +35,15 @@ const char* GetGameVersion() { return GAME_VERSION; }
 
 int GetGameDistribution()
 {
+    int KeyValue = 0;
+
+#ifdef WINDOWS
     HKEY KeyCDKey = 0;
 
     long res = RegOpenKeyEx(REGISTRY_BASE, REGISTRY_PATH, 0, KEY_READ, &KeyCDKey);
 
     //	char	KeyValue[1024] = "";
-    int KeyValue;
+
     DWORD KeyValueSize = 1024;
     DWORD KeyValueType = REG_DWORD;
     if (res == ERROR_SUCCESS && KeyCDKey != 0)
@@ -55,7 +58,7 @@ int GetGameDistribution()
     {
         return int(0);
     };
-
+#endif
     return KeyValue;
 }
 

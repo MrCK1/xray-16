@@ -6,17 +6,20 @@
 //	Description : Stalker animation pair
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "stalker_animation_pair.h"
 #include "stalker_animation_manager.h"
+#include "stalker_animation_manager_impl.h"
 #include "xrCore/Animation/Motion.hpp"
 #include "ai_debug.h"
 #include "ai/stalker/ai_stalker.h"
 #include "ai/ai_monsters_anims.h"
 #include "animation_movement_controller.h"
+#include "xrCore/buffer_vector.h"
 #ifdef DEBUG
-#include "phdebug.h"
+#include "PHDebug.h"
 #endif
+
 #pragma warning(push)
 #pragma warning(disable : 4995)
 #include <malloc.h>
@@ -106,8 +109,8 @@ void CStalkerAnimationPair::play(IKinematicsAnimated* skeleton_animated, PlayCal
     {
 #if 0
 #ifdef DEBUG
-		if (psAI_Flags.is(aiAnimation) && blend())
-			Msg				("%6d [%s][%s][%s][%f]",Device.dwTimeGlobal,m_object_name,m_animation_type_name,*animation()->name(),blend()->timeCurrent);
+        if (psAI_Flags.is(aiAnimation) && blend())
+            Msg				("%6d [%s][%s][%s][%f]",Device.dwTimeGlobal,m_object_name,m_animation_type_name,*animation()->name(),blend()->timeCurrent);
 #endif
 #endif
 
@@ -204,13 +207,13 @@ std::pair<LPCSTR, LPCSTR>* CStalkerAnimationPair::blend_id(
     const u32 part_blend = part_blends_num - 2;
     CBlend* b = skeleton_animated->LL_PartBlend(bone_part_id, part_blend);
 #if 0
-	VERIFY2					(
-		b->motionID != animation(),
-		make_string(
-			"animation is blending with itself (%s)",
-			skeleton_animated->LL_MotionDefName_dbg(animation()).first
-		)
-	);
+    VERIFY2					(
+        b->motionID != animation(),
+        make_string(
+            "animation is blending with itself (%s)",
+            skeleton_animated->LL_MotionDefName_dbg(animation()).first
+        )
+    );
 #endif
     result = skeleton_animated->LL_MotionDefName_dbg(b->motionID);
     return (&result);
@@ -279,7 +282,7 @@ void CStalkerAnimationPair::on_animation_end()
 
     u32 callback_count = m_callbacks.size();
     typedef buffer_vector<CALLBACK_ID> Callbacks;
-    Callbacks callbacks(_alloca(callback_count * sizeof(Callbacks::value_type)), callback_count, m_callbacks.begin(),
+    Callbacks callbacks(xr_alloca(callback_count * sizeof(Callbacks::value_type)), callback_count, m_callbacks.begin(),
         m_callbacks.end());
     Callbacks::const_iterator i = callbacks.begin();
     Callbacks::const_iterator e = callbacks.end();
@@ -305,8 +308,8 @@ bool CStalkerAnimationPair::use_animation_movement_control(
 void CStalkerAnimationPair::reset()
 {
 #if 0 // def DEBUG
-	if (m_animation)
-		Msg						("animation [%s][%s] is reset",m_object_name,m_animation_type_name);
+    if (m_animation)
+        Msg						("animation [%s][%s] is reset",m_object_name,m_animation_type_name);
 #endif // DEBUG
 
     m_animation.invalidate();

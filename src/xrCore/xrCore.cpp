@@ -3,30 +3,187 @@
 #include "stdafx.h"
 #pragma hdrstop
 
+#if defined(WINDOWS)
 #include <mmsystem.h>
 #include <objbase.h>
-#include "xrCore.h"
-#include "Threading/ttapi.h"
-#include "Math/MathUtil.hpp"
-
 #pragma comment(lib, "winmm.lib")
+#elif defined(LINUX)
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <pwd.h>
+#include <unistd.h>
+#endif
+#include "xrCore.h"
+#include "Math/MathUtil.hpp"
+#include "xrCore/_std_extensions.h"
+#include "SDL.h"
 
-#ifdef DEBUG
-#include <malloc.h>
-#endif // DEBUG
+#include "Compression/compression_ppmd_stream.h"
+extern compression::ppmd::stream* trained_model;
 
 XRCORE_API xrCore Core;
 
-namespace CPU
-{
-extern void Detect();
-};
-
 static u32 init_counter = 0;
 
-//. extern xr_vector<shared_str>* LogFile;
+#define DO_EXPAND(VAL) VAL##1
+#define EXPAND(VAL) DO_EXPAND(VAL)
 
-void xrCore::_initialize(LPCSTR _ApplicationName, LogCallback cb, BOOL init_fs, LPCSTR fs_fname, bool plugin)
+#ifdef CI
+#if EXPAND(CI) == 1
+#undef CI
+#endif
+#endif
+
+void PrintBuildInfo()
+{
+    pcstr name = "Custom";
+    pcstr buildId = nullptr;
+    pcstr builder = nullptr;
+    pcstr commit = Core.GetBuildCommit();
+    pcstr branch = Core.GetBuildBranch();
+
+#if defined(CI)
+#if defined(APPVEYOR)
+    name = "AppVeyor";
+    buildId = MACRO_TO_STRING(APPVEYOR_BUILD_VERSION);
+    builder = MACRO_TO_STRING(APPVEYOR_ACCOUNT_NAME);
+#elif defined(TRAVIS)
+    name = "Travis";
+    buildId = MACRO_TO_STRING(TRAVIS_BUILD_NUMBER);
+#else
+#pragma TODO("PrintCI for other CIs")
+    name = "CI";
+    builder = "Unknown CI";
+#endif
+#endif
+
+    string512 buf;
+    strconcat(buf, name, " build "); // "%s build "
+
+    if (buildId)
+        strconcat(buf, buf, buildId, " "); // "id "
+
+    strconcat(buf, buf, "from commit[", commit, "]"); // "from commit[hash]"
+    strconcat(buf, buf, " branch[", branch, "]"); // " branch[name]"
+
+    if (builder)
+        strconcat(buf, buf, " (built by ", builder, ")"); // " (built by builder)"
+
+    Log(buf); // "%s build %s from commit[%s] branch[%s] (built by %s)"
+}
+
+void SDLLogOutput(void* /*userdata*/,
+    int category,
+    SDL_LogPriority priority,
+    const char* message)
+{
+    pcstr from;
+    switch (category)
+    {
+    case SDL_LOG_CATEGORY_APPLICATION:
+        from = "application";
+        break;
+
+    case SDL_LOG_CATEGORY_ERROR:
+        from = "error";
+        break;
+
+    case SDL_LOG_CATEGORY_ASSERT:
+        from = "assert";
+        break;
+
+    case SDL_LOG_CATEGORY_SYSTEM:
+        from = "system";
+        break;
+
+    case SDL_LOG_CATEGORY_AUDIO:
+        from = "audio";
+        break;
+
+    case SDL_LOG_CATEGORY_VIDEO:
+        from = "video";
+        break;
+
+    case SDL_LOG_CATEGORY_RENDER:
+        from = "render";
+        break;
+
+    case SDL_LOG_CATEGORY_INPUT:
+        from = "input";
+        break;
+
+    case SDL_LOG_CATEGORY_TEST:
+        from = "test";
+        break;
+
+    case SDL_LOG_CATEGORY_CUSTOM:
+        from = "custom";
+        break;
+
+    default:
+        from = "unknown";
+        break;
+    }
+
+    char mark;
+    pcstr type;
+    switch (priority)
+    {
+    case SDL_LOG_PRIORITY_VERBOSE:
+        mark = '%';
+        type = "verbose";
+        break;
+
+    case SDL_LOG_PRIORITY_DEBUG:
+        mark = '#';
+        type = "debug";
+        break;
+
+    case SDL_LOG_PRIORITY_INFO:
+        mark = '=';
+        type = "info";
+        break;
+
+    case SDL_LOG_PRIORITY_WARN:
+        mark = '~';
+        type = "warn";
+        break;
+
+    case SDL_LOG_PRIORITY_ERROR:
+        mark = '!';
+        type = "error";
+        break;
+
+    case SDL_LOG_PRIORITY_CRITICAL:
+        mark = '$';
+        type = "critical";
+        break;
+
+    default:
+        mark = ' ';
+        type = "unknown";
+        break;
+    }
+
+    constexpr pcstr format = "%c [sdl][%s][%s]: %s";
+    const size_t size = sizeof(mark) + sizeof(from) + sizeof(type) + sizeof(format) + sizeof(message);
+    pstr buf = (pstr)xr_alloca(size);
+
+    xr_sprintf(buf, size, format, mark, from, type, message);
+    Log(buf);
+}
+
+xrCore::xrCore()
+    : ApplicationName{}, ApplicationPath{},
+      WorkingPath{},
+      UserName{}, CompName{},
+      Params(nullptr), dwFrame(0),
+      PluginMode(false)
+{
+    CalculateBuildId();
+}
+
+void xrCore::Initialize(pcstr _ApplicationName, pcstr commandLine, LogCallback cb, bool init_fs, pcstr fs_fname, bool plugin)
 {
     xr_strcpy(ApplicationName, _ApplicationName);
     if (0 == init_counter)
@@ -34,16 +191,25 @@ void xrCore::_initialize(LPCSTR _ApplicationName, LogCallback cb, BOOL init_fs, 
         PluginMode = plugin;
         // Init COM so we can use CoCreateInstance
         // HRESULT co_res =
-        Params = xr_strdup(GetCommandLine());
-        if (!strstr(Params, "-editor"))
-            CoInitializeEx(NULL, COINIT_MULTITHREADED);
+        if (commandLine)
+            Params = xr_strdup(commandLine);
+        else
+            Params = xr_strdup("");
 
+        CoInitializeMultithreaded();
+
+#if defined(WINDOWS)
         string_path fn, dr, di;
 
         // application path
         GetModuleFileName(GetModuleHandle("xrCore"), fn, sizeof(fn));
-        _splitpath(fn, dr, di, 0, 0);
+        _splitpath(fn, dr, di, nullptr, nullptr);
         strconcat(sizeof(ApplicationPath), ApplicationPath, dr, di);
+#else
+        char *pref_path = SDL_GetPrefPath("GSC", "SCOP");
+        SDL_strlcpy(ApplicationPath, pref_path, sizeof(ApplicationPath));
+        SDL_free(pref_path);
+#endif
 
 #ifdef _EDITOR
         // working path
@@ -55,42 +221,83 @@ void xrCore::_initialize(LPCSTR _ApplicationName, LogCallback cb, BOOL init_fs, 
         }
 #endif
 
+#if defined(WINDOWS)
         GetCurrentDirectory(sizeof(WorkingPath), WorkingPath);
+#else
+        getcwd(WorkingPath, sizeof(WorkingPath));
+        chdir(ApplicationPath);
+        string_path tmp;
+        xr_sprintf(tmp, "%sfsgame.ltx", ApplicationPath);
+        struct stat statbuf;
+        memset(&statbuf, 0, sizeof(struct stat));
 
+        int res = lstat(tmp, &statbuf);
+
+        if(!S_ISLNK(statbuf.st_mode)) // If not symlink (original fsgame.ltx at first run), remove it
+            unlink(tmp);
+
+        if(-1 == res || !S_ISLNK(statbuf.st_mode))
+            symlink("/usr/share/openxray/fsgame.ltx", tmp);
+
+        xr_sprintf(tmp, "%sgamedata", ApplicationPath);
+
+        memset(&statbuf, 0, sizeof(struct stat));
+        res = lstat(tmp, &statbuf);
+
+        if(S_ISDIR(statbuf.st_mode)) // If folder (custom gamedata), remove it
+            rmdir(tmp);
+
+        if(-1 == res || !S_ISLNK(statbuf.st_mode))
+            symlink("/usr/share/openxray/gamedata", tmp);
+#endif
+
+#if defined(WINDOWS)
         // User/Comp Name
         DWORD sz_user = sizeof(UserName);
         GetUserName(UserName, &sz_user);
 
         DWORD sz_comp = sizeof(CompName);
         GetComputerName(CompName, &sz_comp);
+#elif defined(LINUX)
+        uid_t uid = geteuid();
+        struct passwd *pw = getpwuid(uid);
+        if(pw)
+        {
+            strcpy(UserName, pw->pw_gecos);
+            char* pos = strchr(UserName, ','); // pw_gecos return string
+            if(NULL != pos)
+                *pos = 0;
+            if(0 == UserName[0])
+                strcpy(UserName, pw->pw_name);
+        }
 
-        // Mathematics & PSI detection
-        CPU::Detect();
+        gethostname(CompName, sizeof(CompName));
+#endif
 
-        Memory._initialize(strstr(Params, "-mem_debug") ? TRUE : FALSE);
+        Memory._initialize();
 
-        DUMP_PHASE;
-
-        InitLog();
+        SDL_LogSetOutputFunction(SDLLogOutput, nullptr);
+        Msg("%s %s build %d, %s", "OpenXRay", GetBuildConfiguration(), buildId, buildDate);
+        PrintBuildInfo();
+        Msg("\ncommand line %s\n", Params);
         _initialize_cpu();
-        R_ASSERT(CPU::ID.feature & _CPU_FEATURE_SSE);
-        ttapi_Init(CPU::ID);
+        R_ASSERT(SDL_HasSSE());
         XRay::Math::Initialize();
         // xrDebug::Initialize ();
 
         rtc_initialize();
 
-        xr_FS = new CLocatorAPI();
+        xr_FS = xr_make_unique<CLocatorAPI>();
 
-        xr_EFS = new EFS_Utils();
+        xr_EFS = xr_make_unique<EFS_Utils>();
         //. R_ASSERT (co_res==S_OK);
     }
     if (init_fs)
     {
-        u32 flags = 0;
-        if (0 != strstr(Params, "-build"))
+        u32 flags = 0u;
+        if (strstr(Params, "-build") != nullptr)
             flags |= CLocatorAPI::flBuildCopy;
-        if (0 != strstr(Params, "-ebuild"))
+        if (strstr(Params, "-ebuild") != nullptr)
             flags |= CLocatorAPI::flBuildCopy | CLocatorAPI::flEBuildCopy;
 #ifdef DEBUG
         if (strstr(Params, "-cache"))
@@ -105,17 +312,17 @@ void xrCore::_initialize(LPCSTR _ApplicationName, LogCallback cb, BOOL init_fs, 
 
 #ifndef _EDITOR
 #ifndef ELocatorAPIH
-        if (0 != strstr(Params, "-file_activity"))
+        if (strstr(Params, "-file_activity") != nullptr)
             flags |= CLocatorAPI::flDumpFileActivity;
 #endif
 #endif
-        FS._initialize(flags, 0, fs_fname);
-        CalculateBuildId();
-        Msg("'%s' build %d, %s\n", "xrCore", buildId, buildDate);
+        FS._initialize(flags, nullptr, fs_fname);
         EFS._initialize();
 #ifdef DEBUG
 #ifndef _EDITOR
+#ifndef LINUX // FIXME!!!
         Msg("Process heap 0x%08x", GetProcessHeap());
+#endif
 #endif
 #endif // DEBUG
     }
@@ -123,32 +330,56 @@ void xrCore::_initialize(LPCSTR _ApplicationName, LogCallback cb, BOOL init_fs, 
     init_counter++;
 }
 
-#ifndef _EDITOR
-#include "compression_ppmd_stream.h"
-extern compression::ppmd::stream* trained_model;
-#endif
 void xrCore::_destroy()
 {
     --init_counter;
     if (0 == init_counter)
     {
-        ttapi_Done();
         FS._destroy();
         EFS._destroy();
-        xr_delete(xr_FS);
-        xr_delete(xr_EFS);
+        xr_FS.reset();
+        xr_EFS.reset();
 
-#ifndef _EDITOR
         if (trained_model)
         {
             void* buffer = trained_model->buffer();
             xr_free(buffer);
             xr_delete(trained_model);
         }
-#endif
         xr_free(Params);
         Memory._destroy();
     }
+}
+
+constexpr pcstr xrCore::GetBuildConfiguration()
+{
+#ifdef NDEBUG
+#ifdef XR_X64
+    return "Rx64";
+#else
+    return "Rx86";
+#endif
+#elif defined(MIXED)
+#ifdef XR_X64
+    return "Mx64";
+#else
+    return "Mx86";
+#endif
+#else
+#ifdef XR_X64
+    return "Dx64";
+#else
+    return "Dx86";
+#endif
+#endif
+}
+
+void xrCore::CoInitializeMultithreaded() const
+{
+#if defined(WINDOWS)
+    if (!strstr(Params, "-weather"))
+        CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+#endif
 }
 
 void xrCore::CalculateBuildId()
@@ -158,7 +389,6 @@ void xrCore::CalculateBuildId()
     const int startYear = 1999;
     const char* monthId[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
     const int daysInMonth[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-    buildDate = __DATE__;
     int days;
     int months = 0;
     int years;
@@ -168,7 +398,7 @@ void xrCore::CalculateBuildId()
     sscanf(buffer, "%s %d %d", month, &days, &years);
     for (int i = 0; i < 12; i++)
     {
-        if (_stricmp(monthId[i], month))
+        if (xr_stricmp(monthId[i], month))
             continue;
         months = i;
         break;
@@ -180,7 +410,7 @@ void xrCore::CalculateBuildId()
         buildId -= daysInMonth[i];
 }
 
-//. why ???
+#if defined(WINDOWS)
 #ifdef _EDITOR
 BOOL WINAPI DllEntryPoint(HINSTANCE hinstDLL, DWORD ul_reason_for_call, LPVOID lpvReserved)
 #else
@@ -189,27 +419,24 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD ul_reason_for_call, LPVOID lpvRese
 {
     switch (ul_reason_for_call)
     {
-    case DLL_PROCESS_ATTACH:
-    {
-        _clear87();
-        _control87(_PC_53, MCW_PC);
-        _control87(_RC_CHOP, MCW_RC);
-        _control87(_RC_NEAR, MCW_RC);
-        _control87(_MCW_EM, MCW_EM);
-    }
-    //. LogFile.reserve (256);
-    break;
-    case DLL_THREAD_ATTACH:
-        if (!strstr(GetCommandLine(), "-editor"))
-            CoInitializeEx(NULL, COINIT_MULTITHREADED);
-        timeBeginPeriod(1);
-        break;
-    case DLL_THREAD_DETACH: break;
-    case DLL_PROCESS_DETACH:
-#ifdef USE_MEMORY_MONITOR
-        memory_monitor::flush_each_time(true);
-#endif // USE_MEMORY_MONITOR
-        break;
+    /*
+    По сути это не рекомендуемый Microsoft, но повсеместно используемый способ повышения точности
+    соблюдения и измерения временных интревалов функциями Sleep, QueryPerformanceCounter,
+    timeGetTime и GetTickCount.
+    Функция действует на всю операционную систему в целом (!) и нет необходимости вызывать её при
+    старте нового потока. Вызов timeEndPeriod специалисты Microsoft считают обязательным.
+    Есть подозрения, что Windows сама устанавливает максимальную точность при старте таких
+    приложений как, например, игры. Тогда есть шанс, что вызов timeBeginPeriod здесь бессмысленен.
+    Недостатком данного способа является то, что он приводит к общему замедлению работы как
+    текущего приложения, так и всей операционной системы.
+    Ещё можно посмотреть ссылки:
+        https://msdn.microsoft.com/en-us/library/vs/alm/dd757624(v=vs.85).aspx
+        https://users.livejournal.com/-winnie/151099.html
+        https://github.com/tebjan/TimerTool
+    */
+    case DLL_PROCESS_ATTACH: timeBeginPeriod(1); break;
+    case DLL_PROCESS_DETACH: timeEndPeriod  (1); break;
     }
     return TRUE;
 }
+#endif

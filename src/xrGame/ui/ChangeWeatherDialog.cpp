@@ -1,11 +1,10 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "ChangeWeatherDialog.hpp"
 #include "UIXmlInit.h"
-#include "UI3tButton.h"
+#include "xrUICore/Buttons/UI3tButton.h"
 #include "game_cl_teamdeathmatch.h"
 #include "UIKickPlayer.h"
 #include "UIChangeMap.h"
-#include <dinput.h>
 #include "xrEngine/XR_IOConsole.h"
 #include "UIMapList.h"
 #include "UIGameCustom.h"
@@ -46,15 +45,15 @@ bool ButtonListDialog::OnKeyboardAction(int dik, EUIMessages keyboardAction)
     CUIDialogWnd::OnKeyboardAction(dik, keyboardAction);
     if (WINDOW_KEY_PRESSED == keyboardAction)
     {
-        if (DIK_ESCAPE == dik)
+        if (SDL_SCANCODE_ESCAPE == dik)
         {
             OnCancel();
             return true;
         }
         int btnCount = buttons.size();
-        if (dik >= DIK_1 && dik <= DIK_1 - 1 + btnCount && btnCount <= 9) // handle 1..9 keys only
+        if (dik >= SDL_SCANCODE_1 && dik <= SDL_SCANCODE_1 - 1 + btnCount && btnCount <= 9) // handle 1..9 keys only
         {
-            OnButtonClick(dik - DIK_1);
+            OnButtonClick(dik - SDL_SCANCODE_1);
             return true;
         }
     }
@@ -87,16 +86,26 @@ void ChangeWeatherDialog::InitChangeWeather(CUIXml& xmlDoc)
     auto& gameWeathers = gMapListHelper.GetGameWeathers();
     Initialize(gameWeathers.size());
     weathers.resize(gameWeathers.size());
+    
+    // There is no mistake. Vanilla algorithm sorted config keys by alphabet.
+    // We did it for vanilla bug fixes and compatibility with game data.
     string256 path;
     for (u32 i = 0; i < weathers.size(); i++)
     {
-        xr_sprintf(path, "change_weather:btn_%s", gameWeathers[i].Name.c_str());
+        xr_sprintf(path, "change_weather:btn_%d", i+1);
         CUIXmlInit::Init3tButton(xmlDoc, path, 0, GetButton(i).Button);
-        xr_sprintf(path, "change_weather:txt_%s", gameWeathers[i].Name.c_str());
+        xr_sprintf(path, "change_weather:txt_%d", i+1);
         CUIXmlInit::InitTextWnd(xmlDoc, path, 0, GetButton(i).Text);
-        weathers[i].Name = gameWeathers[i].Name;
-        weathers[i].Time = gameWeathers[i].StartTime;
     }
+    Log("! Weathers name sorted by alphabet !");
+    weathers[0].Name = gameWeathers[0].Name;
+    weathers[0].Time = gameWeathers[0].StartTime;
+    weathers[1].Name = gameWeathers[3].Name;
+    weathers[1].Time = gameWeathers[3].StartTime;
+    weathers[2].Name = gameWeathers[2].Name;
+    weathers[2].Time = gameWeathers[2].StartTime;
+    weathers[3].Name = gameWeathers[1].Name;
+    weathers[3].Time = gameWeathers[1].StartTime;
 }
 
 void ChangeWeatherDialog::OnButtonClick(int i)

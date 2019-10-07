@@ -6,6 +6,7 @@
 //	Description : stalker movement manager base class
 ////////////////////////////////////////////////////////////////////////////
 
+#pragma once
 #ifndef STALKER_MOVEMENT_MANAGER_BASE_H_INCLUDED
 #define STALKER_MOVEMENT_MANAGER_BASE_H_INCLUDED
 
@@ -96,7 +97,7 @@ public:
 
 private:
     IC void setup_head_speed(stalker_movement_params& movement_params);
-    IC void add_velocity(int mask, float linear, float compute_angular, float angular);
+    void add_velocity(int mask, float linear, float compute_angular, float angular);
     IC void add_velocity(int mask, float linear, float compute_angular);
     IC void setup_body_orientation();
     void init_velocity_masks();

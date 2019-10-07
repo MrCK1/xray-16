@@ -1,23 +1,23 @@
 #pragma once
 
 #include "CustomMonster.h"
-#include "ai/Monsters/monster_enemy_memory.h"
-#include "ai/Monsters/monster_corpse_memory.h"
-#include "ai/Monsters/monster_sound_memory.h"
-#include "ai/Monsters/monster_hit_memory.h"
-#include "ai/Monsters/monster_enemy_manager.h"
-#include "ai/Monsters/monster_corpse_manager.h"
+#include "ai/monsters/monster_enemy_memory.h"
+#include "ai/monsters/monster_corpse_memory.h"
+#include "ai/monsters/monster_sound_memory.h"
+#include "ai/monsters/monster_hit_memory.h"
+#include "ai/monsters/monster_enemy_manager.h"
+#include "ai/monsters/monster_corpse_manager.h"
 #include "step_manager.h"
-#include "ai/Monsters/monster_event_manager.h"
-#include "ai/Monsters/melee_checker.h"
-#include "ai/Monsters/monster_morale.h"
-#include "ai/Monsters/control_manager.h"
-#include "ai/Monsters/control_sequencer.h"
-#include "ai/Monsters/ai_monster_utils.h"
-#include "ai/Monsters/control_manager_custom.h"
-#include "ai/Monsters/ai_monster_shared_data.h"
-#include "ai/Monsters/monster_sound_defs.h"
-#include "ai/Monsters/monster_aura.h"
+#include "ai/monsters/monster_event_manager.h"
+#include "ai/monsters/melee_checker.h"
+#include "ai/monsters/monster_morale.h"
+#include "ai/monsters/control_manager.h"
+#include "ai/monsters/control_sequencer.h"
+#include "ai/monsters/ai_monster_utils.h"
+#include "ai/monsters/control_manager_custom.h"
+#include "ai/monsters/ai_monster_shared_data.h"
+#include "ai/monsters/monster_sound_defs.h"
+#include "ai/monsters/monster_aura.h"
 
 class CCharacterPhysicsSupport;
 class CMonsterCorpseCoverEvaluator;
@@ -53,7 +53,8 @@ class anti_aim_ability;
 
 class CBaseMonster : public CCustomMonster, public CStepManager
 {
-    typedef CCustomMonster inherited;
+protected:
+    using inherited = CCustomMonster;
 
 public:
     CBaseMonster();
@@ -72,6 +73,7 @@ public:
     virtual CScriptEntity* cast_script_entity() { return this; }
     virtual CBaseMonster* cast_base_monster() { return this; }
     virtual CGameObject* cast_game_object() { return this; }
+
 public:
     virtual BOOL renderable_ShadowReceive() { return TRUE; }
     virtual void Die(IGameObject* who);
@@ -107,8 +109,8 @@ public:
     virtual void reload(LPCSTR section);
 
     virtual void init() {}
-    virtual void feel_sound_new(
-        IGameObject* who, int eType, CSound_UserDataPtr user_data, const Fvector& Position, float power);
+    void feel_sound_new(IGameObject* who, int type, const CSound_UserDataPtr& user_data,
+        const Fvector& position, float power) override;
     virtual bool feel_vision_isRelevant(IGameObject* O);
     virtual bool feel_touch_on_contact(IGameObject* O);
     virtual bool feel_touch_contact(IGameObject*);
@@ -117,14 +119,13 @@ public:
     virtual float evaluate(const CItemManager* manager, const CGameObject* object) const;
 
     virtual void OnEvent(NET_Packet& P, u16 type);
-    virtual void OnHUDDraw(CCustomHUD* hud) { return inherited::OnHUDDraw(hud); }
+    void OnHUDDraw(CCustomHUD* hud, IRenderable* root) override { return inherited::OnHUDDraw(hud, root); }
     virtual u16 PHGetSyncItemsNumber() { return inherited::PHGetSyncItemsNumber(); }
     virtual CPHSynchronize* PHGetSyncItem(u16 item) { return inherited::PHGetSyncItem(item); }
     virtual void PHUnFreeze() { return inherited::PHUnFreeze(); }
     virtual void PHFreeze() { return inherited::PHFreeze(); }
     virtual BOOL UsedAI_Locations() { return inherited::UsedAI_Locations(); }
     virtual const SRotation Orientation() const { return inherited::Orientation(); }
-    virtual void renderable_Render() { return inherited::renderable_Render(); }
     virtual void on_restrictions_change();
 
     virtual void SetAttackEffector();
@@ -418,14 +419,14 @@ protected:
 
     //////////////////////////////////////////////////////////////////////////
 public:
-    virtual char* get_monster_class_name() = 0;
+    virtual pcstr get_monster_class_name() = 0;
 
 //////////////////////////////////////////////////////////////////////////
 // DEBUG stuff
 #ifdef DEBUG
 
     template <class Type>
-    bool get_debug_var(pcstr var_name, OUT Type& result);
+    bool get_debug_var(pcstr var_name, Type& result);
 
 public:
     struct SDebugInfo
@@ -591,7 +592,7 @@ public:
 
 #ifdef DEBUG
 template <class Type>
-bool CBaseMonster::get_debug_var(pcstr var_name, OUT Type& result)
+bool CBaseMonster::get_debug_var(pcstr var_name, Type& result)
 {
     char* full_var_name;
     STRCONCAT(full_var_name, get_monster_class_name(), "_", var_name);

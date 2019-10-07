@@ -159,6 +159,9 @@ void Manager::load_all_inventory()
 {
     LPCSTR items_section = "upgraded_inventory";
 
+    if (!pSettings->section_exist(items_section) && ShadowOfChernobylMode)
+        return;
+
     VERIFY2(pSettings->section_exist(items_section), make_string("Section [%s] does not exist !", items_section));
     VERIFY2(pSettings->line_count(items_section), make_string("Section [%s] is empty !", items_section));
 
@@ -168,8 +171,8 @@ void Manager::load_all_inventory()
     }
 
     CInifile::Sect& inv_section = pSettings->r_section(items_section);
-    CInifile::SectIt_ ib = inv_section.Data.begin();
-    CInifile::SectIt_ ie = inv_section.Data.end();
+    auto ib = inv_section.Data.begin();
+    auto ie = inv_section.Data.end();
     for (; ib != ie; ++ib)
     {
         shared_str root_id((*ib).first);
@@ -195,13 +198,17 @@ void Manager::load_all_properties()
 {
     LPCSTR properties_section = "upgrades_properties";
 
+    if (!pSettings->section_exist(properties_section) && ShadowOfChernobylMode)
+        return;
+
+
     VERIFY2(
         pSettings->section_exist(properties_section), make_string("Section [%s] does not exist !", properties_section));
     VERIFY2(pSettings->line_count(properties_section), make_string("Section [%s] is empty !", properties_section));
 
     CInifile::Sect& inv_section = pSettings->r_section(properties_section);
-    CInifile::SectIt_ ib = inv_section.Data.begin();
-    CInifile::SectIt_ ie = inv_section.Data.end();
+    auto ib = inv_section.Data.begin();
+    auto ie = inv_section.Data.end();
     for (; ib != ie; ++ib)
     {
         shared_str property_id((*ib).first);
@@ -390,7 +397,7 @@ void Manager::init_install(CInventoryItem& item)
         if (installed_upgrades_str)
         {
             u32 const buffer_size = (xr_strlen(installed_upgrades_str) + 1) * sizeof(char);
-            PSTR temp = (PSTR)_alloca(buffer_size);
+            PSTR temp = (PSTR)xr_alloca(buffer_size);
 
             for (int n = _GetItemCount(installed_upgrades_str), i = 0; i < n; ++i)
             {

@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "flare.h"
 #include "player_hud.h"
 #include "xrEngine/LightAnimLibrary.h"
@@ -36,23 +36,26 @@ bool CFlare::IsFlareActive()
     return (GetState() == eFlareIdle);
 }
 
-void CFlare::OnStateSwitch(u32 S)
+void CFlare::OnStateSwitch(u32 S, u32 oldState)
 {
-    inherited::OnStateSwitch(S);
+    inherited::OnStateSwitch(S, oldState);
 
     switch (S)
     {
     case eFlareShowing:
     {
         g_player_hud->attach_item(this);
-        PlayHUDMotion("anm_show", TRUE, this, GetState());
+        PlayHUDMotion("anm_show", "anim_show", TRUE, this, GetState());
         SetPending(TRUE);
     }
     break;
     case eFlareHiding:
     {
-        PlayHUDMotion("anm_hide", TRUE, this, GetState());
-        SetPending(TRUE);
+        if (oldState != eFlareHiding)
+        {
+            PlayHUDMotion("anm_hide", "anim_hide", TRUE, this, GetState());
+            SetPending(TRUE);
+        }
     }
     break;
     case eFlareIdle:
@@ -66,7 +69,7 @@ void CFlare::OnStateSwitch(u32 S)
     break;
     case eFlareDropping:
     {
-        PlayHUDMotion("anm_drop", TRUE, this, GetState());
+        PlayHUDMotion("anm_drop", "anim_drop", TRUE, this, GetState());
         SetPending(TRUE);
     }
     break;
@@ -97,7 +100,7 @@ void CFlare::SwitchOn()
 {
     static int lt = 1; // IRender_Light::POINT
     static bool ls = true;
-    light_render = GlobalEnv.Render->light_create();
+    light_render = GEnv.Render->light_create();
     light_render->set_type((IRender_Light::LT)lt);
     light_render->set_shadow(ls);
     light_lanim = LALib.FindItem("flare_lanim_showing");

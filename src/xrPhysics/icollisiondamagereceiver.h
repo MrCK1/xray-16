@@ -1,4 +1,11 @@
 #pragma once
+#include "xrPhysics.h"
+#include "xrCore/_types.h"
+
+// fwd. decl.
+template <class T> struct _vector3;
+using Fvector = _vector3<float>;
+struct SGameMtl;
 
 class ICollisionDamageReceiver
 {
@@ -6,7 +13,11 @@ public:
     virtual void CollisionHit(u16 source_id, u16 bone_id, float power, const Fvector& dir, Fvector& pos) = 0;
 
 protected:
-    virtual ~ICollisionDamageReceiver() = 0 {};
+#if defined(WINDOWS)
+    virtual ~ICollisionDamageReceiver() = 0 {}
+#elif defined(LINUX)
+    virtual ~ICollisionDamageReceiver() {}
+#endif
 };
 
 struct dContact;

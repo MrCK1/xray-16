@@ -6,7 +6,7 @@
 //	Description : Restricted object
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "restricted_object.h"
 #include "space_restriction_manager.h"
 #include "xrServer_Objects_ALife_Monsters.h"
@@ -20,7 +20,8 @@
 #include "alife_simulator.h"
 #include "alife_object_registry.h"
 #include "xrAICore/Navigation/game_graph.h"
-#include "custommonster.h"
+#include "CustomMonster.h"
+#include "xrNetServer/NET_Messages.h"
 
 CRestrictedObject::~CRestrictedObject() {}
 IC void construct_string(LPSTR result, u32 const result_size, const xr_vector<ALife::_OBJECT_ID>& restrictions)

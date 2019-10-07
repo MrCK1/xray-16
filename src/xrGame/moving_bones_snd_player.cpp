@@ -1,14 +1,14 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #include "moving_bones_snd_player.h"
 
 #include "Include/xrRender/Kinematics.h"
 #include "xrCore/Animation/Bone.hpp"
 
-#include "gameobject.h"
+#include "GameObject.h"
 #include "xrPhysics/matrix_utils.h"
 #ifdef DEBUG
-#include "phdebug.h"
+#include "PHDebug.h"
 #endif
 moving_bones_snd_player::moving_bones_snd_player(IKinematics* K, CInifile* ini, LPCSTR section, const Fmatrix& object)
     : bone_id(BI_NONE), min_factor(-FLT_MAX), max_factor(-FLT_MAX), base_velocity(-FLT_MAX), smothed_velocity(-FLT_MAX),
@@ -83,7 +83,7 @@ void moving_bones_snd_player::update(float time_delta, CGameObject& object)
     sound.set_position(new_position.c);
 
     if (smothed_velocity < play_threthhold)
-        sound.stop_deffered();
+        sound.stop_deferred();
 
     previous_position.set(new_position);
 }

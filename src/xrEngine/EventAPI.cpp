@@ -21,7 +21,7 @@ public:
 
     LPCSTR GetFull() { return Name; }
     u32 RefCount() { return dwRefCount; }
-    BOOL Equal(CEvent& E) { return stricmp(Name, E.Name) == 0; }
+    BOOL Equal(CEvent& E) { return xr_stricmp(Name, E.Name) == 0; }
     void Attach(IEventReceiver* H)
     {
         if (std::find(Handlers.begin(), Handlers.end(), H) == Handlers.end())
@@ -43,7 +43,7 @@ public:
 CEvent::CEvent(const char* S)
 {
     Name = xr_strdup(S);
-    _strupr(Name);
+    xr_strupr(Name);
     dwRefCount = 1;
 }
 CEvent::~CEvent() { xr_free(Name); }
@@ -60,7 +60,7 @@ EVENT CEventAPI::Create(const char* N)
 {
     CS.Enter();
     CEvent E(N);
-    for (xr_vector<CEvent*>::iterator I = Events.begin(); I != Events.end(); I++)
+    for (xr_vector<CEvent*>::iterator I = Events.begin(); I != Events.end(); ++I)
     {
         if ((*I)->Equal(E))
         {
@@ -144,14 +144,16 @@ void CEventAPI::Defer(LPCSTR N, u64 P1, u64 P2)
 #ifdef DEBUG
 void msParse(LPCSTR c)
 {
-    if (0 == stricmp(c, "exit"))
+    if (0 == xr_stricmp(c, "exit"))
     {
         Console->Execute("quit");
     }
-    if (0 == stricmp(c, "quit"))
+    if (0 == xr_stricmp(c, "quit"))
     {
+#ifndef LINUX // FIXME!!!
         TerminateProcess(GetCurrentProcess(), 0);
         Console->Execute("quit");
+#endif
     }
 }
 #endif
@@ -188,7 +190,7 @@ BOOL CEventAPI::Peek(LPCSTR EName)
     for (u32 I = 0; I < Events_Deferred.size(); I++)
     {
         Deferred& DEF = Events_Deferred[I];
-        if (stricmp(DEF.E->GetFull(), EName) == 0)
+        if (xr_stricmp(DEF.E->GetFull(), EName) == 0)
         {
             CS.Leave();
             return TRUE;

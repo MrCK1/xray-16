@@ -46,19 +46,6 @@ shared_str parse_vertex(luabind::object const& table, LPCSTR identifier, bool co
 }
 } // namespace smart_cover
 
-class id_predicate
-{
-    loophole const* m_loophole;
-
-public:
-    IC id_predicate(loophole const& loophole) : m_loophole(&loophole) {}
-    IC bool operator()(loophole* const& loophole) const
-    {
-        VERIFY(loophole);
-        return (m_loophole->id()._get() == loophole->id()._get());
-    }
-};
-
 class enterable_predicate
 {
 public:
@@ -105,7 +92,7 @@ void description::load_loopholes(shared_str const& table_id)
     m_table_id = table_id;
 
     luabind::object loopholes;
-    bool result = ai().script_engine().function_object(temp, loopholes, LUA_TTABLE);
+    bool result = GEnv.ScriptEngine->function_object(temp, loopholes, LUA_TTABLE);
     VERIFY2(result, make_string("bad or missing loopholes table in smart_cover [%s]", table_id.c_str()));
     for (luabind::iterator I(loopholes), E; I != E; ++I)
     {
@@ -117,7 +104,9 @@ void description::load_loopholes(shared_str const& table_id)
         }
 
         smart_cover::loophole* loophole = new smart_cover::loophole(table);
-        VERIFY(std::find_if(m_loopholes.begin(), m_loopholes.end(), id_predicate(*loophole)) == m_loopholes.end());
+        VERIFY(m_loopholes.end() == std::find_if(m_loopholes.begin(), m_loopholes.end(),
+            [=](smart_cover::loophole* const lh) { return loophole->id()._get() == lh->id()._get(); }));
+
         m_loopholes.push_back(loophole);
     }
 
@@ -153,7 +142,7 @@ void description::load_transitions(shared_str const& table_id)
     xr_strcat(temp, ".transitions");
 
     luabind::object transitions;
-    bool result = ai().script_engine().function_object(temp, transitions, LUA_TTABLE);
+    bool result = GEnv.ScriptEngine->function_object(temp, transitions, LUA_TTABLE);
     VERIFY(result);
     for (luabind::iterator I(transitions), E; I != E; ++I)
     {
@@ -199,20 +188,20 @@ IC void delete_data(const CGraphAbstract<_data_type, _edge_weight_type, _vertex_
 
     Graph& graph = const_cast<Graph&>(graph_);
 
-    typedef Graph::VERTICES Vertices;
-    typedef Graph::EDGES Edges;
+    using Vertices = typename Graph::VERTICES;
+    using Edges = typename Graph::EDGES;
 
     Vertices& verts = graph.vertices();
 
-    for (Vertices::iterator vi = verts.begin(); vi != verts.end(); ++vi)
+    for (auto vi = verts.begin(); vi != verts.end(); ++vi)
     {
-        Graph::CVertex* vert = (*vi).second;
+        typename Graph::CVertex* vert = (*vi).second;
         delete_data(vert->data());
 
         Edges& edges = const_cast<Edges&>(vert->edges());
-        for (Edges::iterator ei = edges.begin(); ei != edges.end(); ++ei)
+        for (auto ei = edges.begin(); ei != edges.end(); ++ei)
         {
-            Graph::CEdge& edge = (*ei);
+            typename Graph::CEdge& edge = (*ei);
             delete_data(edge.data());
         }
     }
@@ -224,7 +213,7 @@ description::~description()
     delete_data(m_transitions);
 }
 
-loophole const* description::loophole(shared_str const& loophole_id) const
+loophole const* description::get_loophole(shared_str const& loophole_id) const
 {
     class id_predicate
     {

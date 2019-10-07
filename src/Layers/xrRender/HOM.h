@@ -51,17 +51,22 @@ public:
     void Render_ZB();
     //	void					Debug		();
 
-    void occlude(Fbox2& space) {}
+    void occlude(Fbox2& /*space*/) {}
     void Disable();
     void Enable();
 
-    void __stdcall MT_RENDER();
-    ICF void MT_SYNC()
+    bool MT_Synced() const
     {
-        if (g_pGamePersistent->m_pMainMenu && g_pGamePersistent->m_pMainMenu->IsActive())
-            return;
+        return MT_frame_rendered == Device.dwFrame || IGame_Persistent::MainMenuActiveOrLevelNotExist();
+    }
 
-        MT_RENDER();
+    void __stdcall MT_RENDER();
+    ICF bool MT_Sync()
+    {
+        if (!MT_Synced())
+            MT_RENDER();
+
+        return true;
     }
 
     BOOL visible(vis_data& vis);

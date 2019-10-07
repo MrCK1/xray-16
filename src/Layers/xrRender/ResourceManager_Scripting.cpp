@@ -4,10 +4,11 @@
 #include "xrEngine/Render.h"
 #include "ResourceManager.h"
 #include "tss.h"
-#include "blenders/blender.h"
-#include "blenders/blender_recorder.h"
+#include "blenders/Blender.h"
+#include "blenders/Blender_Recorder.h"
 #include "xrScriptEngine/script_engine.hpp"
 #include "luabind/return_reference_to_policy.hpp"
+#include "xrCore/Threading/ScopeLock.hpp"
 
 using namespace luabind;
 using namespace luabind::policy;
@@ -28,12 +29,12 @@ public:
     adopt_sampler(CBlender_Compile* _C, u32 _stage) : C(_C), stage(_stage)
     {
         if (u32(-1) == stage)
-            C = 0;
+            C = nullptr;
     }
     adopt_sampler(const adopt_sampler& _C) : C(_C.C), stage(_C.stage)
     {
         if (u32(-1) == stage)
-            C = 0;
+            C = nullptr;
     }
 
     adopt_sampler& _texture(LPCSTR texture)
@@ -218,7 +219,7 @@ public:
     }
     adopt_sampler _sampler(LPCSTR _name)
     {
-        u32 s = C->r_Sampler(_name, 0);
+        u32 s = C->r_Sampler(_name, nullptr);
         return adopt_sampler(C, s);
     }
 };
@@ -231,56 +232,67 @@ public:
 // export
 void CResourceManager::LS_Load()
 {
+    // clang-format off
     auto exporterFunc = [](lua_State* luaState)
     {
         module(luaState)
         [
             class_<adopt_sampler>("_sampler")
                  .def(constructor<const adopt_sampler&>())
-                 .def("texture", &adopt_sampler::_texture, return_reference_to<1>())
-                 .def("project", &adopt_sampler::_projective, return_reference_to<1>())
-                 .def("clamp", &adopt_sampler::_clamp, return_reference_to<1>())
-                 .def("wrap", &adopt_sampler::_wrap, return_reference_to<1>())
-                 .def("mirror", &adopt_sampler::_mirror, return_reference_to<1>())
+                 .def("texture",       &adopt_sampler::_texture,       return_reference_to<1>())
+                 .def("project",       &adopt_sampler::_projective,    return_reference_to<1>())
+                 .def("clamp",         &adopt_sampler::_clamp,         return_reference_to<1>())
+                 .def("wrap",          &adopt_sampler::_wrap,          return_reference_to<1>())
+                 .def("mirror",        &adopt_sampler::_mirror,        return_reference_to<1>())
                  .def("f_anisotropic", &adopt_sampler::_f_anisotropic, return_reference_to<1>())
-                 .def("f_trilinear", &adopt_sampler::_f_trilinear, return_reference_to<1>())
-                 .def("f_bilinear", &adopt_sampler::_f_bilinear, return_reference_to<1>())
-                 .def("f_linear", &adopt_sampler::_f_linear, return_reference_to<1>())
-                 .def("f_none", &adopt_sampler::_f_none, return_reference_to<1>())
-                 .def("fmin_none", &adopt_sampler::_fmin_none, return_reference_to<1>())
-                 .def("fmin_point", &adopt_sampler::_fmin_point, return_reference_to<1>())
-                 .def("fmin_linear", &adopt_sampler::_fmin_linear, return_reference_to<1>())
-                 .def("fmin_aniso", &adopt_sampler::_fmin_aniso, return_reference_to<1>())
-                 .def("fmip_none", &adopt_sampler::_fmip_none, return_reference_to<1>())
-                 .def("fmip_point", &adopt_sampler::_fmip_point, return_reference_to<1>())
-                 .def("fmip_linear", &adopt_sampler::_fmip_linear, return_reference_to<1>())
-                 .def("fmag_none", &adopt_sampler::_fmag_none, return_reference_to<1>())
-                 .def("fmag_point", &adopt_sampler::_fmag_point, return_reference_to<1>())
-                 .def("fmag_linear", &adopt_sampler::_fmag_linear, return_reference_to<1>()),
+                 .def("f_trilinear",   &adopt_sampler::_f_trilinear,   return_reference_to<1>())
+                 .def("f_bilinear",    &adopt_sampler::_f_bilinear,    return_reference_to<1>())
+                 .def("f_linear",      &adopt_sampler::_f_linear,      return_reference_to<1>())
+                 .def("f_none",        &adopt_sampler::_f_none,        return_reference_to<1>())
+                 .def("fmin_none",     &adopt_sampler::_fmin_none,     return_reference_to<1>())
+                 .def("fmin_point",    &adopt_sampler::_fmin_point,    return_reference_to<1>())
+                 .def("fmin_linear",   &adopt_sampler::_fmin_linear,   return_reference_to<1>())
+                 .def("fmin_aniso",    &adopt_sampler::_fmin_aniso,    return_reference_to<1>())
+                 .def("fmip_none",     &adopt_sampler::_fmip_none,     return_reference_to<1>())
+                 .def("fmip_point",    &adopt_sampler::_fmip_point,    return_reference_to<1>())
+                 .def("fmip_linear",   &adopt_sampler::_fmip_linear,   return_reference_to<1>())
+                 .def("fmag_none",     &adopt_sampler::_fmag_none,     return_reference_to<1>())
+                 .def("fmag_point",    &adopt_sampler::_fmag_point,    return_reference_to<1>())
+                 .def("fmag_linear",   &adopt_sampler::_fmag_linear,   return_reference_to<1>()),
 
             class_<adopt_compiler>("_compiler")
                 .def(constructor<const adopt_compiler&>())
-                .def("begin", &adopt_compiler::_pass, return_reference_to<1>())
-                .def("sorting", &adopt_compiler::_options, return_reference_to<1>())
-                .def("emissive", &adopt_compiler::_o_emissive, return_reference_to<1>())
-                .def("distort", &adopt_compiler::_o_distort, return_reference_to<1>())
-                .def("wmark", &adopt_compiler::_o_wmark, return_reference_to<1>())
-                .def("fog", &adopt_compiler::_fog, return_reference_to<1>())
-                .def("zb", &adopt_compiler::_ZB, return_reference_to<1>())
-                .def("blend", &adopt_compiler::_blend, return_reference_to<1>())
-                .def("aref", &adopt_compiler::_aref, return_reference_to<1>())
+                .def("begin",              &adopt_compiler::_pass,               return_reference_to<1>())
+                .def("sorting",            &adopt_compiler::_options,            return_reference_to<1>())
+                .def("emissive",           &adopt_compiler::_o_emissive,         return_reference_to<1>())
+                .def("distort",            &adopt_compiler::_o_distort,          return_reference_to<1>())
+                .def("wmark",              &adopt_compiler::_o_wmark,            return_reference_to<1>())
+                .def("fog",                &adopt_compiler::_fog,                return_reference_to<1>())
+                .def("zb",                 &adopt_compiler::_ZB,                 return_reference_to<1>())
+                .def("blend",              &adopt_compiler::_blend,              return_reference_to<1>())
+                .def("aref",               &adopt_compiler::_aref,               return_reference_to<1>())
                 .def("color_write_enable", &adopt_compiler::_color_write_enable, return_reference_to<1>())
-                .def("sampler", &adopt_compiler::_sampler), // returns sampler-object
+                .def("sampler",            &adopt_compiler::_sampler), // returns sampler-object
 
-            class_<adopt_blend>("blend").enum_("blend")[value("zero", int(D3DBLEND_ZERO)),
-                value("one", int(D3DBLEND_ONE)), value("srccolor", int(D3DBLEND_SRCCOLOR)),
-                value("invsrccolor", int(D3DBLEND_INVSRCCOLOR)), value("srcalpha", int(D3DBLEND_SRCALPHA)),
-                value("invsrcalpha", int(D3DBLEND_INVSRCALPHA)), value("destalpha", int(D3DBLEND_DESTALPHA)),
-                value("invdestalpha", int(D3DBLEND_INVDESTALPHA)), value("destcolor", int(D3DBLEND_DESTCOLOR)),
-                value("invdestcolor", int(D3DBLEND_INVDESTCOLOR)), value("srcalphasat", int(D3DBLEND_SRCALPHASAT))
-            ]
+            class_<adopt_blend>("blend")
+                .enum_("blend")
+                [
+                    value("zero",         int(D3DBLEND_ZERO)),
+                    value("one",          int(D3DBLEND_ONE)),
+                    value("srccolor",     int(D3DBLEND_SRCCOLOR)),
+                    value("invsrccolor",  int(D3DBLEND_INVSRCCOLOR)),
+                    value("srcalpha",     int(D3DBLEND_SRCALPHA)),
+                    value("invsrcalpha",  int(D3DBLEND_INVSRCALPHA)),
+                    value("destalpha",    int(D3DBLEND_DESTALPHA)),
+                    value("invdestalpha", int(D3DBLEND_INVDESTALPHA)),
+                    value("destcolor",    int(D3DBLEND_DESTCOLOR)),
+                    value("invdestcolor", int(D3DBLEND_INVDESTCOLOR)),
+                    value("srcalphasat",  int(D3DBLEND_SRCALPHASAT))
+                ]
         ];
     };
+    // clang-format on
+
     ScriptEngine.init(exporterFunc, false);
     // load shaders
     const char* shaderPath = RImplementation.getShaderPath();
@@ -290,7 +302,7 @@ void CResourceManager::LS_Load()
     {
         string_path namesp, fn;
         xr_strcpy(namesp, (*folder)[it]);
-        if (0 == strext(namesp) || 0 != xr_strcmp(strext(namesp), ".s"))
+        if (nullptr == strext(namesp) || 0 != xr_strcmp(strext(namesp), ".s"))
             continue;
         *strext(namesp) = 0;
         if (0 == namesp[0])
@@ -307,8 +319,9 @@ BOOL CResourceManager::_lua_HasShader(LPCSTR s_shader)
 {
     string256 undercorated;
     for (int i = 0, l = xr_strlen(s_shader) + 1; i < l; i++)
-        undercorated[i] = ('\\' == s_shader[i]) ? '_' : s_shader[i];
+        undercorated[i] = (_DELIMITER == s_shader[i]) ? '_' : s_shader[i];
 
+    ScopeLock scope(&ScriptEngineLock);
 #ifdef _EDITOR
     return ScriptEngine.object(undercorated, "editor", LUA_TFUNCTION);
 #else
@@ -325,84 +338,80 @@ Shader* CResourceManager::_lua_Create(LPCSTR d_shader, LPCSTR s_textures)
     // undecorate
     string256 undercorated;
     for (int i = 0, l = xr_strlen(d_shader) + 1; i < l; i++)
-        undercorated[i] = ('\\' == d_shader[i]) ? '_' : d_shader[i];
+        undercorated[i] = (_DELIMITER == d_shader[i]) ? '_' : d_shader[i];
     LPCSTR s_shader = undercorated;
 
     // Access to template
-    C.BT = NULL;
+    C.BT = nullptr;
     C.bEditor = FALSE;
     C.bDetail = FALSE;
 
     // Prepare
     _ParseList(C.L_textures, s_textures);
-    C.detail_texture = NULL;
-    C.detail_scaler = NULL;
+    C.detail_texture = nullptr;
+    C.detail_scaler = nullptr;
 
+    ScriptEngineLock.Enter();
     // Compile element (LOD0 - HQ)
     if (ScriptEngine.object(s_shader, "normal_hq", LUA_TFUNCTION))
     {
         // Analyze possibility to detail this shader
-        C.iElement = 0;
+        C.iElement = SE_R1_NORMAL_HQ;
         C.bDetail = m_textures_description.GetDetailTexture(C.L_textures[0], C.detail_texture, C.detail_scaler);
-
-        if (C.bDetail)
-            S.E[0] = C._lua_Compile(s_shader, "normal_hq");
-        else
-            S.E[0] = C._lua_Compile(s_shader, "normal");
+        S.E[C.iElement] = C._lua_Compile(s_shader, C.bDetail ? "normal_hq" : "normal");
     }
     else
     {
         if (ScriptEngine.object(s_shader, "normal", LUA_TFUNCTION))
         {
-            C.iElement = 0;
+            C.iElement = SE_R1_NORMAL_HQ;
             C.bDetail = m_textures_description.GetDetailTexture(C.L_textures[0], C.detail_texture, C.detail_scaler);
-            S.E[0] = C._lua_Compile(s_shader, "normal");
+            S.E[C.iElement] = C._lua_Compile(s_shader, "normal");
         }
     }
 
     // Compile element (LOD1)
     if (ScriptEngine.object(s_shader, "normal", LUA_TFUNCTION))
     {
-        C.iElement = 1;
+        C.iElement = SE_R1_NORMAL_LQ;
         C.bDetail = m_textures_description.GetDetailTexture(C.L_textures[0], C.detail_texture, C.detail_scaler);
-        S.E[1] = C._lua_Compile(s_shader, "normal");
+        S.E[C.iElement] = C._lua_Compile(s_shader, "normal");
     }
 
     // Compile element
     if (ScriptEngine.object(s_shader, "l_point", LUA_TFUNCTION))
     {
-        C.iElement = 2;
-        C.bDetail = FALSE;
-        S.E[2] = C._lua_Compile(s_shader, "l_point");
-        ;
+        C.iElement = SE_R1_LPOINT;
+        C.bDetail = m_textures_description.GetDetailTexture(C.L_textures[0], C.detail_texture, C.detail_scaler);
+        S.E[C.iElement] = C._lua_Compile(s_shader, "l_point");
     }
 
     // Compile element
     if (ScriptEngine.object(s_shader, "l_spot", LUA_TFUNCTION))
     {
-        C.iElement = 3;
-        C.bDetail = FALSE;
-        S.E[3] = C._lua_Compile(s_shader, "l_spot");
-        ;
+        C.iElement = SE_R1_LSPOT;
+        C.bDetail = m_textures_description.GetDetailTexture(C.L_textures[0], C.detail_texture, C.detail_scaler);
+        S.E[C.iElement] = C._lua_Compile(s_shader, "l_spot");
     }
 
     // Compile element
     if (ScriptEngine.object(s_shader, "l_special", LUA_TFUNCTION))
     {
-        C.iElement = 4;
+        C.iElement = SE_R1_LMODELS;
         C.bDetail = FALSE;
-        S.E[4] = C._lua_Compile(s_shader, "l_special");
+        S.E[C.iElement] = C._lua_Compile(s_shader, "l_special");
     }
+    ScriptEngineLock.Leave();
 
+    ScopeLock scope(&v_shaders_lock);
     // Search equal in shaders array
-    for (u32 it = 0; it < v_shaders.size(); it++)
-        if (S.equal(v_shaders[it]))
-            return v_shaders[it];
+    for (Shader* v_shader : v_shaders)
+        if (S.equal(v_shader))
+            return v_shader;
 
     // Create _new_ entry
-    Shader* N = new Shader(S);
+    Shader* N = v_shaders.emplace_back(new Shader(S));
     N->dwFlags |= xr_resource_flagged::RF_REGISTERED;
-    v_shaders.push_back(N);
     return N;
 }
 
@@ -416,8 +425,8 @@ ShaderElement* CBlender_Compile::_lua_Compile(LPCSTR namesp, LPCSTR name)
     LPCSTR t_0 = *L_textures[0] ? *L_textures[0] : "null";
     LPCSTR t_1 = (L_textures.size() > 1) ? *L_textures[1] : "null";
     LPCSTR t_d = detail_texture ? detail_texture : "null";
-    object shader = RImplementation.Resources->ScriptEngine.name_space(namesp);
-    functor<void> element = shader[name];
+    const object shader = RImplementation.Resources->ScriptEngine.name_space(namesp);
+    const functor<void> element = (object)shader[name];
     adopt_compiler ac = adopt_compiler(this);
     element(ac, t_0, t_1, t_d);
     r_End();

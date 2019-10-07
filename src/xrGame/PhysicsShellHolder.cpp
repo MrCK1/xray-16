@@ -4,23 +4,23 @@
 #include "xrMessages.h"
 #include "ph_shell_interface.h"
 #include "Include/xrRender/Kinematics.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "Level.h"
 #include "PHCommander.h"
 #include "PHScriptCall.h"
 #include "CustomRocket.h"
 #include "Grenade.h"
 
-#include "xrPhysics/iphworld.h"
-#include "xrPhysics/iActivationShape.h"
+#include "xrPhysics/IPHWorld.h"
+#include "xrPhysics/IActivationShape.h"
 
 #include "CharacterPhysicsSupport.h"
-#include "phmovementcontrol.h"
+#include "PHMovementControl.h"
 #include "physics_shell_animated.h"
-#include "phcollisiondamagereceiver.h"
-#include "xrEngine/iphysicsshell.h"
+#include "PHCollisionDamageReceiver.h"
+#include "xrEngine/IPhysicsShell.h"
 #ifdef DEBUG
-#include "xrEngine/objectdump.h"
+#include "xrEngine/ObjectDump.h"
 #endif
 CPhysicsShellHolder::CPhysicsShellHolder() { init(); }
 CPhysicsShellHolder::~CPhysicsShellHolder()
@@ -75,7 +75,7 @@ void CPhysicsShellHolder::net_Destroy()
     xr_delete(m_pPhysicsShell);
 }
 
-static enum EEnableState { stEnable = 0, stDisable, stNotDefitnite };
+enum EEnableState { stEnable = 0, stDisable, stNotDefitnite }; // stNotDefitnite? Possibly mistaken name
 static u8 st_enable_state = (u8)stNotDefitnite;
 BOOL CPhysicsShellHolder::net_Spawn(CSE_Abstract* DC)
 {
@@ -322,7 +322,7 @@ void CPhysicsShellHolder::OnChangeVisual()
         if (char_support)
             char_support->destroy_imotion();
 
-        VERIFY(!character_physics_support() || !character_physics_support()->interactive_motion());
+        VERIFY(!character_physics_support() || !character_physics_support()->is_interactive_motion());
         if (m_pPhysicsShell)
             m_pPhysicsShell->Deactivate();
         xr_delete(m_pPhysicsShell);
@@ -458,9 +458,15 @@ Fvector& CPhysicsShellHolder::ObjectPosition() { return Position(); }
 LPCSTR CPhysicsShellHolder::ObjectName() const { return cName().c_str(); }
 LPCSTR CPhysicsShellHolder::ObjectNameVisual() const { return cNameVisual().c_str(); }
 LPCSTR CPhysicsShellHolder::ObjectNameSect() const { return cNameSect().c_str(); }
-bool CPhysicsShellHolder::ObjectGetDestroy() const { return !!getDestroy(); }
+bool CPhysicsShellHolder::ObjectGetDestroy() const { return !!CGameObject::getDestroy(); }
 ICollisionHitCallback* CPhysicsShellHolder::ObjectGetCollisionHitCallback() { return get_collision_hit_callback(); }
 u16 CPhysicsShellHolder::ObjectID() const { return ID(); }
+
+IGameObject* CPhysicsShellHolder::IObject() //--#SM+#--
+{
+    return smart_cast<IGameObject*>(this);
+}
+
 ICollisionForm* CPhysicsShellHolder::ObjectCollisionModel()
 {
     return CForm; // XXX: use ICollidable::GetCForm() instead
@@ -498,6 +504,9 @@ IPHCapture* CPhysicsShellHolder::PHCapture()
 bool CPhysicsShellHolder::IsInventoryItem() { return !!cast_inventory_item(); }
 bool CPhysicsShellHolder::IsActor() { return !!cast_actor(); }
 bool CPhysicsShellHolder::IsStalker() { return !!cast_stalker(); }
+bool CPhysicsShellHolder::IsCollideWithBullets() { return true; }
+bool CPhysicsShellHolder::IsCollideWithActorCamera() { return true; }
+
 // void						SetWeaponHideState( u16 State, bool bSet )
 void CPhysicsShellHolder::HideAllWeapons(bool v) {}
 void CPhysicsShellHolder::MovementCollisionEnable(bool enable)

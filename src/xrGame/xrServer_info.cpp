@@ -1,7 +1,9 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "xrServer_info.h"
 #include "Level.h"
-#include "xrserver.h"
+#include "xrServer.h"
+#include "xrNetServer/NET_Messages.h"
+#include "xrCore/buffer_vector.h"
 
 #define SERVER_LOGO_FN "server_logo.jpg"
 #define SERVER_RULES_FN "server_rules.txt"
@@ -110,7 +112,7 @@ void server_info_uploader::start_upload_info(IReader const* svlogo, IReader cons
     sending_state_callback_t sndcb;
     sndcb.bind(this, &server_info_uploader::upload_server_info_callback);
 
-    buffer_vector<mutable_buffer_t> tmp_bufvec(_alloca(sizeof(mutable_buffer_t) * 2), 2);
+    buffer_vector<mutable_buffer_t> tmp_bufvec(xr_alloca(sizeof(mutable_buffer_t) * 2), 2);
 
     tmp_bufvec.push_back(std::make_pair(static_cast<u8*>(svlogo->pointer()), svlogo->length()));
 

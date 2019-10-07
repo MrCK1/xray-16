@@ -1,8 +1,9 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "first_bullet_controller.h"
 #include "Level.h"
 
 first_bullet_controller::first_bullet_controller()
+    : m_actor_velocity_limit(0), m_use_first_bullet(false)
 {
     m_last_short_time = 0;
     m_shot_timeout = 0;
@@ -11,7 +12,7 @@ first_bullet_controller::first_bullet_controller()
 
 void first_bullet_controller::load(shared_str const& section)
 {
-    m_use_first_bullet = pSettings->r_bool(section, "use_first_bullet") ? true : false;
+    m_use_first_bullet = pSettings->read_if_exists<bool>(section, "use_first_bullet", false);
     if (!m_use_first_bullet)
         return;
     m_fire_dispertion = pSettings->r_float(section, "first_bullet_dispertion");

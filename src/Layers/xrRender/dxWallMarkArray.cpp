@@ -6,14 +6,14 @@
 void dxWallMarkArray::Copy(IWallMarkArray& _in) { *this = *(dxWallMarkArray*)&_in; }
 dxWallMarkArray::~dxWallMarkArray()
 {
-    for (ShaderIt it = m_CollideMarks.begin(); it != m_CollideMarks.end(); ++it)
+    for (auto it = m_CollideMarks.begin(); it != m_CollideMarks.end(); ++it)
         it->destroy();
 }
 
 void dxWallMarkArray::AppendMark(LPCSTR s_textures)
 {
     ref_shader s;
-    s.create("effects\\wallmark", s_textures);
+    s.create("effects" DELIMITER "wallmark", s_textures);
     m_CollideMarks.push_back(s);
 }
 

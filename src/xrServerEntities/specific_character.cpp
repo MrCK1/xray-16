@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "specific_character.h"
 
 #ifdef XRGAME_EXPORTS
@@ -30,7 +30,7 @@ SSpecificCharacterData::SSpecificCharacterData()
 SSpecificCharacterData::~SSpecificCharacterData() {}
 #endif
 
-CSpecificCharacter::CSpecificCharacter() { m_OwnId = NULL; }
+CSpecificCharacter::CSpecificCharacter() { m_OwnId = nullptr; }
 CSpecificCharacter::~CSpecificCharacter() {}
 void CSpecificCharacter::InitXmlIdToIndex()
 {
@@ -44,7 +44,7 @@ void CSpecificCharacter::Load(shared_str id)
 {
     R_ASSERT(id.size());
     m_OwnId = id;
-    inherited_shared::load_shared(m_OwnId, NULL);
+    inherited_shared::load_shared(m_OwnId, nullptr);
 }
 
 void CSpecificCharacter::load_shared(LPCSTR)
@@ -59,7 +59,7 @@ void CSpecificCharacter::load_shared(LPCSTR)
 
     pXML->SetLocalRoot(pXML->GetRoot());
 
-    XML_NODE* item_node = pXML->NavigateToNode(id_to_index::tag_name, item_data.pos_in_file);
+    XML_NODE item_node = pXML->NavigateToNode(id_to_index::tag_name, item_data.pos_in_file);
     R_ASSERT3(item_node, "specific_character id=", *item_data.id);
 
     pXML->SetLocalRoot(item_node);
@@ -101,7 +101,7 @@ void CSpecificCharacter::load_shared(LPCSTR)
 
     //игровое имя персонажа
     data()->m_sGameName = pXML->Read("name", 0, "");
-    data()->m_sBioText = CStringTable().translate(pXML->Read("bio", 0, ""));
+    data()->m_sBioText = StringTable().translate(pXML->Read("bio", 0, ""));
 
     data()->m_fPanic_threshold = pXML->ReadFlt("panic_threshold", 0, 0.f);
     data()->m_fHitProbabilityFactor = pXML->ReadFlt("hit_probability_factor", 0, 1.f);

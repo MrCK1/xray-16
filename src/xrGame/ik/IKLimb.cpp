@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "IKLimb.h"
 #include "Common/Noncopyable.hpp"
 #include "Include/xrRender/Kinematics.h"
@@ -8,6 +8,7 @@
 #include "xrPhysics/MathUtils.h"
 #include "xrPhysics/matrix_utils.h"
 #include "pose_extrapolation.h"
+#include "xrCore/buffer_vector.h"
 #ifdef DEBUG
 #include "PHDebug.h"
 #endif
@@ -264,8 +265,8 @@ IC void set_limits(float& min, float& max, SJointLimit& l)
     max = -l.limit.x;
     min += M_PI;
     max += M_PI;
-    clamp(min, 0.f, 2 * M_PI);
-    clamp(max, 0.f, 2 * M_PI);
+    clamp<float>(min, 0.f, 2 * M_PI);
+    clamp<float>(max, 0.f, 2 * M_PI);
 }
 
 IC void free_limits(float& min, float& max)
@@ -309,7 +310,7 @@ void CIKLimb::Create(u16 id, IKinematicsAnimated* K, bool collide_)
     {
         string32 section;
         string32 buff;
-        strconcat(sizeof(section), section, "ik_limb", itoa(id, buff, 10));
+        strconcat(sizeof(section), section, "ik_limb", xr_itoa(id, buff, 10));
         parse_bones_string(CK, CK->LL_UserData()->r_string(section, "bones"), m_bones);
         m_foot.Create(CK, section, m_bones);
     }
@@ -981,7 +982,7 @@ u16 CIKLimb::foot_matrix_predict(Fmatrix& foot, Fmatrix& toe, float time, IKinem
 {
     // CBlend *control = 0;
     u32 blends_count = K->LL_PartBlendsCount(0);
-    buffer_vector<CBlend> saved_blends(_alloca(blends_count * sizeof(CBlend)), blends_count);
+    buffer_vector<CBlend> saved_blends(xr_alloca(blends_count * sizeof(CBlend)), blends_count);
 
     for (u32 i = 0; i < blends_count; ++i)
     {

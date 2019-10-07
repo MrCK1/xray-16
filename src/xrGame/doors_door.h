@@ -14,7 +14,7 @@ class CPhysicObject;
 namespace doors
 {
 class actor;
-enum door_state;
+enum door_state : int;
 
 class door : private Noncopyable
 {
@@ -40,7 +40,7 @@ public:
 
 private:
     void change_state(actor* initiator, door_state start_state, door_state stop_state);
-    void change_state();
+    void change_state(actor* initiator); //Alundaio: Pass the initiator
 
 private:
     typedef xr_vector<actor*> actors_type;

@@ -1,8 +1,8 @@
 #include "pch_script.h"
 #include "UIInventoryUtilities.h"
 #include "WeaponAmmo.h"
-#include "UIStaticItem.h"
-#include "UIStatic.h"
+#include "xrUICore/Static/UIStaticItem.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "eatable_item.h"
 #include "Level.h"
 #include "date_time.h"
@@ -16,10 +16,11 @@
 #include "xrScriptEngine/script_engine.hpp"
 #include "Include/xrRender/UIShader.h"
 
-#define BUY_MENU_TEXTURE "ui\\ui_mp_buy_menu"
-#define CHAR_ICONS "ui\\ui_icons_npc"
-#define MAP_ICONS "ui\\ui_icons_map"
-#define MP_CHAR_ICONS "ui\\ui_models_multiplayer"
+#define BUY_MENU_TEXTURE "ui" DELIMITER "ui_mp_buy_menu"
+#define EQUIPMENT_ICONS  "ui" DELIMITER "ui_icon_equipment"
+#define CHAR_ICONS "ui" DELIMITER "ui_icons_npc"
+#define MAP_ICONS "ui" DELIMITER "ui_icons_map"
+#define MP_CHAR_ICONS "ui" DELIMITER "ui_models_multiplayer"
 
 const LPCSTR relationsLtxSection = "game_relations";
 const LPCSTR ratingField = "rating_names";
@@ -35,11 +36,10 @@ ui_shader* g_EquipmentIconsShader = NULL;
 ui_shader* g_MPCharIconsShader = NULL;
 ui_shader* g_OutfitUpgradeIconsShader = NULL;
 ui_shader* g_WeaponUpgradeIconsShader = NULL;
-ui_shader* g_tmpWMShader = NULL;
 static CUIStatic* GetUIStatic();
 
 typedef std::pair<CHARACTER_RANK_VALUE, shared_str> CharInfoStringID;
-DEF_MAP(CharInfoStrings, CHARACTER_RANK_VALUE, shared_str);
+using CharInfoStrings = xr_map<CHARACTER_RANK_VALUE, shared_str>;
 
 CharInfoStrings* charInfoReputationStrings = NULL;
 CharInfoStrings* charInfoRankStrings = NULL;
@@ -47,9 +47,7 @@ CharInfoStrings* charInfoGoodwillStrings = NULL;
 
 void InventoryUtilities::CreateShaders()
 {
-    g_tmpWMShader = new ui_shader();
-    (*g_tmpWMShader)->create("effects\\wallmark", "wm\\wm_grenade");
-    // g_tmpWMShader.create("effects\\wallmark",  "wm\\wm_grenade");
+    // Nothing here. All needed shaders will be created on demand
 }
 
 void InventoryUtilities::DestroyShaders()
@@ -68,9 +66,6 @@ void InventoryUtilities::DestroyShaders()
 
     xr_delete(g_WeaponUpgradeIconsShader);
     g_WeaponUpgradeIconsShader = 0;
-
-    xr_delete(g_tmpWMShader);
-    g_tmpWMShader = 0;
 }
 
 bool InventoryUtilities::GreaterRoomInRuck(PIItem item1, PIItem item2)
@@ -178,7 +173,7 @@ const ui_shader& InventoryUtilities::GetBuyMenuShader()
     if (!g_BuyMenuShader)
     {
         g_BuyMenuShader = new ui_shader();
-        (*g_BuyMenuShader)->create("hud\\default", BUY_MENU_TEXTURE);
+        (*g_BuyMenuShader)->create("hud" DELIMITER "default", BUY_MENU_TEXTURE);
     }
 
     return *g_BuyMenuShader;
@@ -189,7 +184,7 @@ const ui_shader& InventoryUtilities::GetEquipmentIconsShader()
     if (!g_EquipmentIconsShader)
     {
         g_EquipmentIconsShader = new ui_shader();
-        (*g_EquipmentIconsShader)->create("hud\\default", "ui\\ui_icon_equipment");
+        (*g_EquipmentIconsShader)->create("hud" DELIMITER "default", EQUIPMENT_ICONS);
     }
 
     return *g_EquipmentIconsShader;
@@ -200,7 +195,7 @@ const ui_shader& InventoryUtilities::GetMPCharIconsShader()
     if (!g_MPCharIconsShader)
     {
         g_MPCharIconsShader = new ui_shader();
-        (*g_MPCharIconsShader)->create("hud\\default", MP_CHAR_ICONS);
+        (*g_MPCharIconsShader)->create("hud" DELIMITER "default", MP_CHAR_ICONS);
     }
 
     return *g_MPCharIconsShader;
@@ -211,7 +206,7 @@ const ui_shader& InventoryUtilities::GetOutfitUpgradeIconsShader()
     if (!g_OutfitUpgradeIconsShader)
     {
         g_OutfitUpgradeIconsShader = new ui_shader();
-        (*g_OutfitUpgradeIconsShader)->create("hud\\default", "ui\\ui_actor_armor");
+        (*g_OutfitUpgradeIconsShader)->create("hud" DELIMITER "default", "ui" DELIMITER "ui_actor_armor");
     }
 
     return *g_OutfitUpgradeIconsShader;
@@ -222,7 +217,7 @@ const ui_shader& InventoryUtilities::GetWeaponUpgradeIconsShader()
     if (!g_WeaponUpgradeIconsShader)
     {
         g_WeaponUpgradeIconsShader = new ui_shader();
-        (*g_WeaponUpgradeIconsShader)->create("hud\\default", "ui\\ui_actor_weapons");
+        (*g_WeaponUpgradeIconsShader)->create("hud" DELIMITER "default", "ui" DELIMITER "ui_actor_weapons");
     }
 
     return *g_WeaponUpgradeIconsShader;
@@ -321,7 +316,7 @@ const shared_str InventoryUtilities::GetDateAsString(ALife::_TIME_ID date, EDate
 
     split_time(date, year, month, day, hours, mins, secs, milisecs);
     VERIFY(1 <= month && month <= 12);
-    LPCSTR month_str = CStringTable().translate(st_months[month - 1]).c_str();
+    LPCSTR month_str = StringTable().translate(st_months[month - 1]).c_str();
 
     // Date
     switch (datePrec)
@@ -348,20 +343,20 @@ LPCSTR InventoryUtilities::GetTimePeriodAsString(LPSTR _buff, u32 buff_sz, ALife
 
     if (month1 != month2)
         cnt = xr_sprintf(
-            _buff + cnt, buff_sz - cnt, "%d %s ", month2 - month1, *CStringTable().translate("ui_st_months"));
+            _buff + cnt, buff_sz - cnt, "%d %s ", month2 - month1, *StringTable().translate("ui_st_months"));
 
     if (!cnt && day1 != day2)
-        cnt = xr_sprintf(_buff + cnt, buff_sz - cnt, "%d %s", day2 - day1, *CStringTable().translate("ui_st_days"));
+        cnt = xr_sprintf(_buff + cnt, buff_sz - cnt, "%d %s", day2 - day1, *StringTable().translate("ui_st_days"));
 
     if (!cnt && hours1 != hours2)
         cnt =
-            xr_sprintf(_buff + cnt, buff_sz - cnt, "%d %s", hours2 - hours1, *CStringTable().translate("ui_st_hours"));
+            xr_sprintf(_buff + cnt, buff_sz - cnt, "%d %s", hours2 - hours1, *StringTable().translate("ui_st_hours"));
 
     if (!cnt && mins1 != mins2)
-        cnt = xr_sprintf(_buff + cnt, buff_sz - cnt, "%d %s", mins2 - mins1, *CStringTable().translate("ui_st_mins"));
+        cnt = xr_sprintf(_buff + cnt, buff_sz - cnt, "%d %s", mins2 - mins1, *StringTable().translate("ui_st_mins"));
 
     if (!cnt && secs1 != secs2)
-        cnt = xr_sprintf(_buff + cnt, buff_sz - cnt, "%d %s", secs2 - secs1, *CStringTable().translate("ui_st_secs"));
+        cnt = xr_sprintf(_buff + cnt, buff_sz - cnt, "%d %s", secs2 - secs1, *StringTable().translate("ui_st_secs"));
 
     return _buff;
 }
@@ -376,7 +371,7 @@ void InventoryUtilities::UpdateWeightStr(CUITextWnd& wnd, CUITextWnd& wnd_max, C
     float total = pInvOwner->inventory().CalcTotalWeight();
     float max = pInvOwner->MaxCarryWeight();
 
-    LPCSTR kg_str = CStringTable().translate("st_kg").c_str();
+    LPCSTR kg_str = StringTable().translate("st_kg").c_str();
     xr_sprintf(buf, "%.1f %s", total, kg_str);
     wnd.SetText(buf);
 
@@ -516,15 +511,15 @@ void InventoryUtilities::SendInfoToLuaScripts(shared_str info)
     {
         int mode = 10; // now Menu is Talk Dialog (show)
         luabind::functor<void> funct;
-        R_ASSERT(ai().script_engine().functor("pda.actor_menu_mode", funct));
-        funct(mode);
+        if (GEnv.ScriptEngine->functor("pda.actor_menu_mode", funct))
+            funct(mode);
     }
     if (info == shared_str("ui_talk_hide"))
     {
         int mode = 11; // Talk Dialog hide
         luabind::functor<void> funct;
-        R_ASSERT(ai().script_engine().functor("pda.actor_menu_mode", funct));
-        funct(mode);
+        if (GEnv.ScriptEngine->functor("pda.actor_menu_mode", funct))
+            funct(mode);
     }
 }
 // XXX: interpolate color (enemy..neutral..friend)<->(red..gray..lime)

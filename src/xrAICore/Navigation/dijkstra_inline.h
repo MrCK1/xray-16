@@ -78,9 +78,9 @@ inline bool CSDijkstra::step(TPathManager& path_manager)
     // and remove this node from the opened one
     data_storage().remove_best_opened();
     // iterating on the best node neighbours
-    TPathManager::const_iterator i, e;
+    typename TPathManager::const_iterator i, e;
     path_manager.begin(best.index(), i, e);
-    for (; i != e; i++)
+    for (; i != e; ++i)
     {
         const Index& neighbour_index = path_manager.get_value(i);
         // check if neighbour is accessible
@@ -146,7 +146,7 @@ inline bool CSDijkstra::find(TPathManager& path_manager)
     // initialize data structures with new search
     initialize(path_manager);
     // iterate while opened list is not empty
-    for (TIteration i = TIteration(0); !data_storage().is_opened_empty(); i++)
+    for (TIteration i = TIteration(0); !data_storage().is_opened_empty(); ++i)
     {
         // check if we reached limit
         if (path_manager.is_limit_reached(i))

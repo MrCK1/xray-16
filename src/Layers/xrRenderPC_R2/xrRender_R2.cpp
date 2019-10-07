@@ -1,42 +1,23 @@
-// xrRender_R2.cpp : Defines the entry point for the DLL application.
-//
 #include "stdafx.h"
 #include "Layers/xrRender/dxRenderFactory.h"
 #include "Layers/xrRender/dxUIRender.h"
 #include "Layers/xrRender/dxDebugRender.h"
 
-#pragma comment(lib, "xrEngine.lib")
-#pragma comment(lib, "xrScriptEngine.lib")
-
-extern "C" void XR_EXPORT SetupEnv()
+extern "C"
 {
-    GlobalEnv.Render = &RImplementation;
-    GlobalEnv.RenderFactory = &RenderFactoryImpl;
-    GlobalEnv.DU = &DUImpl;
-    GlobalEnv.UIRender = &UIRenderImpl;
+XR_EXPORT void SetupEnv()
+{
+    GEnv.Render = &RImplementation;
+    GEnv.RenderFactory = &RenderFactoryImpl;
+    GEnv.DU = &DUImpl;
+    GEnv.UIRender = &UIRenderImpl;
 #ifdef DEBUG
-    GlobalEnv.DRender = &DebugRenderImpl;
+    GEnv.DRender = &DebugRenderImpl;
 #endif
     xrRender_initconsole();
 }
 
-BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
-{
-    switch (ul_reason_for_call)
-    {
-    case DLL_PROCESS_ATTACH: SetupEnv(); break;
-    case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-    case DLL_PROCESS_DETACH: break;
-    }
-    return TRUE;
-}
-
-extern "C" {
-bool _declspec(dllexport) SupportsAdvancedRendering();
-};
-
-bool _declspec(dllexport) SupportsAdvancedRendering()
+XR_EXPORT bool CheckRendererSupport()
 {
     D3DCAPS9 caps;
     CHW _HW;
@@ -47,6 +28,7 @@ bool _declspec(dllexport) SupportsAdvancedRendering()
 
     if (ps_ver_major < 3)
         return false;
-    else
-        return true;
+
+    return true;
+}
 }

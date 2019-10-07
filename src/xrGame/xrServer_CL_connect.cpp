@@ -1,9 +1,10 @@
-#include "stdafx.h"
-#include "xrserver.h"
-#include "xrmessages.h"
-#include "xrserver_objects.h"
-#include "xrServer_Objects_Alife_Monsters.h"
+#include "StdAfx.h"
+#include "xrServer.h"
+#include "xrMessages.h"
+#include "xrServer_Objects.h"
+#include "xrServer_Objects_ALife_Monsters.h"
 #include "Level.h"
+#include "xrNetServer/NET_Messages.h"
 
 void xrServer::Perform_connect_spawn(CSE_Abstract* E, xrClientData* CL, NET_Packet& P)
 {
@@ -125,7 +126,7 @@ void xrServer::OnCL_Connected(IClient* _CL)
     game->OnPlayerConnect(CL->ID);
 }
 
-void xrServer::SendConnectResult(IClient* CL, u8 res, u8 res1, char* ResultStr)
+void xrServer::SendConnectResult(IClient* CL, u8 res, u8 res1, pcstr ResultStr)
 {
     NET_Packet P;
     P.w_begin(M_CLIENT_CONNECT_RESULT);
@@ -190,6 +191,7 @@ void xrServer::Check_GameSpy_CDKey_Success(IClient* CL)
 };
 
 BOOL g_SV_Disable_Auth_Check = FALSE;
+BOOL g_sv_ignore_version_mismatch = FALSE;
 
 bool xrServer::NeedToCheckClient_BuildVersion(IClient* CL)
 {
@@ -224,7 +226,7 @@ void xrServer::OnBuildVersionRespond(IClient* CL, NET_Packet& P)
     _our = MP_DEBUG_AUTH;
 #endif // USE_DEBUG_AUTH
 
-    if (_our != _him)
+    if (_our != _him && !g_sv_ignore_version_mismatch)
     {
         SendConnectResult(CL, 0, ecr_data_verification_failed, "Data verification failed. Cheater?");
     }
@@ -256,4 +258,4 @@ void xrServer::Check_BuildVersion_Success(IClient* CL)
 {
     CL->flags.bVerified = TRUE;
     SendConnectResult(CL, 1, 0, "All Ok");
-};
+}

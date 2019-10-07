@@ -1,5 +1,8 @@
 #pragma once
 
+#define _DELIMITER '\\' //for looking
+#define DELIMITER "\\" // for insert
+
 // game path definition
 #define _game_data_ "$game_data$"
 #define _game_textures_ "$game_textures$"
@@ -7,7 +10,7 @@
 #define _game_sounds_ "$game_sounds$"
 #define _game_meshes_ "$game_meshes$"
 #define _game_shaders_ "$game_shaders$"
-#define _game_config_ "$game_congif$"
+#define _game_config_ "$game_config$"
 
 // editor path definition
 #define _server_root_ "$server_root$"

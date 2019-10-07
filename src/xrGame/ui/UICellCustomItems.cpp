@@ -1,9 +1,9 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UICellCustomItems.h"
 #include "UIInventoryUtilities.h"
 #include "Weapon.h"
 #include "UIDragDropListEx.h"
-#include "UIProgressBar.h"
+#include "xrUICore/ProgressBar/UIProgressBar.h"
 
 #define INV_GRID_WIDTHF 50.0f
 #define INV_GRID_HEIGHTF 50.0f
@@ -70,6 +70,7 @@ void CUIInventoryCellItem::SetIsHelper(bool is_helper) { object()->set_is_helper
 void CUIInventoryCellItem::Update()
 {
     inherited::Update();
+    UpdateConditionProgressBar(); //Alundaio
     UpdateItemText();
 
     u32 color = GetTextureColor();

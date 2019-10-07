@@ -1,8 +1,7 @@
-#ifndef PHDISABLING_H
-#define PHDISABLING_H
+#pragma once
 
 #include "DisablingParams.h"
-#include "Externals/ode/include/ode/common.h"
+#include <ode/common.h>
 
 struct SDisableVector
 {
@@ -105,4 +104,3 @@ public:
     virtual void UpdateL2();
     virtual void set_DisableParams(const SAllDDOParams& params);
 };
-#endif

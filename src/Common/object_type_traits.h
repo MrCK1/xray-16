@@ -5,9 +5,9 @@
 //  Author      : Dmitriy Iassenev
 //  Description : Object type traits
 ////////////////////////////////////////////////////////////////////////////
+#pragma once
 #ifndef object_type_traits_h_included
 #define object_type_traits_h_included
-#pragma once
 
 #include <type_traits>
 
@@ -111,6 +111,35 @@ struct remove_const<T const>
 {
     typedef T type;
 };
+
+template <typename T>
+struct remove_noexcept;
+
+template <typename R, typename... Args>
+struct remove_noexcept<R(Args...) noexcept>
+{
+    using type = R(Args...);
+};
+
+template< typename R, typename... Args>
+struct remove_noexcept <R(*)(Args...) noexcept>
+{
+    using type = R(*)(Args...);
+};
+
+template <typename C, typename R, typename... Args>
+struct remove_noexcept<R(C::*)(Args...) noexcept>
+{
+    using type = R(C::*)(Args...);
+};
+
+template <typename C, typename R, typename... Args>
+struct remove_noexcept<R(C::*)(Args...) const noexcept>
+{
+    using type = R(C::*)(Args...) const;
+};
+
+#define REMOVE_NOEXCEPT(fn) (object_type_traits::remove_noexcept<decltype(fn)>::type)(fn)
 
 template <typename T>
 struct is_void

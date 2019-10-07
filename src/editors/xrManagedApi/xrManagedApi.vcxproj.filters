@@ -19,6 +19,9 @@
     <ClInclude Include="core\PostProcessAnimator.hpp">
       <Filter>core</Filter>
     </ClInclude>
+    <ClInclude Include="core\Types.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
@@ -32,5 +35,8 @@
     <ClCompile Include="core\PostProcessAnimator.cpp">
       <Filter>core</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\..\OpenXRay.natvis" />
   </ItemGroup>
 </Project>

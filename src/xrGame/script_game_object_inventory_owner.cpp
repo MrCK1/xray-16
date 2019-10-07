@@ -6,14 +6,14 @@
 #include "script_game_object.h"
 #include "script_game_object_impl.h"
 #include "InventoryOwner.h"
-#include "Pda.h"
+#include "PDA.h"
 #include "xrMessages.h"
 #include "character_info.h"
-#include "gametask.h"
-#include "actor.h"
+#include "GameTask.h"
+#include "Actor.h"
 #include "Level.h"
 #include "date_time.h"
-#include "uigamesp.h"
+#include "UIGameSP.h"
 #include "restricted_object.h"
 #include "xrScriptEngine/script_engine.hpp"
 #include "attachable_item.h"
@@ -21,32 +21,42 @@
 #include "string_table.h"
 #include "alife_registry_wrappers.h"
 #include "relation_registry.h"
-#include "custommonster.h"
-#include "actorcondition.h"
+#include "CustomMonster.h"
+#include "ActorCondition.h"
 #include "xrAICore/Navigation/level_graph.h"
-#include "huditem.h"
-#include "ui/UItalkWnd.h"
-#include "inventory.h"
-#include "infoportion.h"
-#include "AI/Monsters/BaseMonster/base_monster.h"
-#include "weaponmagazined.h"
+#include "HudItem.h"
+#include "ui/UITalkWnd.h"
+#include "Inventory.h"
+#include "InfoPortion.h"
+#include "ai/monsters/basemonster/base_monster.h"
+#include "WeaponMagazined.h"
 #include "ai/stalker/ai_stalker.h"
 #include "agent_manager.h"
 #include "agent_member_manager.h"
 #include "stalker_animation_manager.h"
 #include "CameraFirstEye.h"
 #include "stalker_movement_manager_smart_cover.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "memory_manager.h"
 #include "enemy_manager.h"
 #include "ai/stalker/ai_stalker_impl.h"
 #include "smart_cover_object.h"
 #include "smart_cover.h"
-#include "customdetector.h"
+#include "CustomDetector.h"
 #include "doors_manager.h"
 #include "doors_door.h"
 #include "Torch.h"
-#include "physicobject.h"
+#include "PhysicObject.h"
+//Alundaio
+#include "inventory_upgrade_manager.h"
+#include "inventory_upgrade_root.h"
+#include "inventory_item.h"
+#include "CustomOutfit.h"
+#include "inventory_item_impl.h"
+#include "Inventory.h"
+#include "xrServer_Objects_ALife_Items.h"
+#include "xrServerEntities/inventory_space.h"
+//-Alundaio
 
 bool CScriptGameObject::GiveInfoPortion(LPCSTR info_id)
 {
@@ -66,11 +76,17 @@ bool CScriptGameObject::DisableInfoPortion(LPCSTR info_id)
     return true;
 }
 
-void _AddIconedTalkMessage(LPCSTR caption, LPCSTR text, LPCSTR texture_name, LPCSTR templ_name);
-
-void CScriptGameObject::AddIconedTalkMessage(LPCSTR caption, LPCSTR text, LPCSTR texture_name, LPCSTR templ_name)
+void _AddIconedTalkMessage(cpcstr text, cpcstr texture_name, const Frect& tex_rect, cpcstr templ_name)
 {
-    _AddIconedTalkMessage(caption, text, texture_name, templ_name);
+    CUIGameSP* pGameSP = smart_cast<CUIGameSP*>(CurrentGameUI());
+    if (!pGameSP)
+        return;
+
+    if (pGameSP->TalkMenu->IsShown())
+    {
+        pGameSP->TalkMenu->AddIconedMessage(
+            text, texture_name, tex_rect, templ_name ? templ_name : "iconed_answer_item");
+    }
 }
 
 void _AddIconedTalkMessage(LPCSTR caption, LPCSTR text, LPCSTR texture_name, LPCSTR templ_name)
@@ -84,6 +100,16 @@ void _AddIconedTalkMessage(LPCSTR caption, LPCSTR text, LPCSTR texture_name, LPC
         pGameSP->TalkMenu->AddIconedMessage(
             caption, text, texture_name, templ_name ? templ_name : "iconed_answer_item");
     }
+}
+
+void CScriptGameObject::AddIconedTalkMessage(cpcstr text, cpcstr texture_name, Frect tex_rect, cpcstr templ_name)
+{
+    _AddIconedTalkMessage(text, texture_name, tex_rect, templ_name);
+}
+
+void CScriptGameObject::AddIconedTalkMessage(LPCSTR caption, LPCSTR text, LPCSTR texture_name, LPCSTR templ_name)
+{
+    _AddIconedTalkMessage(caption, text, texture_name, templ_name);
 }
 
 void _give_news(LPCSTR caption, LPCSTR news, LPCSTR texture_name, int delay, int show_time, int type);
@@ -116,6 +142,11 @@ void _give_news(LPCSTR caption, LPCSTR text, LPCSTR texture_name, int delay, int
         Actor()->AddGameNews(news_data);
     else
         Actor()->AddGameNews_deffered(news_data, delay);
+}
+
+void CScriptGameObject::ClearGameNews() const
+{
+    Actor()->ClearGameNews();
 }
 
 bool CScriptGameObject::HasInfo(LPCSTR info_id)
@@ -223,7 +254,7 @@ void CScriptGameObject::ForEachInventoryItems(const luabind::functor<void>& func
     CInventoryOwner* owner = smart_cast<CInventoryOwner*>(&object());
     if (!owner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CScriptGameObject::ForEachInventoryItems non-CInventoryOwner object !!!");
         return;
     }
@@ -249,7 +280,7 @@ void CScriptGameObject::IterateInventory(luabind::functor<void> functor, luabind
     CInventoryOwner* inventory_owner = smart_cast<CInventoryOwner*>(&this->object());
     if (!inventory_owner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CScriptGameObject::IterateInventory non-CInventoryOwner object !!!");
         return;
     }
@@ -266,7 +297,7 @@ void CScriptGameObject::IterateInventoryBox(luabind::functor<void> functor, luab
     CInventoryBox* inventory_box = smart_cast<CInventoryBox*>(&this->object());
     if (!inventory_box)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CScriptGameObject::IterateInventoryBox non-CInventoryBox object !!!");
         return;
     }
@@ -286,7 +317,7 @@ void CScriptGameObject::MarkItemDropped(CScriptGameObject* item)
     CInventoryOwner* inventory_owner = smart_cast<CInventoryOwner*>(&object());
     if (!inventory_owner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CScriptGameObject::MarkItemDropped non-CInventoryOwner object !!!");
         return;
     }
@@ -294,7 +325,7 @@ void CScriptGameObject::MarkItemDropped(CScriptGameObject* item)
     CInventoryItem* inventory_item = smart_cast<CInventoryItem*>(&item->object());
     if (!inventory_item)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CScriptGameObject::MarkItemDropped non-CInventoryItem object !!!");
         return;
     }
@@ -307,7 +338,7 @@ bool CScriptGameObject::MarkedDropped(CScriptGameObject* item)
     CInventoryOwner* inventory_owner = smart_cast<CInventoryOwner*>(&object());
     if (!inventory_owner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CScriptGameObject::MarkedDropped non-CInventoryOwner object !!!");
         return (false);
     }
@@ -315,7 +346,7 @@ bool CScriptGameObject::MarkedDropped(CScriptGameObject* item)
     CInventoryItem* inventory_item = smart_cast<CInventoryItem*>(&item->object());
     if (!inventory_item)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CScriptGameObject::MarkedDropped non-CInventoryItem object !!!");
         return (false);
     }
@@ -328,7 +359,7 @@ void CScriptGameObject::UnloadMagazine()
     CWeaponMagazined* weapon_magazined = smart_cast<CWeaponMagazined*>(&object());
     if (!weapon_magazined)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CScriptGameObject::UnloadMagazine non-CWeaponMagazined object !!!");
         return;
     }
@@ -347,7 +378,7 @@ void CScriptGameObject::DropItem(CScriptGameObject* pItem)
     CInventoryItem* item = smart_cast<CInventoryItem*>(&pItem->object());
     if (!owner || !item)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CScriptGameObject::DropItem non-CInventoryOwner object !!!");
         return;
     }
@@ -398,7 +429,7 @@ void CScriptGameObject::TransferItem(CScriptGameObject* pItem, CScriptGameObject
 {
     if (!pItem || !pForWho)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "cannot transfer NULL item");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "cannot transfer NULL item");
         return;
     }
 
@@ -406,7 +437,7 @@ void CScriptGameObject::TransferItem(CScriptGameObject* pItem, CScriptGameObject
 
     if (!pIItem)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "Cannot transfer not CInventoryItem item");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "Cannot transfer not CInventoryItem item");
         return;
     }
 
@@ -433,7 +464,7 @@ void CScriptGameObject::TransferMoney(int money, CScriptGameObject* pForWho)
 {
     if (!pForWho)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "cannot transfer money for NULL object");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "cannot transfer money for NULL object");
         return;
     }
     CInventoryOwner* pOurOwner = smart_cast<CInventoryOwner*>(&object());
@@ -443,7 +474,7 @@ void CScriptGameObject::TransferMoney(int money, CScriptGameObject* pForWho)
 
     if (pOurOwner->get_money() - money < 0)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "Character does not have enought money");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "Character does not have enought money");
         return;
     }
 
@@ -466,7 +497,7 @@ int CScriptGameObject::GetGoodwill(CScriptGameObject* pToWho)
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "GetGoodwill available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "GetGoodwill available only for InventoryOwner");
         return 0;
     }
     return RELATION_REGISTRY().GetGoodwill(pInventoryOwner->object_id(), pToWho->object().ID());
@@ -478,7 +509,7 @@ void CScriptGameObject::SetGoodwill(int goodwill, CScriptGameObject* pWhoToSet)
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "SetGoodwill available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "SetGoodwill available only for InventoryOwner");
         return;
     }
     RELATION_REGISTRY().SetGoodwill(pInventoryOwner->object_id(), pWhoToSet->object().ID(), goodwill);
@@ -490,7 +521,7 @@ void CScriptGameObject::ForceSetGoodwill(int goodwill, CScriptGameObject* pWhoTo
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "ForceSetGoodwill available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "ForceSetGoodwill available only for InventoryOwner");
         return;
     }
     RELATION_REGISTRY().ForceSetGoodwill(pInventoryOwner->object_id(), pWhoToSet->object().ID(), goodwill);
@@ -502,7 +533,7 @@ void CScriptGameObject::ChangeGoodwill(int delta_goodwill, CScriptGameObject* pW
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "ChangeGoodwill available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "ChangeGoodwill available only for InventoryOwner");
         return;
     }
     RELATION_REGISTRY().ChangeGoodwill(pInventoryOwner->object_id(), pWhoToSet->object().ID(), delta_goodwill);
@@ -516,7 +547,7 @@ void CScriptGameObject::SetRelation(ALife::ERelationType relation, CScriptGameOb
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "SetRelation available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "SetRelation available only for InventoryOwner");
         return;
     }
 
@@ -524,7 +555,7 @@ void CScriptGameObject::SetRelation(ALife::ERelationType relation, CScriptGameOb
     VERIFY(pOthersInventoryOwner);
     if (!pOthersInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "SetRelation available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "SetRelation available only for InventoryOwner");
         return;
     }
     RELATION_REGISTRY().SetRelationType(pInventoryOwner, pOthersInventoryOwner, relation);
@@ -536,7 +567,7 @@ float CScriptGameObject::GetSympathy()
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "GetSympathy available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "GetSympathy available only for InventoryOwner");
         return 0.0f;
     }
     return pInventoryOwner->Sympathy();
@@ -548,7 +579,7 @@ void CScriptGameObject::SetSympathy(float sympathy)
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "SetSympathy available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "SetSympathy available only for InventoryOwner");
         return;
     }
     pInventoryOwner->CharacterInfo().SetSympathy(sympathy);
@@ -560,7 +591,7 @@ int CScriptGameObject::GetCommunityGoodwill_obj(LPCSTR community)
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "GetCommunityGoodwill available only for InventoryOwner");
         return 0;
     }
@@ -576,7 +607,7 @@ void CScriptGameObject::SetCommunityGoodwill_obj(LPCSTR community, int goodwill)
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "SetCommunityGoodwill available only for InventoryOwner");
         return;
     }
@@ -591,7 +622,12 @@ void CScriptGameObject::SetCommunityGoodwill_obj(LPCSTR community, int goodwill)
 int CScriptGameObject::GetAttitude(CScriptGameObject* pToWho)
 {
     CInventoryOwner* pInventoryOwner = smart_cast<CInventoryOwner*>(&object());
-    VERIFY(pInventoryOwner);
+    //VERIFY(pInventoryOwner);
+	if (!pInventoryOwner)
+	{
+		GEnv.ScriptEngine->script_log(LuaMessageType::Error, "GetAttitude available only for InventoryOwner");
+		return 0;
+	}
     CInventoryOwner* pOthersInventoryOwner = smart_cast<CInventoryOwner*>(&pToWho->object());
     VERIFY(pOthersInventoryOwner);
     return RELATION_REGISTRY().GetAttitude(pInventoryOwner, pOthersInventoryOwner);
@@ -604,7 +640,7 @@ LPCSTR CScriptGameObject::ProfileName()
     CInventoryOwner* pInventoryOwner = smart_cast<CInventoryOwner*>(&object());
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "ProfileName available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "ProfileName available only for InventoryOwner");
         return NULL;
     }
 
@@ -621,7 +657,7 @@ LPCSTR CScriptGameObject::CharacterName()
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CharacterName available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CharacterName available only for InventoryOwner");
         return NULL;
     }
     return pInventoryOwner->Name();
@@ -633,7 +669,7 @@ LPCSTR CScriptGameObject::CharacterIcon()
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CharacterIconName available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CharacterIconName available only for InventoryOwner");
         return NULL;
     }
     return pInventoryOwner->IconName();
@@ -648,7 +684,7 @@ int CScriptGameObject::CharacterRank()
         CInventoryOwner* pInventoryOwner = smart_cast<CInventoryOwner*>(&object());
         if (!pInventoryOwner)
         {
-            ai().script_engine().script_log(
+            GEnv.ScriptEngine->script_log(
                 LuaMessageType::Error, "CharacterRank available only for InventoryOwner and BaseMonster");
             return 0;
         }
@@ -662,7 +698,7 @@ void CScriptGameObject::SetCharacterRank(int char_rank)
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "SetCharacterRank available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "SetCharacterRank available only for InventoryOwner");
         return;
     }
     return pInventoryOwner->SetRank(char_rank);
@@ -674,7 +710,7 @@ void CScriptGameObject::ChangeCharacterRank(int char_rank)
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "ChangeCharacterRank available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "ChangeCharacterRank available only for InventoryOwner");
         return;
     }
     return pInventoryOwner->ChangeRank(char_rank);
@@ -686,7 +722,7 @@ int CScriptGameObject::CharacterReputation()
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CharacterReputation available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CharacterReputation available only for InventoryOwner");
         return 0;
     }
     return pInventoryOwner->Reputation();
@@ -698,7 +734,7 @@ void CScriptGameObject::ChangeCharacterReputation(int char_rep)
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "ChangeCharacterReputation available only for InventoryOwner");
         return;
     }
@@ -711,7 +747,7 @@ LPCSTR CScriptGameObject::CharacterCommunity()
 
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CharacterCommunity available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CharacterCommunity available only for InventoryOwner");
         return NULL;
     }
     return *pInventoryOwner->CharacterInfo().Community().id();
@@ -724,7 +760,7 @@ void CScriptGameObject::SetCharacterCommunity(LPCSTR comm, int squad, int group)
 
     if (!pInventoryOwner || !entity)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "SetCharacterCommunity available only for InventoryOwner");
         return;
     }
@@ -739,14 +775,14 @@ LPCSTR CScriptGameObject::sound_voice_prefix() const
     CInventoryOwner* pInventoryOwner = smart_cast<CInventoryOwner*>(&object());
     if (!pInventoryOwner)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "sound_voice_prefix available only for InventoryOwner");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "sound_voice_prefix available only for InventoryOwner");
         return NULL;
     }
 
     return pInventoryOwner->SpecificCharacter().sound_voice_prefix();
 }
 
-#include "GameTaskManager.h"
+#include "GametaskManager.h"
 ETaskState CScriptGameObject::GetGameTaskState(LPCSTR task_id)
 {
     shared_str shared_name = task_id;
@@ -815,7 +851,7 @@ void CScriptGameObject::RunTalkDialog(CScriptGameObject* pToWho, bool disable_br
 
     if (!pActor)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "RunTalkDialog applicable only for actor");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "RunTalkDialog applicable only for actor");
         return;
     }
 
@@ -852,7 +888,7 @@ void CScriptGameObject::add_restrictions(LPCSTR out, LPCSTR in)
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CRestrictedObject : cannot access class member add_restrictions!");
         return;
     }
@@ -866,7 +902,7 @@ void CScriptGameObject::remove_restrictions(LPCSTR out, LPCSTR in)
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CRestrictedObject : cannot access class member remove_restrictions!");
         return;
     }
@@ -880,7 +916,7 @@ void CScriptGameObject::remove_all_restrictions()
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CRestrictedObject : cannot access class member remove_all_restrictions!");
         return;
     }
@@ -894,7 +930,7 @@ LPCSTR CScriptGameObject::in_restrictions()
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CRestrictedObject : cannot access class member in_restrictions!");
         return ("");
     }
@@ -906,7 +942,7 @@ LPCSTR CScriptGameObject::out_restrictions()
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CRestrictedObject : cannot access class member out_restrictions!");
         return ("");
     }
@@ -918,7 +954,7 @@ LPCSTR CScriptGameObject::base_in_restrictions()
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CRestrictedObject : cannot access class member base_in_restrictions!");
         return ("");
     }
@@ -930,7 +966,7 @@ LPCSTR CScriptGameObject::base_out_restrictions()
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CRestrictedObject : cannot access class member base_out_restrictions!");
         return ("");
     }
@@ -942,7 +978,7 @@ bool CScriptGameObject::accessible_position(const Fvector& position)
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CRestrictedObject : cannot access class member accessible!");
         return (false);
     }
@@ -954,7 +990,7 @@ bool CScriptGameObject::accessible_vertex_id(u32 level_vertex_id)
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CRestrictedObject : cannot access class member accessible!");
         return (false);
     }
@@ -970,13 +1006,13 @@ u32 CScriptGameObject::accessible_nearest(const Fvector& position, Fvector& resu
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CRestrictedObject : cannot access class member accessible!");
         return (u32(-1));
     }
     if (monster->movement().restrictions().accessible(position))
     {
-        ai().script_engine().script_log(LuaMessageType::Error,
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
             "CRestrictedObject : you use accessible_nearest when position is already accessible!");
         return (u32(-1));
     }
@@ -988,7 +1024,7 @@ void CScriptGameObject::enable_attachable_item(bool value)
     CAttachableItem* attachable_item = smart_cast<CAttachableItem*>(&object());
     if (!attachable_item)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAttachableItem : cannot access class member enable_attachable_item!");
         return;
     }
@@ -1000,7 +1036,7 @@ bool CScriptGameObject::attachable_item_enabled() const
     CAttachableItem* attachable_item = smart_cast<CAttachableItem*>(&object());
     if (!attachable_item)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAttachableItem : cannot access class member attachable_item_enabled!");
         return (false);
     }
@@ -1012,7 +1048,7 @@ void CScriptGameObject::enable_night_vision(bool value)
     CTorch* torch = smart_cast<CTorch*>(&object());
     if (!torch)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CTorch : cannot access class member enable_night_vision!");
         return;
     }
@@ -1024,7 +1060,7 @@ bool CScriptGameObject::night_vision_enabled() const
     CTorch* torch = smart_cast<CTorch*>(&object());
     if (!torch)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CTorch : cannot access class member enable_night_vision!");
         return (false);
     }
@@ -1036,7 +1072,7 @@ void CScriptGameObject::enable_torch(bool value)
     CTorch* torch = smart_cast<CTorch*>(&object());
     if (!torch)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CTorch : cannot access class member enable_torch!");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CTorch : cannot access class member enable_torch!");
         return;
     }
     torch->Switch(value);
@@ -1047,7 +1083,7 @@ bool CScriptGameObject::torch_enabled() const
     CTorch* torch = smart_cast<CTorch*>(&object());
     if (!torch)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CTorch : cannot access class member torch_enabled!");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CTorch : cannot access class member torch_enabled!");
         return (false);
     }
     return (torch->torch_active());
@@ -1058,7 +1094,7 @@ void CScriptGameObject::attachable_item_load_attach(LPCSTR section)
     CAttachableItem* attachable_item = smart_cast<CAttachableItem*>(&object());
     if (!attachable_item)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAttachableItem : cannot access class member attachable_item_load_attach!");
         return;
     }
@@ -1075,8 +1111,8 @@ void CScriptGameObject::attachable_item_load_attach(LPCSTR section)
 void CScriptGameObject::RestoreWeapon()
 {
 #ifdef DEBUG
-    ai().script_engine().script_log(LuaMessageType::Message, "CScriptGameObject::RestoreWeapon called!!!");
-    ai().script_engine().print_stack();
+    GEnv.ScriptEngine->script_log(LuaMessageType::Message, "CScriptGameObject::RestoreWeapon called!!!");
+    GEnv.ScriptEngine->print_stack();
 #endif //#ifdef DEBUG
     Actor()->SetWeaponHideState(INV_STATE_BLOCK_ALL, false);
 }
@@ -1084,8 +1120,8 @@ void CScriptGameObject::RestoreWeapon()
 void CScriptGameObject::HideWeapon()
 {
 #ifdef DEBUG
-    ai().script_engine().script_log(LuaMessageType::Message, "CScriptGameObject::HideWeapon called!!!");
-    ai().script_engine().print_stack();
+    GEnv.ScriptEngine->script_log(LuaMessageType::Message, "CScriptGameObject::HideWeapon called!!!");
+    GEnv.ScriptEngine->print_stack();
 #endif //#ifdef DEBUG
     Actor()->SetWeaponHideState(INV_STATE_BLOCK_ALL, true);
 }
@@ -1095,7 +1131,7 @@ int CScriptGameObject::Weapon_GrenadeLauncher_Status()
     CWeapon* weapon = smart_cast<CWeapon*>(&object());
     if (!weapon)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CWeapon : cannot access class member Weapon_GrenadeLauncher_Status!");
         return (false);
     }
@@ -1107,7 +1143,7 @@ int CScriptGameObject::Weapon_Scope_Status()
     CWeapon* weapon = smart_cast<CWeapon*>(&object());
     if (!weapon)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CWeapon : cannot access class member Weapon_Scope_Status!");
         return (false);
     }
@@ -1119,7 +1155,7 @@ int CScriptGameObject::Weapon_Silencer_Status()
     CWeapon* weapon = smart_cast<CWeapon*>(&object());
     if (!weapon)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CWeapon : cannot access class member Weapon_Silencer_Status!");
         return (false);
     }
@@ -1131,7 +1167,7 @@ bool CScriptGameObject::Weapon_IsGrenadeLauncherAttached()
     CWeapon* weapon = smart_cast<CWeapon*>(&object());
     if (!weapon)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CWeapon : cannot access class member Weapon_IsGrenadeLauncherAttached!");
         return (false);
     }
@@ -1143,7 +1179,7 @@ bool CScriptGameObject::Weapon_IsScopeAttached()
     CWeapon* weapon = smart_cast<CWeapon*>(&object());
     if (!weapon)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CWeapon : cannot access class member Weapon_IsScopeAttached!");
         return (false);
     }
@@ -1155,7 +1191,7 @@ bool CScriptGameObject::Weapon_IsSilencerAttached()
     CWeapon* weapon = smart_cast<CWeapon*>(&object());
     if (!weapon)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CWeapon : cannot access class member Weapon_IsSilencerAttached!");
         return (false);
     }
@@ -1168,7 +1204,7 @@ int CScriptGameObject::animation_slot() const
     CHudItem* hud_item = smart_cast<CHudItem*>(&object());
     if (!hud_item)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CHudItem : cannot access class member animation_slot!");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CHudItem : cannot access class member animation_slot!");
         return (u32(-1));
     }
     return (hud_item->animation_slot());
@@ -1179,7 +1215,7 @@ CScriptGameObject* CScriptGameObject::active_detector() const
     CInventoryOwner* inventory_owner = smart_cast<CInventoryOwner*>(&object());
     if (!inventory_owner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CInventoryOwner : cannot access class member active_detector!");
         return (0);
     }
@@ -1199,7 +1235,7 @@ CScriptGameObject* CScriptGameObject::item_in_slot(u32 slot_id) const
     CInventoryOwner* inventory_owner = smart_cast<CInventoryOwner*>(&object());
     if (!inventory_owner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CInventoryOwner : cannot access class member item_in_slot!");
         return (0);
     }
@@ -1227,7 +1263,12 @@ void CScriptGameObject::SetActiveTask(CGameTask* t)
 bool CScriptGameObject::IsActiveTask(CGameTask* t)
 {
     VERIFY(t);
-    return Level().GameTaskManager().ActiveTask() == t;
+
+    const auto t1 = Level().GameTaskManager().ActiveTask(eTaskTypeStoryline);
+    const auto t2 = Level().GameTaskManager().ActiveTask(eTaskTypeAdditional);
+    const auto t3 = Level().GameTaskManager().ActiveTask(eTaskTypeInsignificant);
+
+    return t == t1 || t == t2 || t == t3;
 }
 
 u32 CScriptGameObject::active_slot()
@@ -1235,7 +1276,7 @@ u32 CScriptGameObject::active_slot()
     CInventoryOwner* inventory_owner = smart_cast<CInventoryOwner*>(&object());
     if (!inventory_owner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CInventoryOwner : cannot access class member active_slot!");
         return (0);
     }
@@ -1247,7 +1288,7 @@ void CScriptGameObject::activate_slot(u32 slot_id)
     CInventoryOwner* inventory_owner = smart_cast<CInventoryOwner*>(&object());
     if (!inventory_owner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CInventoryOwner : cannot access class member activate_slot!");
         return;
     }
@@ -1259,7 +1300,7 @@ void CScriptGameObject::enable_movement(bool enable)
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CCustomMonster : cannot access class member movement_enabled!");
         return;
     }
@@ -1272,7 +1313,7 @@ bool CScriptGameObject::movement_enabled()
     CCustomMonster* monster = smart_cast<CCustomMonster*>(&object());
     if (!monster)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CCustomMonster : cannot access class member movement_enabled!");
         return (false);
     }
@@ -1285,7 +1326,7 @@ bool CScriptGameObject::can_throw_grenades() const
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member can_throw_grenades!");
         return (false);
     }
@@ -1298,7 +1339,7 @@ void CScriptGameObject::can_throw_grenades(bool can_throw_grenades)
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member can_throw_grenades!");
         return;
     }
@@ -1311,7 +1352,7 @@ u32 CScriptGameObject::throw_time_interval() const
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member throw_time_interval!");
         return (0);
     }
@@ -1324,7 +1365,7 @@ void CScriptGameObject::throw_time_interval(u32 throw_time_interval)
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member throw_time_interval!");
         return;
     }
@@ -1337,7 +1378,7 @@ u32 CScriptGameObject::group_throw_time_interval() const
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member group_throw_time_interval!");
         return (0);
     }
@@ -1350,7 +1391,7 @@ void CScriptGameObject::group_throw_time_interval(u32 throw_time_interval)
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member group_throw_time_interval!");
         return;
     }
@@ -1363,14 +1404,14 @@ void CScriptGameObject::aim_time(CScriptGameObject* weapon, u32 aim_time)
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CAI_Stalker : cannot access class member aim_time!");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CAI_Stalker : cannot access class member aim_time!");
         return;
     }
 
     CWeapon* weapon_ = smart_cast<CWeapon*>(&weapon->object());
     if (!weapon_)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member aim_time (not a weapon passed)!");
         return;
     }
@@ -1383,14 +1424,14 @@ u32 CScriptGameObject::aim_time(CScriptGameObject* weapon)
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CAI_Stalker : cannot access class member aim_time!");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CAI_Stalker : cannot access class member aim_time!");
         return (u32(-1));
     }
 
     CWeapon* weapon_ = smart_cast<CWeapon*>(&weapon->object());
     if (!weapon_)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member aim_time (not a weapon passed)!");
         return (u32(-1));
     }
@@ -1403,7 +1444,7 @@ void CScriptGameObject::special_danger_move(bool value)
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member special_danger_move!");
         return;
     }
@@ -1416,7 +1457,7 @@ bool CScriptGameObject::special_danger_move()
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member special_danger_move!");
         return (false);
     }
@@ -1429,7 +1470,7 @@ void CScriptGameObject::sniper_update_rate(bool value)
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member sniper_update_rate!");
         return;
     }
@@ -1442,7 +1483,7 @@ bool CScriptGameObject::sniper_update_rate() const
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member sniper_update_rate!");
         return (false);
     }
@@ -1455,7 +1496,7 @@ void CScriptGameObject::sniper_fire_mode(bool value)
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member sniper_fire_mode!");
         return;
     }
@@ -1468,7 +1509,7 @@ bool CScriptGameObject::sniper_fire_mode() const
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member sniper_fire_mode!");
         return (false);
     }
@@ -1481,7 +1522,7 @@ void CScriptGameObject::aim_bone_id(LPCSTR bone_id)
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CAI_Stalker : cannot access class member aim_bone_id!");
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CAI_Stalker : cannot access class member aim_bone_id!");
         return;
     }
 
@@ -1493,8 +1534,8 @@ LPCSTR CScriptGameObject::aim_bone_id() const
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(LuaMessageType::Error, "CAI_Stalker : cannot access class member aim_bone_id!");
-        return (false);
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CAI_Stalker : cannot access class member aim_bone_id!");
+        return nullptr;
     }
 
     return (stalker->aim_bone_id().c_str());
@@ -1505,7 +1546,7 @@ void CScriptGameObject::register_in_combat()
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member register_in_combat!");
         return;
     }
@@ -1518,7 +1559,7 @@ void CScriptGameObject::unregister_in_combat()
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member unregister_in_combat!");
         return;
     }
@@ -1531,7 +1572,7 @@ CCoverPoint const* CScriptGameObject::find_best_cover(Fvector position_to_cover_
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member find_best_cover!");
         return (0);
     }
@@ -1543,7 +1584,7 @@ bool CScriptGameObject::suitable_smart_cover(CScriptGameObject* object)
 {
     if (!object)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker::suitable_smart_cover null smart cover specified!");
         return (false);
     }
@@ -1551,7 +1592,7 @@ bool CScriptGameObject::suitable_smart_cover(CScriptGameObject* object)
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&this->object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member suitable_smart_cover!");
         return (false);
     }
@@ -1559,12 +1600,12 @@ bool CScriptGameObject::suitable_smart_cover(CScriptGameObject* object)
     smart_cover::object const* const smart_object = smart_cast<smart_cover::object const*>(&object->object());
     if (!smart_object)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : suitable_smart_cover: passed non-smart_cover object!");
         return (false);
     }
 
-    smart_cover::cover const& cover = smart_object->cover();
+    smart_cover::cover const& cover = smart_object->get_cover();
     if (!cover.can_fire())
         return (true);
 
@@ -1584,7 +1625,7 @@ void CScriptGameObject::take_items_enabled(bool const value)
     CAI_Stalker* const stalker = smart_cast<CAI_Stalker*>(&this->object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member take_items_enabled!");
         return;
     }
@@ -1597,7 +1638,7 @@ bool CScriptGameObject::take_items_enabled() const
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&this->object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member take_items_enabled!");
         return (false);
     }
@@ -1610,7 +1651,7 @@ void CScriptGameObject::SetPlayShHdRldSounds(bool val)
     CInventoryOwner* owner = smart_cast<CInventoryOwner*>(&object());
     if (!owner)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CInventoryOwner : cannot access class member SetPlayShHdRldSounds!");
         return;
     }
@@ -1622,7 +1663,7 @@ void CScriptGameObject::death_sound_enabled(bool const value)
     CAI_Stalker* const stalker = smart_cast<CAI_Stalker*>(&this->object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member death_sound_enabled!");
         return;
     }
@@ -1635,7 +1676,7 @@ bool CScriptGameObject::death_sound_enabled() const
     CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(&this->object());
     if (!stalker)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "CAI_Stalker : cannot access class member death_sound_enabled!");
         return (false);
     }
@@ -1693,3 +1734,383 @@ bool CScriptGameObject::is_door_blocked_by_npc() const
     VERIFY2(m_door, make_string("object %s hasn't been registered as a door already", m_game_object->cName().c_str()));
     return ai().doors().is_door_blocked(m_door);
 }
+
+
+//Alundaio: Methods for exporting the ability to detach/attach addons for magazined weapons
+#ifdef GAME_OBJECT_EXTENDED_EXPORTS
+void CScriptGameObject::Weapon_AddonAttach(CScriptGameObject* item)
+{
+    auto weapon = smart_cast<CWeaponMagazined*>(&object());
+    if (!weapon)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CWeaponMagazined : cannot access class member Weapon_AddonAttach!");
+        return;
+    }
+
+    CInventoryItem* pItm = item->object().cast_inventory_item();
+    if (!pItm)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CWeaponMagazined : trying to attach non-CInventoryItem!");
+        return;
+    }
+
+    if (weapon->CanAttach(pItm))
+        weapon->Attach(pItm, true);
+}
+
+void CScriptGameObject::Weapon_AddonDetach(pcstr item_section)
+{
+    auto weapon = smart_cast<CWeaponMagazined*>(&object());
+    if (!weapon)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CWeaponMagazined : cannot access class member Weapon_AddonDetach!");
+        return;
+    }
+
+    if (weapon->CanDetach(item_section))
+        weapon->Detach(item_section, true);
+}
+
+bool CScriptGameObject::InstallUpgrade(pcstr upgrade)
+{
+    CInventoryItem* item = smart_cast<CInventoryItem*>(&object());
+    if (!item)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CInventoryItem : cannot access class member InstallUpgrade!");
+        return false;
+    }
+
+    if (!pSettings->section_exist(upgrade))
+        return false;
+
+    return ai().alife().inventory_upgrade_manager().upgrade_install(*item, upgrade, false);
+}
+
+bool CScriptGameObject::HasUpgrade(pcstr upgrade) const
+{
+    CInventoryItem* item = smart_cast<CInventoryItem*>(&object());
+    if (!item)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "CInventoryItem : cannot access class member HasUpgrade!");
+        return false;
+    }
+
+    if (!pSettings->section_exist(upgrade))
+        return false;
+
+    return item->has_upgrade(upgrade);
+}
+
+void CScriptGameObject::IterateInstalledUpgrades(luabind::functor<void> functor)
+{
+    CInventoryItem* Item = smart_cast<CInventoryItem*>(&object());
+    if (!Item)
+        return;
+
+    for (auto upgrade : Item->get_upgrades())
+        functor(upgrade.c_str(), object().lua_game_object());
+}
+
+CScriptGameObject* CScriptGameObject::ItemOnBelt(u32 item_id) const
+{
+    CInventoryOwner* inventory_owner = smart_cast<CInventoryOwner*>(&object());
+    if (!inventory_owner)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CInventoryOwner : cannot access class member item_on_belt!");
+        return nullptr;
+    }
+
+    TIItemContainer* belt = &inventory_owner->inventory().m_belt;
+    if (belt->size() < item_id)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "item_on_belt: item id outside belt!");
+        return nullptr;
+    }
+
+    CInventoryItem* result = belt->at(item_id);
+    return result ? result->object().lua_game_object() : nullptr;
+}
+
+bool CScriptGameObject::IsOnBelt(CScriptGameObject* obj) const
+{
+    CInventoryItem* inventory_item = smart_cast<CInventoryItem*>(&obj->object());
+    if (!inventory_item)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CInventoryItem : cannot access class member is_on_belt!");
+        return false;
+    }
+
+    CInventoryOwner* inventory_owner = smart_cast<CInventoryOwner*>(&object());
+    if (!inventory_owner)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CInventoryOwner : cannot access class member is_on_belt!");
+        return false;
+    }
+
+    return inventory_owner->inventory().InBelt(inventory_item);
+}
+
+u32 CScriptGameObject::BeltSize() const
+{
+    CInventoryOwner* inventory_owner = smart_cast<CInventoryOwner*>(&object());
+    if (!inventory_owner)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CInventoryOwner : cannot access class member move_to_belt!");
+        return 0;
+    }
+
+    return inventory_owner->inventory().m_belt.size();
+}
+
+float CScriptGameObject::GetActorMaxWeight() const
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member GetActorMaxWeight!");
+        return false;
+    }
+    return pActor->inventory().GetMaxWeight();
+}
+
+void CScriptGameObject::SetActorMaxWeight(float max_weight)
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member SetActorMaxWeight!");
+        return;
+    }
+    pActor->inventory().SetMaxWeight(max_weight);
+}
+
+// получить и задать максимальный вес при котором можно ходить
+float CScriptGameObject::GetActorMaxWalkWeight() const
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member GetActorMaxWalkWeight!");
+        return false;
+    }
+    return pActor->conditions().m_MaxWalkWeight;
+}
+
+void CScriptGameObject::SetActorMaxWalkWeight(float max_walk_weight)
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member SetActorMaxWalkWeight!");
+        return;
+    }
+    pActor->conditions().m_MaxWalkWeight = max_walk_weight;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+// получить и задать доп. вес для костюма
+float CScriptGameObject::GetAdditionalMaxWeight() const
+{
+    CCustomOutfit* outfit = smart_cast<CCustomOutfit*>(&object());
+    if (!outfit)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CCustomOutfit : cannot access class member GetAdditionalMaxWeight!");
+        return false;
+    }
+    return outfit->m_additional_weight2;
+}
+
+float CScriptGameObject::GetAdditionalMaxWalkWeight() const
+{
+    CCustomOutfit* outfit = smart_cast<CCustomOutfit*>(&object());
+    if (!outfit)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CCustomOutfit : cannot access class member GetAdditionalMaxWalkWeight!");
+        return false;
+    }
+    return outfit->m_additional_weight;
+}
+
+void CScriptGameObject::SetAdditionalMaxWeight(float add_max_weight)
+{
+    CCustomOutfit* outfit = smart_cast<CCustomOutfit*>(&object());
+    if (!outfit)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CCustomOutfit : cannot access class member SetAdditionalMaxWeight!");
+        return;
+    }
+    outfit->m_additional_weight2 = add_max_weight;
+}
+
+void CScriptGameObject::SetAdditionalMaxWalkWeight(float add_max_walk_weight)
+{
+    CCustomOutfit* outfit = smart_cast<CCustomOutfit*>(&object());
+    if (!outfit)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CCustomOutfit : cannot access class member SetAdditionalMaxWalkWeight!");
+        return;
+    }
+    outfit->m_additional_weight = add_max_walk_weight;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+// получить суммарный вес инвентаря
+float CScriptGameObject::GetTotalWeight() const
+{
+    CInventoryOwner* inventory_owner = smart_cast<CInventoryOwner*>(&object());
+    if (!inventory_owner)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CInventoryOwner : cannot access class member GetTotalWeight!");
+        return false;
+    }
+    return inventory_owner->inventory().TotalWeight();
+}
+
+// получить вес предмета
+float CScriptGameObject::Weight() const
+{
+    CInventoryItem* inventory_item = smart_cast<CInventoryItem*>(&object());
+    if (!inventory_item)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CSciptEntity : cannot access class member Weight!");
+        return false;
+    }
+    return inventory_item->Weight();
+}
+
+void CScriptGameObject::SetWeight(float w)
+{
+    CInventoryItem* inventory_item = smart_cast<CInventoryItem*>(&object());
+    if (!inventory_item)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CSciptEntity : cannot access class member SetWeight!");
+        return;
+    }
+    inventory_item->SetWeight(w);
+}
+
+float CScriptGameObject::GetActorJumpSpeed() const
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member GetActorJumpSpeed!");
+        return false;
+    }
+    return pActor->m_fJumpSpeed;
+}
+
+void CScriptGameObject::SetActorJumpSpeed(float jump_speed)
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member SetActorJumpSpeed!");
+        return;
+    }
+    pActor->m_fJumpSpeed = jump_speed;
+    //character_physics_support()->movement()->SetJumpUpVelocity(m_fJumpSpeed);  
+}
+
+float CScriptGameObject::GetActorSprintKoef() const
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member GetActorJumpSpeed!");
+        return false;
+    }
+    return pActor->m_fSprintFactor;
+}
+
+void CScriptGameObject::SetActorSprintKoef(float sprint_koef)
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member SetActorJumpSpeed!");
+        return;
+    }
+    pActor->m_fSprintFactor = sprint_koef;
+}
+
+float CScriptGameObject::GetActorRunCoef() const
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member GetActorJumpSpeed!");
+        return false;
+    }
+    return pActor->m_fRunFactor;
+}
+
+void CScriptGameObject::SetActorRunCoef(float run_coef)
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member SetActorJumpSpeed!");
+        return;
+    }
+    pActor->m_fRunFactor = run_coef;
+}
+
+float CScriptGameObject::GetActorRunBackCoef() const
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member GetActorJumpSpeed!");
+        return false;
+    }
+    return pActor->m_fRunBackFactor;
+}
+
+void CScriptGameObject::SetActorRunBackCoef(float run_back_coef)
+{
+    CActor* pActor = smart_cast<CActor*>(&object());
+    if (!pActor)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error,
+                                        "CActor : cannot access class member SetActorJumpSpeed!");
+        return;
+    }
+    pActor->m_fRunBackFactor = run_back_coef;
+}
+
+void CScriptGameObject::SetCharacterIcon(pcstr iconName)
+{
+    CInventoryOwner* pInventoryOwner = smart_cast<CInventoryOwner*>(&object());
+
+    if (!pInventoryOwner)
+    {
+        GEnv.ScriptEngine->script_log(LuaMessageType::Error, "SetCharacterIcon available only for InventoryOwner");
+        return;
+    }
+    return pInventoryOwner->SetIcon(iconName);
+}
+#endif
+//-Alundaio

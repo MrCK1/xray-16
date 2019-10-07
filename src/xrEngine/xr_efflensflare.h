@@ -20,14 +20,15 @@ public:
         shared_str texture;
         shared_str shader;
         FactoryPtr<IFlareRender> m_pRender;
-        // ref_shader hShader;
         SFlare() { fOpacity = fRadius = fPosition = 0; }
     };
+
     struct SSource : public SFlare
     {
         BOOL ignore_color;
     };
-    DEFINE_VECTOR(SFlare, FlareVec, FlareIt);
+    using FlareVec = xr_vector<SFlare>;
+
     FlareVec m_Flares;
 
     enum
@@ -61,7 +62,7 @@ public:
         section = 0;
         m_StateBlendUpSpeed = m_StateBlendDnSpeed = 0.1f;
     }
-    void load(CInifile* pIni, LPCSTR section);
+    void load(CInifile const* pIni, pcstr section);
     void OnDeviceCreate();
     void OnDeviceDestroy();
 };
@@ -97,12 +98,10 @@ protected:
     float fGradientValue;
 
     FactoryPtr<ILensFlareRender> m_pRender;
-    // ref_geom hGeom;
 
     LensFlareDescVec m_Palette;
     CLensFlareDescriptor* m_Current;
 
-    //. #ifdef DEBUG
 public:
     enum LFState
     {
@@ -111,7 +110,6 @@ public:
         lfsHide,
         lfsShow,
     };
-    //. #endif // DEBUG
 
 protected:
     LFState m_State;
@@ -126,7 +124,7 @@ public:
     void OnDeviceCreate();
     void OnDeviceDestroy();
 
-    shared_str AppendDef(CEnvironment& environment, CInifile* pIni, LPCSTR sect);
+    shared_str AppendDef(CEnvironment& environment, CInifile const* pIni, pcstr sect);
 
     void Invalidate() { m_State = lfsNone; }
 };

@@ -1,7 +1,7 @@
-#include "PHSynchronize.h"
-#include "xrserver_space.h"
-
 #pragma once
+#include "PHSynchronize.h"
+#include "xrServer_Space.h"
+#include "xrCommon/misc_math_types.h"
 
 #define ACTOR_HEIGHT 1.75f
 #define ACTOR_LOOKOUT_SPEED 2.f
@@ -105,7 +105,7 @@ struct net_update
     float fHealth;
     //	float				fArmor;
 
-    net_update()
+    net_update() : o_model(0), mstate(0), weapon(0), fHealth(0)
     {
         dwTimeStamp = 0;
         p_pos.set(0, 0, 0);

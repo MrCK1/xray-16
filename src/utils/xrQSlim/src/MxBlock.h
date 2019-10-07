@@ -1,8 +1,4 @@
-#ifndef MXBLOCK_INCLUDED // -*- C++ -*-
-#define MXBLOCK_INCLUDED
-#if !defined(__GNUC__)
 #pragma once
-#endif
 
 /************************************************************************
 
@@ -102,11 +98,11 @@ public:
     void resize(int n) { resize_block(n); }
     void bitcopy(const T* a, int n) // copy bits directly
     {
-        CopyMemory(block, a, _min(n, N) * sizeof(T));
+        CopyMemory(block, a, std::min(n, N) * sizeof(T));
     }
     void copy(const T* a, const int n) // copy using assignment operator
     {
-        for (int i = 0; i < _min(n, N); i++)
+        for (int i = 0; i < std::min(n, N); i++)
             block[i] = a[i];
     }
     void bitcopy(const MxBlock<T>& b) { bitcopy(b, b.length()); }
@@ -124,6 +120,3 @@ public:
     iterator end() { return begin() + size(); }
     const_iterator end() const { return begin() + size(); }
 };
-
-// MXBLOCK_INCLUDED
-#endif

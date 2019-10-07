@@ -11,7 +11,7 @@
 #include "ai/stalker/ai_stalker.h"
 #include "xrScriptEngine/script_engine.hpp"
 #include "game_object_space.h"
-#include "script_callback_ex.h"
+#include "xrScriptEngine/script_callback_ex.h"
 #include "ai_space.h"
 
 void CStalkerAnimationManager::script_play_callback(CBlend* blend)
@@ -24,15 +24,15 @@ void CStalkerAnimationManager::script_play_callback(CBlend* blend)
     const SCRIPT_ANIMATIONS& animations = animation_manager.script_animations();
 
 #if 0
-	Msg							(
-		"%6d Script callback [%s]",
-		Device.dwTimeGlobal,
-		animations.empty()
-		?
-		"unknown"
-		:
-		animation_manager.m_skeleton_animated->LL_MotionDefName_dbg(animations.front().animation())
-	);
+    Msg							(
+        "%6d Script callback [%s]",
+        Device.dwTimeGlobal,
+        animations.empty()
+        ?
+        "unknown"
+        :
+        animation_manager.m_skeleton_animated->LL_MotionDefName_dbg(animations.front().animation())
+    );
 #endif
 
     if (pair.animation() && !animations.empty() && (pair.animation() == animations.front().animation()))
@@ -50,7 +50,7 @@ void CStalkerAnimationManager::add_script_animation(
     const MotionID& motion = m_skeleton_animated->ID_Cycle_Safe(animation);
     if (!motion)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "There is no animation %s (object %s)!", animation, *object().cName());
         return;
     }
@@ -74,7 +74,7 @@ void CStalkerAnimationManager::add_script_animation(LPCSTR animation, bool hand_
     const MotionID& motion = m_skeleton_animated->ID_Cycle_Safe(animation);
     if (!motion)
     {
-        ai().script_engine().script_log(
+        GEnv.ScriptEngine->script_log(
             LuaMessageType::Error, "There is no animation %s (object %s)!", animation, *object().cName());
         return;
     }

@@ -243,7 +243,7 @@ ICF void CBackend::set_CullMode(u32 _mode)
     }
 }
 
-ICF void CBackend::set_VS(ref_vs& _vs) { set_VS(_vs->vs, _vs->cName.c_str()); }
+ICF void CBackend::set_VS(ref_vs& _vs) { set_VS(_vs->sh, _vs->cName.c_str()); }
 IC void CBackend::set_Constants(R_constant_table* C)
 {
     // caching
@@ -253,7 +253,7 @@ IC void CBackend::set_Constants(R_constant_table* C)
     xforms.unmap();
     hemi.unmap();
     tree.unmap();
-    if (0 == C)
+    if (nullptr == C)
         return;
 
     PGO(Msg("PGO:c-table"));
@@ -261,7 +261,7 @@ IC void CBackend::set_Constants(R_constant_table* C)
     // process constant-loaders
     R_constant_table::c_table::iterator it = C->table.begin();
     R_constant_table::c_table::iterator end = C->table.end();
-    for (; it != end; it++)
+    for (; it != end; ++it)
     {
         R_constant* Cs = &**it;
         VERIFY(Cs);

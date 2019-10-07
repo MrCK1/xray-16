@@ -1,10 +1,10 @@
-#include "stdafx.h"
-#include "missile.h"
+#include "StdAfx.h"
+#include "Missile.h"
 //.#include "WeaponHUD.h"
 #include "xrPhysics/PhysicsShell.h"
-#include "actor.h"
+#include "Actor.h"
 #include "xrEngine/CameraBase.h"
-#include "xrserver_objects_alife.h"
+#include "xrServer_Objects_ALife.h"
 #include "ActorEffector.h"
 #include "Level.h"
 #include "xr_level_controller.h"
@@ -13,17 +13,18 @@
 #include "xrPhysics/ExtendedGeom.h"
 #include "xrPhysics/MathUtils.h"
 #include "CharacterPhysicsSupport.h"
-#include "inventory.h"
+#include "Inventory.h"
 #include "xrEngine/IGame_Persistent.h"
+#include "xrNetServer/NET_Messages.h"
 #ifdef DEBUG
-#include "phdebug.h"
+#include "PHDebug.h"
 #endif
 
 #define PLAYING_ANIM_TIME 10000
 
-#include "ui/UIProgressShape.h"
+#include "xrUICore/ProgressBar/UIProgressShape.h"
 #include "ui/UIXmlInit.h"
-#include "physicsshellholder.h"
+#include "PhysicsShellHolder.h"
 
 CUIProgressShape* g_MissileForceShape = NULL;
 
@@ -31,11 +32,10 @@ void create_force_progress()
 {
     VERIFY(!g_MissileForceShape);
     CUIXml uiXml;
-    uiXml.Load(CONFIG_PATH, UI_PATH, "grenade.xml");
+    uiXml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "grenade.xml");
 
-    CUIXmlInit xml_init;
     g_MissileForceShape = new CUIProgressShape();
-    xml_init.InitProgressShape(uiXml, "progress", 0, g_MissileForceShape);
+    CUIXmlInit::InitProgressShape(uiXml, "progress", 0, g_MissileForceShape);
 }
 
 CMissile::CMissile(void) { m_dwStateTime = 0; }
@@ -144,7 +144,7 @@ void CMissile::spawn_fake_missile()
     if (!getDestroy())
     {
         CSE_Abstract* object = Level().spawn_item(
-            *cNameSect(), Position(), (g_dedicated_server) ? u32(-1) : ai_location().level_vertex_id(), ID(), true);
+            *cNameSect(), Position(), (GEnv.isDedicatedServer) ? u32(-1) : ai_location().level_vertex_id(), ID(), true);
 
         CSE_ALifeObject* alife_object = smart_cast<CSE_ALifeObject*>(object);
         VERIFY(alife_object);
@@ -239,14 +239,14 @@ void CMissile::shedule_Update(u32 dt)
     }
 }
 
-void CMissile::State(u32 state)
+void CMissile::State(u32 state, u32 oldState)
 {
-    switch (GetState())
+    switch (state)
     {
     case eShowing:
     {
         SetPending(TRUE);
-        PlayHUDMotion("anm_show", FALSE, this, GetState());
+        PlayHUDMotion("anm_show", "anim_show", FALSE, this, GetState());
     }
     break;
     case eIdle:
@@ -259,8 +259,11 @@ void CMissile::State(u32 state)
     {
         if (H_Parent())
         {
-            SetPending(TRUE);
-            PlayHUDMotion("anm_hide", TRUE, this, GetState());
+            if (oldState != eHiding)
+            {
+                SetPending(TRUE);
+                PlayHUDMotion("anm_hide", "anim_hide", TRUE, this, GetState());
+            }
         }
     }
     break;
@@ -283,20 +286,23 @@ void CMissile::State(u32 state)
     {
         SetPending(TRUE);
         m_fThrowForce = m_fMinForce;
-        PlayHUDMotion("anm_throw_begin", TRUE, this, GetState());
+        PlayHUDMotion("anm_throw_begin", "anim_throw_begin", TRUE, this, GetState());
     }
     break;
-    case eReady: { PlayHUDMotion("anm_throw_idle", TRUE, this, GetState());
+    case eReady: { PlayHUDMotion("anm_throw_idle", "anim_throw_idle", TRUE, this, GetState());
     }
     break;
     case eThrow:
     {
         SetPending(TRUE);
         m_throw = false;
-        PlayHUDMotion("anm_throw", TRUE, this, GetState());
+        PlayHUDMotion("anm_throw", "anim_throw_act", TRUE, this, GetState());
     }
     break;
-    case eThrowEnd: { SwitchState(eShowing);
+    case eThrowEnd:
+    {
+        PlayHUDMotion("anm_throw_end", "anim_throw_end", TRUE, this, GetState());
+        SwitchState(eShowing);
     }
     break;
         /*	case eBore:
@@ -308,11 +314,11 @@ void CMissile::State(u32 state)
     }
 }
 
-void CMissile::OnStateSwitch(u32 S)
+void CMissile::OnStateSwitch(u32 S, u32 oldState)
 {
     m_dwStateTime = 0;
-    inherited::OnStateSwitch(S);
-    State(S);
+    inherited::OnStateSwitch(S, oldState);
+    State(S, oldState);
 }
 
 void CMissile::OnAnimationEnd(u32 state)

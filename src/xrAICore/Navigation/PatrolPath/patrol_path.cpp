@@ -6,19 +6,17 @@
 //	Description : Patrol path
 ////////////////////////////////////////////////////////////////////////////
 
-#include "PCH.hpp"
+#include "pch.hpp"
 #include "patrol_path.h"
-#include "xrCore/xrCore.h"
 #include "Common/LevelGameDef.h"
 
 LPCSTR TEST_PATROL_PATH_NAME = "val_dogs_nest4_centre";
 
 CPatrolPath::CPatrolPath(shared_str name)
-{
 #ifdef DEBUG
-    m_name = name;
+    : m_name(name)
 #endif
-}
+{}
 
 CPatrolPath& CPatrolPath::load_raw(
     const CLevelGraph* level_graph, const CGameLevelCrossTable* cross, const CGameGraph* game_graph, IReader& stream)

@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "login_manager.h"
 #include "account_manager.h"
 #include "MainMenu.h"
@@ -12,7 +12,9 @@
 #include "ui/UICDkey.h"
 #include "secure_messaging.h"
 
+#if defined(WINDOWS)
 #include <shellapi.h>
+#endif
 //#pragma comment(lib, "shell32.lib")
 
 namespace gamespy_gp
@@ -204,6 +206,7 @@ void login_manager::logout()
 
 void login_manager::reinit_connection_tasks()
 {
+#ifdef WINDOWS
     account_manager* tmp_acc_mngr = MainMenu()->GetAccountMngr();
     if (tmp_acc_mngr->is_get_account_profiles_active())
     {
@@ -220,6 +223,7 @@ void login_manager::reinit_connection_tasks()
         Msg("! WARNING: reiniting suggesting unique nicks");
         tmp_acc_mngr->reinit_suggest_unique_nicks();
     }
+#endif
 }
 
 void login_manager::delete_profile_obj() { xr_delete(m_current_profile); }
@@ -348,10 +352,10 @@ void login_manager::save_password_to_registry(char const* password)
         return;
     }
 
-    key_t pass_key;
+    secure_messaging::key_t pass_key;
     generate_key(pass_key_seed, pass_key);
     u32 buffer_size = xr_strlen(password) + 1;
-    u8* buffer = static_cast<u8*>(_alloca(buffer_size));
+    u8* buffer = static_cast<u8*>(xr_alloca(buffer_size));
     xr_strcpy((char*)buffer, buffer_size, password);
     buffer[buffer_size - 1] = 0;
     encrypt(buffer, buffer_size, pass_key);
@@ -368,7 +372,7 @@ char const* login_manager::get_password_from_registry()
 
     if (pass_size)
     {
-        key_t pass_key;
+        secure_messaging::key_t pass_key;
         generate_key(pass_key_seed, pass_key);
         decrypt(tmp_password_dest, pass_size, pass_key);
         xr_strcpy(m_reg_password, (char*)tmp_password_dest);
@@ -405,9 +409,14 @@ bool login_manager::get_remember_me_from_registry()
 
 void login_manager::forgot_password(char const* url)
 {
+#ifdef WINDOWS
     LPCSTR params = NULL;
     STRCONCAT(params, "/C start ", url);
     ShellExecute(0, "open", "cmd.exe", params, NULL, SW_SHOW);
+#else
+    std::string command = "xdg-open " + std::string{url};
+    system(command.c_str());
+#endif
 }
 
 } // namespace gamespy_gp

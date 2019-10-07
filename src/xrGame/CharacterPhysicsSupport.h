@@ -4,9 +4,9 @@
 
 #include "alife_space.h"
 #include "PHSkeleton.h"
-#include "Entity_Alive.h"
+#include "entity_alive.h"
 #include "PHSoundPlayer.h"
-#include "Phdestroyable.h"
+#include "PHDestroyable.h"
 #include "character_hit_animations.h"
 #include "death_anims.h"
 #include "character_shell_control.h"
@@ -104,7 +104,7 @@ public:
     IC const CPHMovementControl* movement() const { return m_PhysicMovementControl; }
     IC CPHSoundPlayer* ph_sound_player() { return &m_ph_sound_player; }
     IC CIKLimbsController* ik_controller() { return m_ik_controller; }
-    bool interactive_motion();
+    bool is_interactive_motion();
     bool can_drop_active_weapon();
     void SetRemoved();
     bool IsRemoved() { return m_eState == esRemoved; }
@@ -153,9 +153,7 @@ public:
     virtual void on_child_shell_activate(CPhysicsShellHolder* obj);
     /////////////////////////////////////////////////////////////////
     CCharacterPhysicsSupport& operator=(CCharacterPhysicsSupport& /**asup/**/)
-    {
-        R_ASSERT2(false, "Can not assign it");
-    }
+        = delete;
     CCharacterPhysicsSupport(EType atype, CEntityAlive* aentity);
     virtual ~CCharacterPhysicsSupport();
 

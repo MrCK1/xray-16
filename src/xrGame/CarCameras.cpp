@@ -1,19 +1,19 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #pragma hdrstop
 #ifdef DEBUG
 
 #include "PHDebug.h"
-#include "xrPhysics/iphworld.h"
+#include "xrPhysics/IPHWorld.h"
 #endif
 #include "alife_space.h"
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
-#include "car.h"
-#include "actor.h"
-#include "cameralook.h"
-#include "camerafirsteye.h"
+#include "Car.h"
+#include "Actor.h"
+#include "CameraLook.h"
+#include "CameraFirstEye.h"
 #include "Level.h"
-#include "xrEngine/cameramanager.h"
+#include "xrEngine/CameraManager.h"
 
 bool CCar::HUDView() const { return active_camera->tag == ectFirst; }
 void CCar::cam_Update(float dt, float fov)
@@ -47,13 +47,9 @@ void CCar::OnCameraChange(int type)
     if (Owner())
     {
         if (type == ectFirst)
-        {
             Owner()->setVisible(FALSE);
-        }
-        else if (active_camera->tag == ectFirst)
-        {
+        else if (active_camera && active_camera->tag == ectFirst)
             Owner()->setVisible(TRUE);
-        }
     }
 
     if (!active_camera || active_camera->tag != type)

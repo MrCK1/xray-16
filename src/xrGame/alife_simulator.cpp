@@ -12,10 +12,10 @@
 #include "ai_space.h"
 #include "xrEngine/IGame_Persistent.h"
 #include "xrScriptEngine/script_engine.hpp"
-#include "mainmenu.h"
+#include "MainMenu.h"
 #include "object_factory.h"
 #include "alife_object_registry.h"
-#include "xrEngine/xr_ioconsole.h"
+#include "xrEngine/XR_IOConsole.h"
 
 #ifdef DEBUG
 #include "moving_objects.h"
@@ -23,7 +23,6 @@
 
 LPCSTR alife_section = "alife";
 
-extern void destroy_lua_wpn_params();
 
 CALifeSimulator::CALifeSimulator(IPureServer* server, shared_str* command_line)
     : CALifeUpdateManager(server, alife_section), CALifeInteractionManager(server, alife_section),
@@ -32,13 +31,7 @@ CALifeSimulator::CALifeSimulator(IPureServer* server, shared_str* command_line)
     // XXX: why do we need to reinitialize script engine?
     if (!strstr(Core.Params, "-keep_lua"))
     {
-        destroy_lua_wpn_params();
-        MainMenu()->DestroyInternal(true);
-        xr_delete(g_object_factory);
-        ai().SetupScriptEngine();
-#ifdef DEBUG
-        ai().moving_objects().clear();
-#endif // DEBUG
+        ai().RestartScriptEngine();
     }
 
     ai().set_alife(this);
@@ -61,7 +54,7 @@ CALifeSimulator::CALifeSimulator(IPureServer* server, shared_str* command_line)
 
     LPCSTR start_game_callback = pSettings->r_string(alife_section, "start_game_callback");
     luabind::functor<void> functor;
-    R_ASSERT2(ai().script_engine().functor(start_game_callback, functor), "failed to get start game callback");
+    R_ASSERT2(GEnv.ScriptEngine->functor(start_game_callback, functor), "failed to get start game callback");
     functor();
 
     load(p.m_game_or_spawn, !xr_strcmp(p.m_new_or_load, "load") ? false : true, !xr_strcmp(p.m_new_or_load, "new"));

@@ -1,25 +1,24 @@
-#ifndef SoundRender_CoreAH
-#define SoundRender_CoreAH
 #pragma once
 
 #include "SoundRender_Core.h"
 #include "OpenALDeviceList.h"
+#if defined(WINDOWS)
 #include <eax/eax.h>
-
+#endif
 #ifdef DEBUG
 #define A_CHK(expr)                                                \
     {                                                              \
         alGetError();                                              \
         expr;                                                      \
-        ALenum error = alGetError();                               \
-        VERIFY2(error == AL_NO_ERROR, (LPCSTR)alGetString(error)); \
+        ALenum err_ = alGetError();                               \
+        VERIFY2(err_ == AL_NO_ERROR, (pcstr)alGetString(err_)); \
     }
 #define AC_CHK(expr)                                                          \
     {                                                                         \
         alcGetError(pDevice);                                                 \
         expr;                                                                 \
-        ALCenum error = alcGetError(pDevice);                                 \
-        VERIFY2(error == ALC_NO_ERROR, (LPCSTR)alcGetString(pDevice, error)); \
+        ALCenum err_ = alcGetError(pDevice);                                 \
+        VERIFY2(err_ == ALC_NO_ERROR, (pcstr)alcGetString(pDevice, err_)); \
     }
 #else
 #define A_CHK(expr) \
@@ -35,8 +34,10 @@
 class CSoundRender_CoreA : public CSoundRender_Core
 {
     typedef CSoundRender_Core inherited;
+#if defined(WINDOWS)
     EAXSet eaxSet; // EAXSet function, retrieved if EAX Extension is supported
     EAXGet eaxGet; // EAXGet function, retrieved if EAX Extension is supported
+#endif
     ALCdevice* pDevice;
     ALCcontext* pContext;
     ALDeviceList* pDeviceList;
@@ -46,27 +47,30 @@ class CSoundRender_CoreA : public CSoundRender_Core
         Fvector position;
         Fvector orientation[2];
     };
-    SListener Listener;
 
-    BOOL EAXQuerySupport(BOOL bDeferred, const GUID* guid, u32 prop, void* val, u32 sz);
-    BOOL EAXTestSupport(BOOL bDeferred);
+    SListener Listener;
+#if defined(WINDOWS)
+    bool EAXQuerySupport(bool isDeferred, const GUID* guid, u32 prop, void* val, u32 sz);
+    bool EAXTestSupport(bool isDeferred);
+#endif
 
 protected:
-    virtual void i_eax_set(const GUID* guid, u32 prop, void* val, u32 sz);
-    virtual void i_eax_get(const GUID* guid, u32 prop, void* val, u32 sz);
-    virtual void update_listener(const Fvector& P, const Fvector& D, const Fvector& N, float dt);
+#if defined(WINDOWS)
+    void i_eax_set(const GUID* guid, u32 prop, void* val, u32 sz) override;
+    void i_eax_get(const GUID* guid, u32 prop, void* val, u32 sz) override;
+#endif
+    void update_listener(const Fvector& P, const Fvector& D, const Fvector& N, float dt) override;
 
 public:
     CSoundRender_CoreA();
     virtual ~CSoundRender_CoreA();
 
-    virtual void _initialize();
-    virtual void _clear();
-    virtual void _restart();
+    void _initialize() override;
+    void _clear() override;
+    void _restart() override;
 
-    virtual void set_master_volume(float f);
+    void set_master_volume(float f) override;
 
-    virtual const Fvector& listener_position() { return Listener.position; }
+    const Fvector& listener_position() override { return Listener.position; }
 };
 extern CSoundRender_CoreA* SoundRenderA;
-#endif

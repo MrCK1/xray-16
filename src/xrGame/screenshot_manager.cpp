@@ -1,19 +1,20 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "screenshot_manager.h"
 #include "Level.h"
 #include "game_cl_mp.h"
-#include "xrCore/ppmd_compressor.h"
+#include "xrCore/Compression/ppmd_compressor.h"
 #include "screenshots_writer.h"
 
 #ifdef DEBUG
 #define CXIMAGE_AS_SHARED_LIBRARY
 #endif
 
+#ifdef WINDOWS
 #include <ddraw.h>
+#endif
+
 #include "ximage.h"
 #include "xmemfile.h"
-
-#pragma comment(lib, "libjpeg.lib")
 
 void* cxalloc(size_t size) { return xr_malloc(size); }
 void cxfree(void* ptr) { xr_free(ptr); }
@@ -55,10 +56,12 @@ screenshot_manager::~screenshot_manager()
     xr_free(m_buffer_for_compress);
     if (m_make_start_event)
     {
+#ifndef LINUX // FIXME!!!
         SetEvent(m_make_start_event);
         WaitForSingleObject(m_make_done_event, INFINITE); // thread stoped
         CloseHandle(m_make_done_event);
         CloseHandle(m_make_start_event);
+#endif
     }
 }
 
@@ -164,6 +167,7 @@ void screenshot_manager::shedule_Update(u32 dt)
         }
         else
         {
+#ifndef LINUX // FIXME!!!
             DWORD thread_result = WaitForSingleObject(m_make_done_event, 0);
             R_ASSERT((thread_result != WAIT_ABANDONED) && (thread_result != WAIT_FAILED));
             if (thread_result == WAIT_OBJECT_0)
@@ -171,6 +175,7 @@ void screenshot_manager::shedule_Update(u32 dt)
                 m_complete_callback(m_buffer_for_compress, m_buffer_for_compress_size, m_jpeg_buffer_size);
                 m_state &= ~making_screenshot;
             }
+#endif
         }
         if (!is_making_screenshot() && !is_drawing_downloads())
         {
@@ -179,7 +184,7 @@ void screenshot_manager::shedule_Update(u32 dt)
     }
     else if (is_make_in_progress && (--m_defered_ssframe_counter == 0))
     {
-        GlobalEnv.Render->ScreenshotAsyncEnd(m_result_writer);
+        GEnv.Render->ScreenshotAsyncEnd(m_result_writer);
         /*	//---------
         #ifdef DEBUG
                 if (!m_result_writer.size())
@@ -194,10 +199,11 @@ void screenshot_manager::shedule_Update(u32 dt)
                     }
                 }
         #endif //#ifdef DEBUG*/
-        DWORD process_affinity_mask;
-        DWORD tmp_dword;
+        ULONG_PTR process_affinity_mask, tmp_dword;
+#ifndef LINUX // FIXME!!!
         GetProcessAffinityMask(GetCurrentProcess(), &process_affinity_mask, &tmp_dword);
         process_screenshot(btwCount1(static_cast<u32>(process_affinity_mask)) == 1);
+#endif
     }
     if (is_drawing_downloads())
     {
@@ -225,7 +231,7 @@ void screenshot_manager::make_screenshot(complete_callback_t cb)
     m_state |= making_screenshot;
     m_defered_ssframe_counter = defer_framescount;
 
-    GlobalEnv.Render->ScreenshotAsyncBegin();
+    GEnv.Render->ScreenshotAsyncBegin();
 }
 
 void screenshot_manager::set_draw_downloads(bool draw)
@@ -250,6 +256,7 @@ void screenshot_manager::set_draw_downloads(bool draw)
 
 void screenshot_manager::process_screenshot(bool singlecore)
 {
+#ifndef LINUX // FIXME!!!
     if (m_make_start_event)
     {
         SetEvent(m_make_start_event);
@@ -257,7 +264,8 @@ void screenshot_manager::process_screenshot(bool singlecore)
     }
     m_make_start_event = CreateEvent(NULL, FALSE, TRUE, NULL);
     m_make_done_event = CreateEvent(NULL, FALSE, FALSE, NULL);
-    thread_spawn(&screenshot_manager::screenshot_maker_thread, "screenshot_maker", 0, this);
+#endif
+    Threading::SpawnThread(&screenshot_manager::screenshot_maker_thread, "screenshot_maker", 0, this);
 }
 void __stdcall screenshot_manager::jpeg_compress_cb(long progress)
 {
@@ -274,6 +282,7 @@ void __stdcall screenshot_manager::jpeg_compress_cb(long progress)
 void screenshot_manager::screenshot_maker_thread(void* arg_ptr)
 {
     screenshot_manager* this_ptr = static_cast<screenshot_manager*>(arg_ptr);
+#ifndef LINUX // FIXME!!
     DWORD wait_result = WaitForSingleObject(this_ptr->m_make_start_event, INFINITE);
     while ((wait_result != WAIT_ABANDONED) || (wait_result != WAIT_FAILED))
     {
@@ -295,6 +304,7 @@ void screenshot_manager::screenshot_maker_thread(void* arg_ptr)
         wait_result = WaitForSingleObject(this_ptr->m_make_start_event, INFINITE);
     }
     SetEvent(this_ptr->m_make_done_event);
+#endif
 }
 
 void screenshot_manager::realloc_compress_buffer(u32 need_size)

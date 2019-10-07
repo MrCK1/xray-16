@@ -1,6 +1,6 @@
 #pragma once
 
-#include "xrEngine/feel_touch.h"
+#include "xrEngine/Feel_Touch.h"
 #include "inventory_item_object.h"
 
 #include "InfoPortionDefs.h"
@@ -11,7 +11,7 @@
 class CInventoryOwner;
 class CPda;
 
-DEF_VECTOR(PDA_LIST, CPda*);
+using PDA_LIST = xr_vector<CPda*>;
 
 class CPda : public CInventoryItemObject, public Feel::Touch
 {

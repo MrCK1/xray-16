@@ -1,7 +1,7 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "awards_store.h"
 #include "xrGameSpy/GameSpy_Full.h"
-#include "xrGameSpy/GAmeSpy_SAKE.h"
+#include "xrGameSpy/GameSpy_SAKE.h"
 
 namespace gamespy_profile
 {
@@ -12,7 +12,7 @@ awards_store::awards_store(CGameSpy_Full* fullgs_obj)
     m_sake_obj = fullgs_obj->GetGameSpySAKE();
 
     init_field_names();
-    m_get_records_input.mTableId = profile_table_name;
+    m_get_records_input.mTableId = (char*)profile_table_name;
     m_get_records_input.mFieldNames = m_field_names_store;
     m_get_records_input.mNumFields = fields_count;
 }

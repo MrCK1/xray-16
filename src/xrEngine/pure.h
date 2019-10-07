@@ -1,23 +1,20 @@
-#ifndef _PURE_H_AAA_
-#define _PURE_H_AAA_
+#pragma once
+#include "xrCommon/xr_vector.h"
 
 // messages
-#define REG_PRIORITY_LOW 0x11111111ul
-#define REG_PRIORITY_NORMAL 0x22222222ul
-#define REG_PRIORITY_HIGH 0x33333333ul
-#define REG_PRIORITY_CAPTURE 0x7ffffffful
-#define REG_PRIORITY_INVALID 0xfffffffful
+constexpr int REG_PRIORITY_LOW = 0x11111111;
+constexpr int REG_PRIORITY_NORMAL = 0x22222222;
+constexpr int REG_PRIORITY_HIGH = 0x33333333;
+constexpr int REG_PRIORITY_CAPTURE = 0x7fffffff;
+constexpr int REG_PRIORITY_INVALID = std::numeric_limits<int>::lowest();
 
-typedef void __fastcall RP_FUNC(void* obj);
-#define DECLARE_MESSAGE(name)            \
-    extern ENGINE_API RP_FUNC rp_##name; \
-    struct ENGINE_API pure##name         \
-    {                                    \
-        virtual void On##name() = 0;     \
-    }
+#define DECLARE_MESSAGE(name)\
+struct pure##name\
+{\
+    virtual void On##name() = 0;\
+    static ICF void __fastcall OnPure(pure##name* self) { self->On##name(); }\
+}
 
-#define DECLARE_RP(name) \
-    void __fastcall rp_##name(void* p) { ((pure##name*)p)->On##name(); }
 DECLARE_MESSAGE(Frame); // XXX: rename to FrameStart
 DECLARE_MESSAGE(FrameEnd);
 DECLARE_MESSAGE(Render);
@@ -26,101 +23,105 @@ DECLARE_MESSAGE(AppDeactivate);
 DECLARE_MESSAGE(AppStart);
 DECLARE_MESSAGE(AppEnd);
 DECLARE_MESSAGE(DeviceReset);
+DECLARE_MESSAGE(UIReset);
 DECLARE_MESSAGE(ScreenResolutionChanged);
 
-//-----------------------------------------------------------------------------
-struct _REG_INFO
+template<class T>
+class MessageRegistry
 {
-    void* Object;
-    int Prio;
-    u32 Flags;
-};
-
-// ENGINE_API extern int __cdecl _REG_Compare(const void *, const void *);
-
-template <class T>
-class CRegistrator // the registrator itself
-{
-    // friend ENGINE_API int __cdecl _REG_Compare(const void *, const void *);
-    static int __cdecl _REG_Compare(const void* e1, const void* e2)
+    struct MessageObject
     {
-        _REG_INFO* p1 = (_REG_INFO*)e1;
-        _REG_INFO* p2 = (_REG_INFO*)e2;
-        return (p2->Prio - p1->Prio);
-    }
+        T* Object;
+        int Prio;
+    };
+
+    bool changed, inProcess;
+    xr_vector<MessageObject> messages;
 
 public:
-    xr_vector<_REG_INFO> R;
-    // constructor
-    struct
+    MessageRegistry() : changed(false), inProcess(false) {}
+
+    void Clear() { messages.clear(); }
+
+    constexpr void Add(T* object, const int priority = REG_PRIORITY_NORMAL)
     {
-        u32 in_process : 1;
-        u32 changed : 1;
-    };
-    CRegistrator()
-    {
-        in_process = false;
-        changed = false;
+        Add({ object, priority });
     }
 
-    //
-    void Add(T* obj, int priority = REG_PRIORITY_NORMAL, u32 flags = 0)
+    void Add(MessageObject&& newMessage)
     {
 #ifdef DEBUG
-        VERIFY(priority != REG_PRIORITY_INVALID);
-        VERIFY(obj);
-        for (u32 i = 0; i < R.size(); i++)
-            VERIFY(!((R[i].Prio != REG_PRIORITY_INVALID) && (R[i].Object == (void*)obj)));
-#endif
-        _REG_INFO I;
-        I.Object = obj;
-        I.Prio = priority;
-        I.Flags = flags;
-        R.push_back(I);
+        VERIFY(newMessage.Object);
+        VERIFY(newMessage.Prio != REG_PRIORITY_INVALID);
 
-        if (in_process)
-            changed = true;
-        else
-            Resort();
-    };
-    void Remove(T* obj)
-    {
-        for (u32 i = 0; i < R.size(); i++)
+        // Verify that we don't already have the same object with valid priority
+        for (size_t i = 0; i < messages.size(); ++i)
         {
-            if (R[i].Object == obj)
-                R[i].Prio = REG_PRIORITY_INVALID;
+            auto& message = messages[i];
+            VERIFY(!(message.Prio != REG_PRIORITY_INVALID && message.Object == newMessage.Object));
         }
-        if (in_process)
+#endif
+        messages.emplace_back(newMessage);
+
+        if (inProcess)
             changed = true;
         else
             Resort();
-    };
-    void Process(RP_FUNC* f)
+    }
+
+    void Remove(T* object)
     {
-        in_process = true;
-        if (R.empty())
+        for (size_t i = 0; i < messages.size(); ++i)
+        {
+            auto& message = messages[i];
+            if (message.Object == object)
+                message.Prio = REG_PRIORITY_INVALID;
+        }
+
+        if (inProcess)
+            changed = true;
+        else
+            Resort();
+    }
+
+    void Process()
+    {
+        if (messages.empty())
             return;
-        if (R[0].Prio == REG_PRIORITY_CAPTURE)
-            f(R[0].Object);
+
+        inProcess = true;
+
+        if (messages[0].Prio == REG_PRIORITY_CAPTURE)
+            messages[0].Object->OnPure(messages[0].Object);
         else
         {
-            for (u32 i = 0; i < R.size(); i++)
-                if (R[i].Prio != REG_PRIORITY_INVALID)
-                    f(R[i].Object);
+            for (size_t i = 0; i < messages.size(); ++i)
+            {
+                const auto& message = messages[i];
+                if (message.Prio != REG_PRIORITY_INVALID)
+                    message.Object->OnPure(message.Object);
+            }
         }
+
         if (changed)
             Resort();
-        in_process = false;
-    };
-    void Resort(void)
-    {
-        qsort(&*R.begin(), R.size(), sizeof(_REG_INFO), _REG_Compare);
-        while ((R.size()) && (R[R.size() - 1].Prio == REG_PRIORITY_INVALID))
-            R.pop_back();
-        if (R.empty())
-            R.clear();
-        changed = false;
-    };
-};
 
-#endif
+        inProcess = false;
+    }
+
+    void Resort()
+    {
+        if (!messages.empty()) {
+            std::sort(std::begin(messages), std::end(messages),
+                [](const auto& a, const auto& b) { return a.Prio > b.Prio; });
+        }
+
+        while (!messages.empty() && messages.back().Prio == REG_PRIORITY_INVALID)
+            messages.pop_back();
+
+        if (messages.empty())
+            messages.clear();
+
+        changed = false;
+    }
+};

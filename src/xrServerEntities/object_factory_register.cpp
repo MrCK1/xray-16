@@ -13,17 +13,17 @@
 
 // server entities includes
 #include "xrServer_Objects_ALife_All.h"
-#include "xrServer_Objects_ALife_Smartcovers.h"
+#include "xrServer_Objects_Alife_Smartcovers.h"
 #include "clsid_game.h"
 
 // client entities includes
 #ifndef NO_XR_GAME
 #include "xrEngine/std_classes.h"
 #include "Level.h"
-#include "gamepersistent.h"
-#include "hudmanager.h"
-#include "actor.h"
-#include "spectator.h"
+#include "GamePersistent.h"
+#include "HUDManager.h"
+#include "Actor.h"
+#include "Spectator.h"
 
 #include "ai/monsters/flesh/flesh.h"
 #include "ai/monsters/chimera/chimera.h"
@@ -33,8 +33,8 @@
 #include "ai/monsters/boar/boar.h"
 #include "ai/monsters/pseudodog/pseudodog.h"
 #include "ai/monsters/pseudodog/psy_dog.h"
-#include "ai/monsters/Burer/burer.h"
-#include "ai/monsters/PseudoGigant/pseudo_gigant.h"
+#include "ai/monsters/burer/burer.h"
+#include "ai/monsters/pseudogigant/pseudo_gigant.h"
 #include "ai/monsters/controller/controller.h"
 #include "ai/monsters/poltergeist/poltergeist.h"
 #include "ai/monsters/zombie/zombie.h"
@@ -55,9 +55,9 @@
 #include "PHDebug.h"
 #endif // DEBUG
 
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
-#include "car.h"
+#include "Car.h"
 
 #include "helicopter.h"
 
@@ -75,40 +75,40 @@
 #include "GraviArtifact.h"
 #include "cta_game_artefact.h"
 
-#include "weaponFN2000.h"
-#include "weaponAK74.h"
-#include "weaponLR300.h"
-#include "weaponHPSA.h"
-#include "weaponPM.h"
-#include "weaponAMMO.h"
-#include "weaponFORT.h"
-#include "weaponBINOCULARS.h"
-#include "weaponShotgun.h"
-#include "weaponsvd.h"
-#include "weaponsvu.h"
-#include "weaponrpg7.h"
-#include "weaponval.h"
-#include "weaponvintorez.h"
-#include "weaponwalther.h"
-#include "weaponusp45.h"
-#include "weapongroza.h"
-#include "weaponknife.h"
+#include "WeaponFN2000.h"
+#include "WeaponAK74.h"
+#include "WeaponLR300.h"
+#include "WeaponHPSA.h"
+#include "WeaponPM.h"
+#include "WeaponAmmo.h"
+#include "WeaponFORT.h"
+#include "WeaponBinoculars.h"
+#include "WeaponShotgun.h"
+#include "WeaponSVD.h"
+#include "WeaponSVU.h"
+#include "WeaponRPG7.h"
+#include "WeaponVal.h"
+#include "WeaponVintorez.h"
+#include "WeaponWalther.h"
+#include "WeaponUSP45.h"
+#include "WeaponGroza.h"
+#include "WeaponKnife.h"
 #include "weaponBM16.h"
-#include "weaponRG6.h"
+#include "WeaponRG6.h"
 #include "WeaponStatMgun.h"
 
-#include "scope.h"
-#include "silencer.h"
-#include "grenadelauncher.h"
+#include "Scope.h"
+#include "Silencer.h"
+#include "GrenadeLauncher.h"
 
-#include "bolt.h"
+#include "Bolt.h"
 #include "medkit.h"
 #include "antirad.h"
-#include "fooditem.h"
-#include "bottleitem.h"
-#include "explosiveitem.h"
+#include "FoodItem.h"
+#include "BottleItem.h"
+#include "ExplosiveItem.h"
 
-#include "infodocument.h"
+#include "InfoDocument.h"
 #include "attachable_item.h"
 
 #include "ScientificOutfit.h"
@@ -117,39 +117,39 @@
 #include "ExoOutfit.h"
 #include "ActorHelmet.h"
 
-#include "f1.h"
-#include "rgd5.h"
+#include "F1.h"
+#include "RGD5.h"
 
-#include "explosiverocket.h"
+#include "ExplosiveRocket.h"
 
 #include "MPPlayersBag.h"
 
-#include "customzone.h"
-#include "mosquitobald.h"
-#include "mincer.h"
-#include "gravizone.h"
-#include "radioactivezone.h"
+#include "CustomZone.h"
+#include "MosquitoBald.h"
+#include "Mincer.h"
+#include "GraviZone.h"
+#include "RadioactiveZone.h"
 #include "level_changer.h"
 #include "script_zone.h"
 #include "team_base_zone.h"
-#include "torridZone.h"
+#include "TorridZone.h"
 #include "ZoneVisual.h"
-#include "hairszone.h"
-//. #	include "amebazone.h"
-#include "nogravityzone.h"
-#include "simpledetector.h"
-#include "elitedetector.h"
-#include "advanceddetector.h"
-#include "zonecampfire.h"
+#include "HairsZone.h"
+#include "AmebaZone.h"
+#include "NoGravityZone.h"
+#include "SimpleDetector.h"
+#include "EliteDetector.h"
+#include "AdvancedDetector.h"
+#include "ZoneCampfire.h"
 
-#include "torch.h"
-#include "pda.h"
+#include "Torch.h"
+#include "PDA.h"
 #include "flare.h"
 
 #include "searchlight.h"
 
 #include "HangingLamp.h"
-#include "physicobject.h"
+#include "PhysicObject.h"
 #include "script_object.h"
 #include "BreakableObject.h"
 #include "PhysicsSkeletonObject.h"
@@ -158,19 +158,19 @@
 #include "game_sv_single.h"
 #include "game_sv_deathmatch.h"
 #include "game_sv_teamdeathmatch.h"
-#include "game_sv_ArtefactHunt.h"
+#include "game_sv_artefacthunt.h"
 #include "game_sv_capture_the_artefact.h"
 
 #include "game_cl_single.h"
 #include "game_cl_deathmatch.h"
 #include "game_cl_teamdeathmatch.h"
-#include "game_cl_ArtefactHunt.h"
+#include "game_cl_artefacthunt.h"
 #include "game_cl_capture_the_artefact.h"
 
 #include "UIGameSP.h"
 #include "UIGameAHunt.h"
 #include "UIGameCTA.h"
-#include "climableobject.h"
+#include "ClimableObject.h"
 #include "space_restrictor.h"
 #include "smart_zone.h"
 #include "InventoryBox.h"
@@ -181,7 +181,6 @@
 #endif // NO_XR_GAME
 
 #ifndef NO_XR_GAME
-ENGINE_API bool g_dedicated_server;
 #define ADD(a, b, c, d) add<a, b>(c, d)
 #define ADD_MP(a, b, c, d, e, f) add(new CObjectItemClientServerSingleMp<a, b, c, d>(e, f))
 #else
@@ -355,14 +354,25 @@ void CObjectFactory::register_classes()
     ADD(CHairsZone, CSE_ALifeZoneVisual, CLSID_Z_RUSTYH, "zone_rusty_hair");
     ADD(CMosquitoBald, CSE_ALifeAnomalousZone, CLSID_Z_DEAD, "zone_dead");
 #ifndef BENCHMARK_BUILD
-    ADD(CLevelChanger, CSE_ALifeLevelChanger, CLSID_LEVEL_CHANGER, "level_changer");
-#endif //	BENCHMARK_BUILD
+    // We can't register both, since CLSID_LEVEL_CHANGER_S is created in COP scripts as "level_changer_s"
+    // But in SOC scripts CLSID_LEVEL_CHANGER_S may be used as "level_changer"
+#ifndef NO_XR_GAME
+    if (ShadowOfChernobylMode)
+    {
+        ADD(CLevelChanger, CSE_ALifeLevelChanger, CLSID_LEVEL_CHANGER_S, "level_changer");
+    }
+    else
+#endif // NO_XR_GAME
+    {
+        ADD(CLevelChanger, CSE_ALifeLevelChanger, CLSID_LEVEL_CHANGER, "level_changer");
+    }
+#endif // BENCHMARK_BUILD
     ADD(CScriptZone, CSE_ALifeSpaceRestrictor, CLSID_SCRIPT_ZONE, "script_zone");
     ADD(CSmartZone, CSE_ALifeSmartZone, CLSID_SMART_ZONE, "smart_zone");
     ADD(CTeamBaseZone, CSE_ALifeTeamBaseZone, CLSID_Z_TEAM_BASE, "team_base_zone");
     ADD(CTorridZone, CSE_ALifeTorridZone, CLSID_Z_TORRID, "torrid_zone");
     ADD(CSpaceRestrictor, CSE_ALifeSpaceRestrictor, CLSID_SPACE_RESTRICTOR, "space_restrictor");
-    //.	ADD(CAmebaZone				,CSE_ALifeZoneVisual			,CLSID_Z_AMEBA					,"ameba_zone");
+    ADD(CAmebaZone, CSE_ALifeZoneVisual, CLSID_Z_AMEBA, "ameba_zone");
     ADD(CNoGravityZone, CSE_ALifeAnomalousZone, CLSID_Z_NOGRAVITY, "nogravity_zone");
     ADD(CZoneCampfire, CSE_ALifeAnomalousZone, CLSID_Z_CAMPFIRE, "zone_campfire");
     // Detectors
@@ -398,7 +408,7 @@ void CObjectFactory::register_classes()
     // because we do not have scripts
     // and script functionality is not
     // needed here
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         return;
 
     ADD(CElectricBall, CSE_ALifeItemArtefact, TEXT2CLSID("SCRPTART"), "artefact_s");
@@ -427,6 +437,8 @@ void CObjectFactory::register_classes()
     ADD(CMosquitoBald, CSE_ALifeAnomalousZone, TEXT2CLSID("ZS_MBALD"), "zone_mbald_s");
     ADD(CMincer, CSE_ALifeAnomalousZone, TEXT2CLSID("ZS_GALAN"), "zone_galant_s");
     ADD(CMincer, CSE_ALifeAnomalousZone, TEXT2CLSID("ZS_MINCE"), "zone_mincer_s");
+    ADD(CAmebaZone, CSE_ALifeZoneVisual	, TEXT2CLSID("ZS_AMEBA"), "zone_ameba_s");
+    ADD(CNoGravityZone, CSE_ALifeAnomalousZone, TEXT2CLSID("ZS_NGRAV"), "zone_nograv_s");
     ADD(CSpaceRestrictor, CSE_ALifeSpaceRestrictor, TEXT2CLSID("SPC_RS_S"), "script_restr");
 #endif // NO_XR_GAME
 }

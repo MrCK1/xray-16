@@ -1,27 +1,40 @@
+// Entry point is in xr_3da/entry_point.cpp
 #include "stdafx.h"
+#include "main.h"
+
+#if defined(WINDOWS)
+#include <process.h>
+#elif defined(LINUX)
+#include <lockfile.h>
+#endif
+#include <locale.h>
+
 #include "IGame_Persistent.h"
 #include "xrNetServer/NET_AuthCheck.h"
 #include "xr_input.h"
 #include "XR_IOConsole.h"
 #include "x_ray.h"
 #include "std_classes.h"
-#include "resource.h"
+
 #include "LightAnimLibrary.h"
 #include "xrCDB/ISpatial.h"
+#if defined(WINDOWS)
 #include "Text_Console.h"
-#include <process.h>
-#include <locale.h>
+#elif defined(LINUX)
+#define CTextConsole CConsole
+#pragma todo("Implement text console or it's alternative")
+#endif
+#if !defined(LINUX)
 #include "xrSASH.h"
+#endif
 #include "xr_ioc_cmd.h"
+#include "MonitorManager.hpp"
 
 #ifdef MASTER_GOLD
 #define NO_MULTI_INSTANCES
 #endif
 
 // global variables
-// XXX: use g_dedicated_server from xrAPI
-ENGINE_API bool g_dedicated_server = false;
-ENGINE_API CApplication* pApp = nullptr;
 ENGINE_API CInifile* pGameIni = nullptr;
 ENGINE_API bool g_bBenchmark = false;
 string512 g_sBenchmarkName;
@@ -29,20 +42,24 @@ ENGINE_API string512 g_sLaunchOnExit_params;
 ENGINE_API string512 g_sLaunchOnExit_app;
 ENGINE_API string_path g_sLaunchWorkingFolder;
 
+ENGINE_API bool CallOfPripyatMode = false;
+ENGINE_API bool ClearSkyMode = false;
+ENGINE_API bool ShadowOfChernobylMode = false;
+
 namespace
 {
-HWND logoWindow = nullptr;
-
-void RunBenchmark(const char* name);
+bool CheckBenchmark();
+void RunBenchmark(pcstr name);
 }
 
-void InitEngine()
+ENGINE_API void InitEngine()
 {
     Engine.Initialize();
     Device.Initialize();
+
+    Console->OnDeviceInitialize();
 }
 
-static void InitEngineExt() { Engine.External.Initialize(); }
 namespace
 {
 struct PathIncludePred
@@ -52,44 +69,101 @@ private:
 
 public:
     explicit PathIncludePred(const xr_auth_strings_t* ignoredPaths) : ignored(ignoredPaths) {}
-    bool xr_stdcall IsIncluded(const char* path)
+    bool xr_stdcall IsIncluded(pcstr path)
     {
         if (!ignored)
             return true;
+
         return allow_to_include_path(*ignored, path);
     }
 };
 }
 
-void InitSettings()
+template <typename T>
+void InitConfig(T& config, pcstr name, bool fatal = true,
+    bool readOnly = true, bool loadAtStart = true, bool saveAtEnd = true,
+    u32 sectCount = 0, const CInifile::allow_include_func_t& allowIncludeFunc = nullptr)
 {
     string_path fname;
-    FS.update_path(fname, "$game_config$", "system.ltx");
-#ifdef DEBUG
-    Msg("Updated path to system.ltx is %s", fname);
-#endif
-    pSettings = new CInifile(fname, TRUE);
-    CHECK_OR_EXIT(pSettings->section_count(),
-        make_string("Cannot find file %s.\nReinstalling application may fix this problem.", fname));
-    xr_auth_strings_t ignoredPaths, checkedPaths;
-    fill_auth_check_params(ignoredPaths, checkedPaths);
-    PathIncludePred includePred(&ignoredPaths);
-    CInifile::allow_include_func_t includeFilter;
-    includeFilter.bind(&includePred, &PathIncludePred::IsIncluded);
-    pSettingsAuth = new CInifile(fname, TRUE, TRUE, FALSE, 0, includeFilter);
-    FS.update_path(fname, "$game_config$", "game.ltx");
-    pGameIni = new CInifile(fname, TRUE);
-    CHECK_OR_EXIT(pGameIni->section_count(),
+    FS.update_path(fname, "$game_config$", name);
+    config = new CInifile(fname, readOnly, loadAtStart, saveAtEnd, sectCount, allowIncludeFunc);
+
+    CHECK_OR_EXIT(config->section_count() || !fatal,
         make_string("Cannot find file %s.\nReinstalling application may fix this problem.", fname));
 }
 
-void InitConsole()
+// XXX: make it more fancy
+// некрасиво слишком
+void set_shoc_mode()
 {
-#ifdef DEDICATED_SERVER
-    Console = new CTextConsole();
-#else
-    Console = new CConsole();
-#endif
+    CallOfPripyatMode = false;
+    ShadowOfChernobylMode = true;
+    ClearSkyMode = false;
+}
+
+void set_cs_mode()
+{
+    CallOfPripyatMode = false;
+    ShadowOfChernobylMode = false;
+    ClearSkyMode = true;
+}
+
+void set_cop_mode()
+{
+    CallOfPripyatMode = true;
+    ShadowOfChernobylMode = false;
+    ClearSkyMode = false;
+}
+
+void set_free_mode()
+{
+    CallOfPripyatMode = false;
+    ShadowOfChernobylMode = false;
+    ClearSkyMode = false;
+}
+
+ENGINE_API void InitSettings()
+{
+    xr_auth_strings_t ignoredPaths, checkedPaths;
+    fill_auth_check_params(ignoredPaths, checkedPaths); //TODO port xrNetServer to Linux
+    PathIncludePred includePred(&ignoredPaths);
+    CInifile::allow_include_func_t includeFilter;
+    includeFilter.bind(&includePred, &PathIncludePred::IsIncluded);
+
+    InitConfig(pSettings, "system.ltx");
+    InitConfig(pSettingsAuth, "system.ltx", true, true, true, false, 0, includeFilter);
+    InitConfig(pSettingsOpenXRay, "openxray.ltx", false, true, true, false);
+    InitConfig(pGameIni, "game.ltx");
+
+    if (strstr(Core.Params, "-shoc") || strstr(Core.Params, "-soc"))
+        set_shoc_mode();
+    else if (strstr(Core.Params, "-cs"))
+        set_cs_mode();
+    else if (strstr(Core.Params, "-cop"))
+        set_cop_mode();
+    else if (strstr(Core.Params, "-unlock_game_mode"))
+        set_free_mode();
+    else
+    {
+        pcstr gameMode = READ_IF_EXISTS(pSettingsOpenXRay, r_string, "compatibility", "game_mode", "cop");
+        if (xr_strcmpi("cop", gameMode) == 0)
+            set_cop_mode();
+        else if (xr_strcmpi("cs", gameMode) == 0)
+            set_cs_mode();
+        else if (xr_strcmpi("shoc", gameMode) == 0 || xr_strcmpi("soc", gameMode) == 0)
+            set_shoc_mode();
+        else if (xr_strcmpi("unlock", gameMode) == 0)
+            set_free_mode();
+    }
+}
+
+ENGINE_API void InitConsole()
+{
+    if (GEnv.isDedicatedServer)
+        Console = new CTextConsole();
+    else
+        Console = new CConsole();
+
     Console->Initialize();
     xr_strcpy(Console->ConfigFile, "user.ltx");
     if (strstr(Core.Params, "-ltx "))
@@ -100,39 +174,79 @@ void InitConsole()
     }
 }
 
-void InitInput()
+ENGINE_API void InitInput()
 {
-    bool captureInput = !strstr(Core.Params, "-i");
+    bool captureInput = !strstr(Core.Params, "-i") && !GEnv.isEditor;
     pInput = new CInput(captureInput);
 }
 
-void destroyInput() { xr_delete(pInput); }
-void InitSound() { CSound_manager_interface::_create(); }
-void destroySound() { CSound_manager_interface::_destroy(); }
-void destroySettings()
+ENGINE_API void destroyInput() { xr_delete(pInput); }
+ENGINE_API void InitSound() { ISoundManager::_create(); }
+ENGINE_API void destroySound() { ISoundManager::_destroy(); }
+ENGINE_API void destroySettings()
 {
     auto s = const_cast<CInifile**>(&pSettings);
     xr_delete(*s);
+
+    auto sa = const_cast<CInifile**>(&pSettingsAuth);
+    xr_delete(*sa);
+
+    auto so = const_cast<CInifile**>(&pSettingsOpenXRay);
+    xr_delete(*so);
+
     xr_delete(pGameIni);
 }
 
-void destroyConsole()
+ENGINE_API void destroyConsole()
 {
     Console->Execute("cfg_save");
     Console->Destroy();
     xr_delete(Console);
 }
 
-void destroyEngine()
+ENGINE_API void destroyEngine()
 {
     Device.Destroy();
     Engine.Destroy();
+#if defined(LINUX)
+    lockfile_remove("/var/lock/stalker-cop.lock");
+#endif
 }
 
 void execUserScript()
 {
     Console->Execute("default_controls");
     Console->ExecuteScript(Console->ConfigFile);
+}
+
+void CheckAndSetupRenderer()
+{
+    if (GEnv.isDedicatedServer)
+    {
+        Console->Execute("renderer renderer_r1");
+        return;
+    }
+
+    if (strstr(Core.Params, "-gl"))
+        Console->Execute("renderer renderer_gl");
+    else if (strstr(Core.Params, "-r4"))
+        Console->Execute("renderer renderer_r4");
+    else if (strstr(Core.Params, "-r3"))
+        Console->Execute("renderer renderer_r3");
+    else if (strstr(Core.Params, "-r2.5"))
+        Console->Execute("renderer renderer_r2.5");
+    else if (strstr(Core.Params, "-r2a"))
+        Console->Execute("renderer renderer_r2a");
+    else if (strstr(Core.Params, "-r2"))
+        Console->Execute("renderer renderer_r2");
+    else if (strstr(Core.Params, "-r1"))
+        Console->Execute("renderer renderer_r1");
+    else
+    {
+        CCC_LoadCFG_custom cmd("renderer ");
+        cmd.Execute(Console->ConfigFile);
+        renderer_allow_override = true;
+    }
 }
 
 void slowdownthread(void*)
@@ -149,40 +263,46 @@ void CheckPrivilegySlowdown()
 {
 #ifdef DEBUG
     if (strstr(Core.Params, "-slowdown"))
-        thread_spawn(slowdownthread, "slowdown", 0, 0);
+        Threading::SpawnThread(slowdownthread, "slowdown", 0, 0);
     if (strstr(Core.Params, "-slowdown2x"))
     {
-        thread_spawn(slowdownthread, "slowdown", 0, 0);
-        thread_spawn(slowdownthread, "slowdown", 0, 0);
+        Threading::SpawnThread(slowdownthread, "slowdown", 0, 0);
+        Threading::SpawnThread(slowdownthread, "slowdown", 0, 0);
     }
 #endif
 }
 
-void Startup()
+ENGINE_API void Startup()
 {
     execUserScript();
     InitSound();
+
     // ...command line for auto start
-    const char* startArgs = strstr(Core.Params, "-start ");
+    pcstr startArgs = strstr(Core.Params, "-start ");
     if (startArgs)
         Console->Execute(startArgs + 1);
-    const char* loadArgs = strstr(Core.Params, "-load ");
+    pcstr loadArgs = strstr(Core.Params, "-load ");
     if (loadArgs)
         Console->Execute(loadArgs + 1);
+
     // Initialize APP
-    ShowWindow(Device.m_hWnd, SW_SHOWNORMAL);
     Device.Create();
     LALib.OnCreate();
+
     pApp = new CApplication();
-    g_pGamePersistent = dynamic_cast<IGame_Persistent*>(NEW_INSTANCE(CLSID_GAME_PERSISTANT));
-    R_ASSERT(g_pGamePersistent);
+#ifdef WINDOWS // XXX: Remove this macro check
+    if (GEnv.isDedicatedServer)
+        pApp->SetLoadingScreen(new TextLoadingScreen());
+#endif
+
     g_SpatialSpace = new ISpatial_DB("Spatial obj");
     g_SpatialSpacePhysic = new ISpatial_DB("Spatial phys");
-    // Destroy LOGO
-    DestroyWindow(logoWindow);
-    logoWindow = NULL;
+    Device.WaitUntilCreated();
+
+    g_pGamePersistent = dynamic_cast<IGame_Persistent*>(NEW_INSTANCE(CLSID_GAME_PERSISTANT));
+    R_ASSERT(g_pGamePersistent);
+
     // Main cycle
-    Memory.mem_usage();
     Device.Run();
     // Destroy APP
     xr_delete(g_SpatialSpacePhysic);
@@ -192,146 +312,45 @@ void Startup()
     Engine.Event.Dump();
     // Destroying
     destroyInput();
+#if !defined(LINUX)
     if (!g_bBenchmark && !g_SASH.IsRunning())
+#endif
         destroySettings();
     LALib.OnDestroy();
+#if !defined(LINUX)
     if (!g_bBenchmark && !g_SASH.IsRunning())
+#endif
         destroyConsole();
+#if !defined(LINUX)
     else
         Console->Destroy();
+#endif
+    g_monitors.Destroy();
     destroyEngine();
     destroySound();
 }
 
-static BOOL CALLBACK LogoWndProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
+ENGINE_API int RunApplication()
 {
-    switch (msg)
+    R_ASSERT2(Core.Params, "Core must be initialized");
+
+#ifdef NO_MULTI_INSTANCES
+    if (!GEnv.isDedicatedServer)
     {
-    case WM_DESTROY: break;
-    case WM_CLOSE: DestroyWindow(hw); break;
-    case WM_COMMAND:
-        if (LOWORD(wp) == IDCANCEL)
-            DestroyWindow(hw);
-        break;
-    default: return FALSE;
-    }
-    return TRUE;
-}
-
-class StickyKeyFilter
-{
-private:
-    BOOL screensaverState;
-    STICKYKEYS stickyKeys;
-    FILTERKEYS filterKeys;
-    TOGGLEKEYS toggleKeys;
-    DWORD stickyKeysFlags;
-    DWORD filterKeysFlags;
-    DWORD toggleKeysFlags;
-
-public:
-    StickyKeyFilter()
-    {
-        screensaverState = FALSE;
-        SystemParametersInfo(SPI_GETSCREENSAVEACTIVE, 0, &screensaverState, 0);
-        if (screensaverState)
-            SystemParametersInfo(SPI_SETSCREENSAVEACTIVE, FALSE, NULL, 0);
-        stickyKeysFlags = 0;
-        filterKeysFlags = 0;
-        toggleKeysFlags = 0;
-        stickyKeys = {};
-        filterKeys = {};
-        toggleKeys = {};
-        stickyKeys.cbSize = sizeof(stickyKeys);
-        filterKeys.cbSize = sizeof(filterKeys);
-        toggleKeys.cbSize = sizeof(toggleKeys);
-        SystemParametersInfo(SPI_GETSTICKYKEYS, sizeof(stickyKeys), &stickyKeys, 0);
-        SystemParametersInfo(SPI_GETFILTERKEYS, sizeof(filterKeys), &filterKeys, 0);
-        SystemParametersInfo(SPI_GETTOGGLEKEYS, sizeof(toggleKeys), &toggleKeys, 0);
-        if (stickyKeys.dwFlags & SKF_AVAILABLE)
-        {
-            stickyKeysFlags = stickyKeys.dwFlags;
-            stickyKeys.dwFlags = 0;
-            SystemParametersInfo(SPI_SETSTICKYKEYS, sizeof(stickyKeys), &stickyKeys, 0);
-        }
-        if (filterKeys.dwFlags & FKF_AVAILABLE)
-        {
-            filterKeysFlags = filterKeys.dwFlags;
-            filterKeys.dwFlags = 0;
-            SystemParametersInfo(SPI_SETFILTERKEYS, sizeof(filterKeys), &filterKeys, 0);
-        }
-        if (toggleKeys.dwFlags & TKF_AVAILABLE)
-        {
-            toggleKeysFlags = toggleKeys.dwFlags;
-            toggleKeys.dwFlags = 0;
-            SystemParametersInfo(SPI_SETTOGGLEKEYS, sizeof(toggleKeys), &toggleKeys, 0);
-        }
-    }
-
-    ~StickyKeyFilter()
-    {
-        if (screensaverState)
-            SystemParametersInfo(SPI_SETSCREENSAVEACTIVE, TRUE, NULL, 0);
-        if (stickyKeysFlags)
-        {
-            stickyKeys.dwFlags = stickyKeysFlags;
-            SystemParametersInfo(SPI_SETSTICKYKEYS, sizeof(stickyKeys), &stickyKeys, 0);
-        }
-        if (filterKeysFlags)
-        {
-            filterKeys.dwFlags = filterKeysFlags;
-            SystemParametersInfo(SPI_SETFILTERKEYS, sizeof(filterKeys), &filterKeys, 0);
-        }
-        if (toggleKeysFlags)
-        {
-            toggleKeys.dwFlags = toggleKeysFlags;
-            SystemParametersInfo(SPI_SETTOGGLEKEYS, sizeof(toggleKeys), &toggleKeys, 0);
-        }
-    }
-};
-
-int RunApplication(const char* commandLine)
-{
-#ifdef DEDICATED_SERVER
-    g_dedicated_server = true;
+#if defined(WINDOWS)
+        CreateMutex(nullptr, TRUE, "Local\\STALKER-COP");
+        if (GetLastError() == ERROR_ALREADY_EXISTS)
+            return 2;
+#elif defined(LINUX)
+        int lock_res = lockfile_create("/var/lock/stalker-cop.lock", 0, L_PID);
+        if(L_ERROR == lock_res)
+            return 2;
 #endif
-    xrDebug::Initialize(g_dedicated_server);
-    if (!IsDebuggerPresent())
-    {
-        u32 heapFragmentation = 2;
-        BOOL result = HeapSetInformation(
-            GetProcessHeap(), HeapCompatibilityInformation, &heapFragmentation, sizeof(heapFragmentation));
-        VERIFY2(result, "can't set process heap low fragmentation");
-        (void)result;
     }
-#if !defined(DEDICATED_SERVER) && defined(NO_MULTI_INSTANCES)
-    CreateMutex(NULL, TRUE, "Local\\STALKER-COP");
-    if (GetLastError() == ERROR_ALREADY_EXISTS)
-        return 2;
 #endif
-    SetThreadAffinityMask(GetCurrentThread(), 1);
-    logoWindow = CreateDialog(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_STARTUP), 0, LogoWndProc);
-    HWND logoPicture = GetDlgItem(logoWindow, IDC_STATIC_LOGO);
-    RECT logoRect;
-    GetWindowRect(logoPicture, &logoRect);
-#ifndef DEBUG
-    HWND prevWindow = HWND_TOPMOST;
-#else
-    HWND prevWindow = HWND_NOTOPMOST;
-#endif
-    SetWindowPos(logoWindow, prevWindow, 0, 0, logoRect.right - logoRect.left, logoRect.bottom - logoRect.top,
-        SWP_NOMOVE | SWP_SHOWWINDOW);
-    UpdateWindow(logoWindow);
     *g_sLaunchOnExit_app = 0;
     *g_sLaunchOnExit_params = 0;
-    const char* fsltx = "-fsltx ";
-    string_path fsgame = "";
-    if (strstr(commandLine, fsltx))
-    {
-        u32 sz = xr_strlen(fsltx);
-        sscanf(strstr(commandLine, fsltx) + sz, "%[^ ] ", fsgame);
-    }
-    Core._initialize("xray", NULL, TRUE, *fsgame ? fsgame : nullptr);
+
     InitSettings();
     // Adjust player & computer name for Asian
     if (pSettings->line_exist("string_table", "no_native_input"))
@@ -339,80 +358,76 @@ int RunApplication(const char* commandLine)
         xr_strcpy(Core.UserName, sizeof(Core.UserName), "Player");
         xr_strcpy(Core.CompName, sizeof(Core.CompName), "Computer");
     }
-#ifndef DEDICATED_SERVER
-    StickyKeyFilter filter;
-    (void)filter;
-#endif
+
     FPU::m24r();
-    InitEngine();
+
+    g_monitors.Initialize();
     InitInput();
     InitConsole();
+
     Engine.External.CreateRendererList();
-    Msg("command line %s", commandLine);
-    LPCSTR benchName = "-batch_benchmark ";
-    if (strstr(commandLine, benchName))
-    {
-        u32 sz = xr_strlen(benchName);
-        string64 benchmarkName;
-        sscanf(strstr(Core.Params, benchName) + sz, "%[^ ] ", benchmarkName);
-        RunBenchmark(benchmarkName);
+    CheckAndSetupRenderer();
+
+    Engine.External.Initialize();
+    InitEngine();
+
+    if (CheckBenchmark())
         return 0;
-    }
-    LPCSTR sashName = "-openautomate ";
-    if (strstr(commandLine, sashName))
-    {
-        u32 sz = xr_strlen(sashName);
-        string512 sashArg;
-        sscanf(strstr(Core.Params, sashName) + sz, "%[^ ] ", sashArg);
-        g_SASH.Init(sashArg);
-        g_SASH.MainLoop();
-        return 0;
-    }
-#ifndef DEDICATED_SERVER
-    if (strstr(Core.Params, "-r4"))
-        Console->Execute("renderer renderer_r4");
-    else if (strstr(Core.Params, "-r3"))
-        Console->Execute("renderer renderer_r3");
-    else if (strstr(Core.Params, "-r2.5"))
-        Console->Execute("renderer renderer_r2.5");
-    else if (strstr(Core.Params, "-r2a"))
-        Console->Execute("renderer renderer_r2a");
-    else if (strstr(Core.Params, "-r2"))
-        Console->Execute("renderer renderer_r2");
-    else
-    {
-        CCC_LoadCFG_custom cmd("renderer ");
-        cmd.Execute(Console->ConfigFile);
-    }
-#else
-    Console->Execute("renderer renderer_r1");
-#endif
-    InitEngineExt(); // load xrRender and xrGame
+
     Startup();
-    Core._destroy();
     // check for need to execute something external
     if (/*xr_strlen(g_sLaunchOnExit_params) && */ xr_strlen(g_sLaunchOnExit_app))
     {
+#if defined(WINDOWS)
         // CreateProcess need to return results to next two structures
         STARTUPINFO si = {};
         si.cb = sizeof(si);
         PROCESS_INFORMATION pi = {};
         // We use CreateProcess to setup working folder
-        const char* tempDir = xr_strlen(g_sLaunchWorkingFolder) ? g_sLaunchWorkingFolder : nullptr;
-        CreateProcess(g_sLaunchOnExit_app, g_sLaunchOnExit_params, NULL, NULL, FALSE, 0, NULL, tempDir, &si, &pi);
+        pcstr tempDir = xr_strlen(g_sLaunchWorkingFolder) ? g_sLaunchWorkingFolder : nullptr;
+        CreateProcess(g_sLaunchOnExit_app, g_sLaunchOnExit_params, nullptr, nullptr, FALSE, 0, nullptr, tempDir, &si, &pi);
+#endif
     }
     return 0;
 }
 
 namespace
 {
-void RunBenchmark(const char* name)
+bool CheckBenchmark()
+{
+    pcstr benchName = "-batch_benchmark ";
+    if (strstr(Core.Params, benchName))
+    {
+        const size_t sz = xr_strlen(benchName);
+        string64 benchmarkName;
+        sscanf(strstr(Core.Params, benchName) + sz, "%[^ ] ", benchmarkName);
+        RunBenchmark(benchmarkName);
+        return true;
+    }
+
+    pcstr sashName = "-openautomate ";
+    if (strstr(Core.Params, sashName))
+    {
+        const size_t sz = xr_strlen(sashName);
+        string512 sashArg;
+        sscanf(strstr(Core.Params, sashName) + sz, "%[^ ] ", sashArg);
+#if !defined(LINUX)
+        g_SASH.Init(sashArg);
+        g_SASH.MainLoop();
+#endif
+        return true;
+    }
+
+    return false;
+}
+void RunBenchmark(pcstr name)
 {
     g_bBenchmark = true;
     string_path cfgPath;
     FS.update_path(cfgPath, "$app_data_root$", name);
     CInifile ini(cfgPath);
-    u32 benchmarkCount = ini.line_count("benchmark");
+    const u32 benchmarkCount = ini.line_count("benchmark");
+    const size_t hyphenLtxLen = xr_strlen("-ltx ");
     for (u32 i = 0; i < benchmarkCount; i++)
     {
         LPCSTR benchmarkName, t;
@@ -424,40 +439,17 @@ void RunBenchmark(const char* name)
         xr_strcpy(Core.Params, cmdSize, benchmarkCommand.c_str());
         xr_strlwr(Core.Params);
         InitInput();
+        Engine.External.Initialize();
         if (i)
             InitEngine();
-        Engine.External.Initialize();
         xr_strcpy(Console->ConfigFile, "user.ltx");
         if (strstr(Core.Params, "-ltx "))
         {
             string64 cfgName;
-            sscanf(strstr(Core.Params, "-ltx ") + strlen("-ltx "), "%[^ ] ", cfgName);
+            sscanf(strstr(Core.Params, "-ltx ") + hyphenLtxLen, "%[^ ] ", cfgName);
             xr_strcpy(Console->ConfigFile, cfgName);
         }
         Startup();
     }
 }
-
-int StackoverflowFilter(int exceptionCode)
-{
-    if (exceptionCode == EXCEPTION_STACK_OVERFLOW)
-        return EXCEPTION_EXECUTE_HANDLER;
-    return EXCEPTION_CONTINUE_SEARCH;
-}
-}
-
-int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prevInst, char* commandLine, int cmdShow)
-{
-    int result = 0;
-    // BugTrap can't handle stack overflow exception, so handle it here
-    __try
-    {
-        result = RunApplication(commandLine);
-    }
-    __except (StackoverflowFilter(GetExceptionCode()))
-    {
-        _resetstkoflw();
-        FATAL("stack overflow");
-    }
-    return result;
 }

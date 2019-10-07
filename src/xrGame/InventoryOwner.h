@@ -126,7 +126,7 @@ public:
 //	virtual bool				GetInfo		(shared_str info_id, INFO_DATA&) const;
 
 #ifdef DEBUG
-    void CInventoryOwner::DumpInfo() const;
+    void DumpInfo() const;
 #endif
 
     CInfoPortionWrapper* m_known_info_registry;
@@ -171,6 +171,11 @@ public:
     virtual void SetReputation(CHARACTER_REPUTATION_VALUE);
     virtual void ChangeReputation(CHARACTER_REPUTATION_VALUE);
 
+    virtual void SetIcon(const shared_str& iconName)
+    {
+        CharacterInfo().m_SpecificCharacter.data()->m_icon_name = iconName;
+    }
+
     //для работы с relation system
     u16 object_id() const;
     CHARACTER_COMMUNITY_INDEX Community() const { return CharacterInfo().Community().index(); };
@@ -182,7 +187,7 @@ protected:
     xr_string m_game_name;
 
 public:
-    virtual void renderable_Render();
+    void renderable_Render(IRenderable* root) override;
     virtual void OnItemTake(CInventoryItem* inventory_item);
 
     virtual void OnItemBelt(CInventoryItem* inventory_item, const SInvItemPlace& previous_place);

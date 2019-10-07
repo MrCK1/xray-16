@@ -1,17 +1,16 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIMPAdminMenu.h"
 #include "UIMPPlayersAdm.h"
 #include "UIMPServerAdm.h"
 #include "UIMPChangeMapAdm.h"
 #include "UIXmlInit.h"
 #include "Common/object_broker.h"
-#include "UITabControl.h"
-#include "UIStatic.h"
-#include "UI3tButton.h"
-#include "UIMessageBox.h"
+#include "xrUICore/TabControl/UITabControl.h"
+#include "xrUICore/Static/UIStatic.h"
+#include "xrUICore/Buttons/UI3tButton.h"
+#include "xrUICore/MessageBox/UIMessageBox.h"
 #include "UIMessageBoxEx.h"
-#include "xrEngine/xr_ioconsole.h"
-#include <dinput.h>
+#include "xrEngine/XR_IOConsole.h"
 
 CUIMpAdminMenu::CUIMpAdminMenu()
 {
@@ -60,7 +59,7 @@ void CUIMpAdminMenu::Init()
     if (!xml_doc)
         xml_doc = new CUIXml();
 
-    xml_doc->Load(CONFIG_PATH, UI_PATH, "ui_mp_admin_menu.xml");
+    xml_doc->Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "ui_mp_admin_menu.xml");
 
     CUIXmlInit::InitWindow(*xml_doc, "admin_menu", 0, this);
     CUIXmlInit::InitStatic(*xml_doc, "admin_menu:background", 0, m_pBack);
@@ -102,7 +101,7 @@ void CUIMpAdminMenu::SendMessage(CUIWindow* pWnd, s16 msg, void* pData)
 }
 bool CUIMpAdminMenu::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
-    if (dik == DIK_ESCAPE && keyboard_action == WINDOW_KEY_PRESSED)
+    if (dik == SDL_SCANCODE_ESCAPE && keyboard_action == WINDOW_KEY_PRESSED)
     {
         if (m_pActiveDialog == m_pServerAdm && m_pServerAdm->IsBackBtnShown())
             m_pServerAdm->OnBackBtn();

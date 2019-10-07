@@ -1,27 +1,28 @@
-#include "stdafx.h"
-#include "phmovementcontrol.h"
+#include "StdAfx.h"
 
+#include "PHMovementControl.h"
 #include "xrCDB/Intersect.hpp"
 #include "xrServerEntities/alife_space.h"
 
-#include "xrPhysics/phCharacter.h"
+#include "xrPhysics/PHCharacter.h"
 #include "xrPhysics/IPHCapture.h"
-#include "xrPhysics/iphysicsshellholder.h"
+#include "xrPhysics/IPhysicsShellHolder.h"
 #include "xrPhysics/ElevatorState.h"
 #include "xrPhysics/CalculateTriangle.h"
-#include "xrPhysics/Icolisiondamageinfo.h"
+#include "xrPhysics/IColisiondamageInfo.h"
 #include "xrPhysics/phvalide.h"
-#include "xrPhysics/physicsshell.h"
-#include "xrPhysics/iphworld.h"
+#include "xrPhysics/PhysicsShell.h"
+#include "xrPhysics/IPHWorld.h"
 
 #include "detail_path_manager.h"
 #include "xrEngine/GameMtlLib.h"
 #include "xrEngine/xr_object.h"
 #include "CaptureBoneCallback.h"
 #include "Level.h"
-#include "physicsshellholder.h"
+#include "PhysicsShellHolder.h"
+#include "xrCore/xr_token.h"
 #ifdef DEBUG
-#include "phdebug.h"
+#include "PHDebug.h"
 #endif
 
 #include "Include/xrRender/Kinematics.h"
@@ -43,7 +44,7 @@ CPHMovementControl::CPHMovementControl(IGameObject* parent)
 
 #ifdef DEBUG
     if (debug_output().ph_dbg_draw_mask1().test(ph_m1_DbgTrackObject) && (!!pObject->cName()) &&
-        stricmp(debug_output().PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
+        xr_stricmp(debug_output().PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
     {
         Msg("CPHMovementControl::CPHMovementControl %s (constructor) %f,%f,%pObjectf",
             debug_output().PH_DBG_ObjectTrackName(), pObject->Position().x, pObject->Position().y,
@@ -99,12 +100,15 @@ CPHMovementControl::~CPHMovementControl(void)
 
 static ALife::EHitType DefineCollisionHitType(u16 material_idx)
 {
-    if (GMLib.GetMaterialByIdx(material_idx)->Flags.test(SGameMtl::flInjurious) && IsGameTypeSingle())
-        return ALife::eHitTypeRadiation;
-    else
-        return ALife::eHitTypeStrike;
-    //	return (GameID() == eGameIDSingle) ? ALife::eHitTypeStrike : ALife::eHitTypePhysicStrike;
-} //
+    if (IsGameTypeSingle())
+    {
+        if (GMLib.GetMaterialByIdx(material_idx)->Flags.test(SGameMtl::flInjurious))
+            return ALife::eHitTypeRadiation;
+    }
+    else if (ShadowOfChernobylMode || ClearSkyMode)
+        return ALife::eHitTypePhysicStrike;
+    return ALife::eHitTypeStrike;
+}
 
 // static Fvector old_pos={0,0,0};
 // static bool bFirst=true;
@@ -319,7 +323,7 @@ void CPHMovementControl::Calculate(
 {
 #ifdef DEBUG
     if (debug_output().ph_dbg_draw_mask1().test(ph_m1_DbgTrackObject) && (!!pObject->cName()) &&
-        stricmp(debug_output().PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
+        xr_stricmp(debug_output().PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
     {
         Msg("CPHMovementControl::Calculate in %s (Object Position) %f,%f,%f", debug_output().PH_DBG_ObjectTrackName(),
             pObject->Position().x, pObject->Position().y, pObject->Position().z);
@@ -577,7 +581,7 @@ void CPHMovementControl::PathNearestPoint(const xr_vector<DetailPathManager::STr
     }
 #ifdef DEBUG
     if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && (!!pObject->cName()) &&
-        stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
+        xr_stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
     {
         Msg("CPHMovementControl::Calculate out %s (Object Position) %f,%f,%f", PH_DBG_ObjectTrackName(),
             pObject->Position().x, pObject->Position().y, pObject->Position().z);
@@ -907,7 +911,7 @@ void CPHMovementControl::Load(LPCSTR section)
     float cs_min = pSettings->r_float(section, "ph_crash_speed_min");
     float cs_max = pSettings->r_float(section, "ph_crash_speed_max");
     float mass = pSettings->r_float(section, "ph_mass");
-    xr_token retrictor_types[] = {
+    static const xr_token retrictor_types[] = {
         {"actor", rtActor}, {"medium_monster", rtMonsterMedium}, {"stalker", rtStalker}, {"none", rtNone}, {0, 0}};
 
     if (pSettings->line_exist(section, "actor_restrictor"))
@@ -967,7 +971,7 @@ void CPHMovementControl::SetPosition(const Fvector& P)
 {
 #ifdef DEBUG
     if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && (!!pObject->cName()) &&
-        stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
+        xr_stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
     {
         Msg("CPHMovementControl::SetPosition %s (Object Position) %f,%f,%f", PH_DBG_ObjectTrackName(),
             pObject->Position().x, pObject->Position().y, pObject->Position().z);
@@ -986,7 +990,7 @@ bool CPHMovementControl::TryPosition(Fvector& pos)
 
 #ifdef DEBUG
     if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && (!!pObject->cName()) &&
-        stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
+        xr_stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
     {
         Msg("CPHMovementControl::TryPosition %s (Object Position) %f,%f,%f", PH_DBG_ObjectTrackName(),
             pObject->Position().x, pObject->Position().y, pObject->Position().z);
@@ -1012,7 +1016,7 @@ void CPHMovementControl::GetPosition(Fvector& P)
 
 #ifdef DEBUG
     if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && (!!pObject->cName()) &&
-        stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
+        xr_stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
     {
         Msg("CPHMovementControl::GetPosition %s (Object Position) %f,%f,%f", PH_DBG_ObjectTrackName(),
             pObject->Position().x, pObject->Position().y, pObject->Position().z);
@@ -1042,7 +1046,7 @@ void CPHMovementControl::AllocateCharacterObject(CharacterType type)
     m_character->SetPosition(vPosition);
 #ifdef DEBUG
     if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && (!!pObject->cName()) &&
-        stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
+        xr_stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
     {
         Msg("CPHMovementControl::AllocateCharacterObject %s (Object Position) %f,%f,%f", PH_DBG_ObjectTrackName(),
             pObject->Position().x, pObject->Position().y, pObject->Position().z);
@@ -1204,7 +1208,7 @@ void CPHMovementControl::CreateCharacter()
     m_character->SetAirControlFactor(fAirControlParam);
 #ifdef DEBUG
     if (ph_dbg_draw_mask1.test(ph_m1_DbgTrackObject) && (!!pObject->cName()) &&
-        stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
+        xr_stricmp(PH_DBG_ObjectTrackName(), *pObject->cName()) == 0)
     {
         Msg("CPHMovementControl::CreateCharacter %s (Object Position) %f,%f,%f", PH_DBG_ObjectTrackName(),
             pObject->Position().x, pObject->Position().y, pObject->Position().z);
@@ -1279,6 +1283,7 @@ void CPHMovementControl::ApplyHit(const Fvector& dir, const float P, ALife::EHit
         case ALife::eHitTypeBurn:; // stop
         case ALife::eHitTypeShock:; // stop
         case ALife::eHitTypeStrike:; // stop
+        case ALife::eHitTypePhysicStrike: // stop
         case ALife::eHitTypeWound:
             SetVelocity(Fvector().set(0, 0, 0));
             break; // stop							;
@@ -1291,7 +1296,6 @@ void CPHMovementControl::ApplyHit(const Fvector& dir, const float P, ALife::EHit
         case ALife::eHitTypeFireWound:; // stop
         case ALife::eHitTypeWound_2:;
             break; // stop		//knife's alternative fire
-        //			case ALife::eHitTypePhysicStrike:	SetVelocity(Fvector().set(0,0,0))	;break;//stop
         default: NODEFAULT;
         }
     }
@@ -1711,8 +1715,8 @@ void CPHMovementControl::SetPLastMaterialIDX(u16* p)
 void CPHMovementControl::dbg_Draw()
 {
 #if 0
-		if(m_character)
-			m_character->OnRender();
+        if(m_character)
+            m_character->OnRender();
 #endif
 };
 #endif

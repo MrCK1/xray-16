@@ -1,5 +1,4 @@
-#ifndef ParticlesObjectH
-#define ParticlesObjectH
+#pragma once
 
 #include "xrEngine/PS_instance.h"
 
@@ -7,7 +6,7 @@ extern const Fvector zero_vel;
 
 class CParticlesObject : public CPS_Instance
 {
-    typedef CPS_Instance inherited;
+    using inherited = CPS_Instance;
 
     u32 dwLastTime;
     void Init(LPCSTR p_name, IRender_Sector* S, BOOL bAutoRemove);
@@ -29,7 +28,7 @@ public:
     virtual bool shedule_Needed() { return true; };
     virtual float shedule_Scale();
     virtual void shedule_Update(u32 dt);
-    virtual void renderable_Render();
+    void renderable_Render(IRenderable* root) override;
     void PerformAllTheWork(u32 dt);
     void __stdcall PerformAllTheWork_mt();
 
@@ -63,5 +62,3 @@ public:
         }
     }
 };
-
-#endif /*ParticlesObjectH*/

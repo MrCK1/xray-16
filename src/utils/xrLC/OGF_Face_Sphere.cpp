@@ -1,10 +1,9 @@
 #include "stdafx.h"
 #include "build.h"
 #include "ogf_face.h"
+#include "xrCore/_sphere.h"
 #pragma warning(disable : 4995)
 #include <MgcCont3DMinSphere.h>
-
-#pragma comment(lib, "MagicFM.lib")
 
 BOOL f_valid(float f) { return _finite(f) && !_isnan(f); }
 BOOL SphereValid(xr_vector<Fvector>& geom, Fsphere& test)
@@ -16,7 +15,7 @@ BOOL SphereValid(xr_vector<Fvector>& geom, Fsphere& test)
 
     Fsphere S = test;
     S.R += EPS_L;
-    for (xr_vector<Fvector>::iterator I = geom.begin(); I != geom.end(); I++)
+    for (xr_vector<Fvector>::iterator I = geom.begin(); I != geom.end(); ++I)
         if (!S.contains(*I))
             return FALSE;
     return TRUE;
@@ -41,12 +40,12 @@ void OGF_Base::CalcBounds()
     // 2: calc ordinary algorithm (2nd)
     Fsphere S2;
     bbox.invalidate();
-    for (I = V.begin(); I != V.end(); I++)
+    for (I = V.begin(); I != V.end(); ++I)
         bbox.modify(*I);
     bbox.grow(EPS_L);
     bbox.getsphere(S2.P, S2.R);
     S2.R = -1;
-    for (I = V.begin(); I != V.end(); I++)
+    for (I = V.begin(); I != V.end(); ++I)
     {
         float d = S2.P.distance_to_sqr(*I);
         if (d > S2.R)

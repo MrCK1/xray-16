@@ -53,14 +53,14 @@ public:
     Flags8 flags;
 
 public:
-    CSE_Visual(LPCSTR name = 0);
+    CSE_Visual(LPCSTR name = nullptr);
     virtual ~CSE_Visual();
 
     void visual_read(NET_Packet& P, u16 version);
     void visual_write(NET_Packet& P);
 
     void set_visual(LPCSTR name, bool load = true);
-    LPCSTR get_visual() const { return *visual_name; };
+    LPCSTR get_visual() const { return *visual_name; }
 #ifndef XRGAME_EXPORTS
     virtual void FillProps(LPCSTR pref, PropItemVec& items);
 #endif // #ifndef XRGAME_EXPORTS
@@ -77,14 +77,14 @@ public:
     shared_str motion_name;
 
 public:
-    CSE_Motion(LPCSTR name = 0);
+    CSE_Motion(LPCSTR name = nullptr);
     virtual ~CSE_Motion();
 
     void motion_read(NET_Packet& P);
     void motion_write(NET_Packet& P);
 
     void set_motion(LPCSTR name);
-    LPCSTR get_motion() const { return *motion_name; };
+    LPCSTR get_motion() const { return *motion_name; }
 #ifndef XRGAME_EXPORTS
     virtual void FillProps(LPCSTR pref, PropItemVec& items);
 #endif // #ifndef XRGAME_EXPORTS
@@ -124,7 +124,7 @@ public:
     virtual ~IServerEntity() = 0;
     // XXX: move to implementation
     Flags32 m_editor_flags;
-    void set_editor_flag(u32 mask) { m_editor_flags.set(mask, TRUE); }
+    void set_editor_flag(u32 mask) { m_editor_flags.set(mask, true); }
 public:
     virtual void __stdcall Spawn_Write(NET_Packet& tNetPacket, BOOL bLocal) = 0;
     virtual BOOL __stdcall Spawn_Read(NET_Packet& tNetPacket) = 0;

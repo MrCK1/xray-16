@@ -5,29 +5,28 @@
 // Author : Dmitriy Iassenev
 // Description : engine implementation class
 ////////////////////////////////////////////////////////////////////////////
-
-#ifndef ENGINE_IMPL_HPP_INCLUDED
-#define ENGINE_IMPL_HPP_INCLUDED
-
-#ifdef INGAME_EDITOR
+#pragma once
 
 #include "Include/editor/engine.hpp"
 
 class IInputReceiver;
 
-class engine_impl : public editor::engine
+class engine_impl : public XRay::Editor::engine_base
 {
 public:
     engine_impl();
     virtual ~engine_impl();
 
 private:
+#if !defined(LINUX)
     virtual bool on_message(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT& result);
+#endif
     virtual void on_idle();
     virtual void on_resize();
     virtual void pause(bool const& value);
     virtual void capture_input(bool const& value);
     virtual void disconnect();
+    bool quit_requested() const override;
 
     virtual void value(LPCSTR value, shared_str& result);
     virtual LPCSTR value(shared_str const& value);
@@ -44,9 +43,9 @@ private:
     virtual void track_weather(float const& time);
     virtual float track_weather();
 
-    virtual editor::property_holder* current_frame_property_holder();
-    virtual editor::property_holder* blend_frame_property_holder();
-    virtual editor::property_holder* target_frame_property_holder();
+    virtual XRay::Editor::property_holder_base* current_frame_property_holder();
+    virtual XRay::Editor::property_holder_base* blend_frame_property_holder();
+    virtual XRay::Editor::property_holder_base* target_frame_property_holder();
 
     virtual void save_weathers();
 
@@ -77,7 +76,3 @@ private:
     IInputReceiver* m_input_receiver;
     bool m_input_captured;
 }; // class engine_impl
-
-#endif // #ifdef INGAME_EDITOR
-
-#endif // ifndef ENGINE_IMPL_HPP_INCLUDED

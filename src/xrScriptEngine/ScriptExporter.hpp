@@ -1,5 +1,5 @@
 #pragma once
-#include "xrScriptEngine/xrScriptEngine.hpp"
+#include "xrScriptEngine.hpp"
 
 struct lua_State;
 
@@ -27,6 +27,7 @@ public:
 
     public:
         Node(const char* id, size_t depCount, const char* const* deps, ExporterFunc exporterFunc);
+        ~Node();
 
         void Export(lua_State* luaState);
         void Reset() { done = false; }

@@ -1,9 +1,9 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "trajectories.h"
 #include "Level.h"
 #include "xrPhysics/IPHWorld.h"
 #include "xrGame/ai_debug_variables.h"
-
+#include "xrEngine/xr_object.h"
 #include "xrCore/_vector3d_ext.h"
 
 static void trajectory_get_position(

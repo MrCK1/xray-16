@@ -3,7 +3,7 @@
 #include "UITeamState.h"
 #include "UITeamPanels.h"
 
-#include "ui/UIStatic.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "ui/UIStatsIcon.h"
 
 #include "game_cl_capture_the_artefact.h"
@@ -19,8 +19,7 @@ UIPlayerItem::UIPlayerItem(ETeam team, ClientID const& clientId, UITeamState* ts
     VERIFY(m_teamPanels);
     myClientId = clientId;
     m_prevTeam = team;
-
-    m_player_node_root = NULL;
+    m_player_node_root = nullptr;
 }
 
 UIPlayerItem::~UIPlayerItem() {}
@@ -29,7 +28,7 @@ void UIPlayerItem::Init(CUIXml& uiXml, LPCSTR playerNode, int index)
     CUIXmlInit::InitWindow(uiXml, playerNode, index, this);
     m_player_node_root = uiXml.NavigateToNode(playerNode, index);
     VERIFY2(m_player_node_root, "player item in team xml node not initialized");
-    XML_NODE* prev_root = uiXml.GetLocalRoot();
+    XML_NODE prev_root = uiXml.GetLocalRoot();
     uiXml.SetLocalRoot(m_player_node_root);
     InitTextParams(uiXml);
     InitIconParams(uiXml);
@@ -49,7 +48,7 @@ void UIPlayerItem::InitTextParams(CUIXml& uiXml)
     int temp_number = uiXml.GetNodesNum(m_player_node_root, TEXTPARAM_NODE_NAME);
     for (int i = 0; i < temp_number; ++i)
     {
-        XML_NODE* text_param_node = uiXml.NavigateToNode(TEXTPARAM_NODE_NAME, i);
+        XML_NODE text_param_node = uiXml.NavigateToNode(TEXTPARAM_NODE_NAME, i);
         if (!text_param_node)
             break;
         LPCSTR param_name = uiXml.ReadAttrib(text_param_node, "name", "param_name_not_set_in_name_attribute");
@@ -69,7 +68,7 @@ void UIPlayerItem::InitIconParams(CUIXml& uiXml)
     int temp_number = uiXml.GetNodesNum(m_player_node_root, ICONPARAM_NODE_NAME);
     for (int i = 0; i < temp_number; ++i)
     {
-        XML_NODE* icon_param_node = uiXml.NavigateToNode(ICONPARAM_NODE_NAME, i);
+        XML_NODE icon_param_node = uiXml.NavigateToNode(ICONPARAM_NODE_NAME, i);
         if (!icon_param_node)
             break;
         LPCSTR param_name = uiXml.ReadAttrib(icon_param_node, "name", "param_name_not_set_in_name_attribute");
@@ -84,7 +83,7 @@ void UIPlayerItem::InitIconParams(CUIXml& uiXml)
 
 void UIPlayerItem::UpdateTextParams(game_PlayerState const* ps)
 {
-    buffer_vector<char> value_store(_alloca(512), 512, 512, char(0));
+    buffer_vector<char> value_store(xr_alloca(512), 512, 512, char(0));
     TMapStrToUIText::iterator ie = m_text_params.end();
     for (TMapStrToUIText::iterator i = m_text_params.begin(); i != ie; ++i)
     {
@@ -97,7 +96,7 @@ void UIPlayerItem::UpdateTextParams(game_PlayerState const* ps)
 
 void UIPlayerItem::UpdateIconParams(game_PlayerState const* ps)
 {
-    buffer_vector<char> value_store(_alloca(512), 512, 512, char(0));
+    buffer_vector<char> value_store(xr_alloca(512), 512, 512, char(0));
     TMapStrToUIStatic::iterator ie = m_icon_params.end();
     for (TMapStrToUIStatic::iterator i = m_icon_params.begin(); i != ie; ++i)
     {
@@ -134,9 +133,8 @@ void UIPlayerItem::GetTextParamValue(
     }
     else if (param_name.equal("mp_status"))
     {
-        CStringTable st;
         if (ps->testFlag(GAME_PLAYER_FLAG_READY))
-            xr_strcpy(dest.begin(), dest.size(), st.translate("st_mp_ready").c_str());
+            xr_strcpy(dest.begin(), dest.size(), StringTable().translate("st_mp_ready").c_str());
     }
     else if (param_name.equal("mp_ping"))
     {

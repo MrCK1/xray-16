@@ -1,13 +1,12 @@
+#pragma once
 #ifndef _STD_EXT_internal
 #define _STD_EXT_internal
 
-#define BREAK_AT_STRCMP
-#ifndef DEBUG
-#undef BREAK_AT_STRCMP
-#endif
-#ifdef _EDITOR
-#undef BREAK_AT_STRCMP
-#endif
+#include <math.h>
+#include <float.h>
+#include <stdio.h>
+#include "xrCommon/math_funcs_inline.h"
+//#include "xr_token.h"
 
 #ifdef abs
 #undef abs
@@ -29,7 +28,7 @@
 #undef max
 #endif
 
-#ifdef _EDITOR
+#if 0//def _EDITOR
 IC char* strncpy_s(char* strDestination, size_t sizeInBytes, const char* strSource, size_t count)
 {
     return strncpy(strDestination, strSource, count);
@@ -41,7 +40,7 @@ IC char* xr_strcpy(char* strDestination, size_t sizeInBytes, const char* strSour
 }
 
 IC char* xr_strcpy(char* strDestination, const char* strSource) { return strcpy(strDestination, strSource); }
-IC char* _strlwr_s(char* strDestination, size_t sizeInBytes) { return strlwr(strDestination); }
+IC char* _strlwr_s(char* strDestination, size_t sizeInBytes) { return xr_strlwr(strDestination); }
 IC char* xr_strcat(char* strDestination, size_t sizeInBytes, const char* strSource)
 {
     return strncat(strDestination, strSource, sizeInBytes);
@@ -57,37 +56,7 @@ IC int xr_sprintf(char* dest, size_t sizeOfBuffer, const char* format, ...)
     va_end(mark);
     return sz;
 }
-#endif
-
-// token type definition
-struct XRCORE_API xr_token
-{
-    LPCSTR name;
-    int id;
-};
-
-IC LPCSTR get_token_name(xr_token* tokens, int key)
-{
-    for (int k = 0; tokens[k].name; k++)
-        if (key == tokens[k].id)
-            return tokens[k].name;
-    return "";
-}
-
-IC int get_token_id(xr_token* tokens, LPCSTR key)
-{
-    for (int k = 0; tokens[k].name; k++)
-        if (stricmp(tokens[k].name, key) == 0)
-            return tokens[k].id;
-    return -1;
-}
-
-struct XRCORE_API xr_token2
-{
-    LPCSTR name;
-    LPCSTR info;
-    int id;
-};
+#endif // _EDITOR
 
 // generic
 template <class T>
@@ -106,86 +75,103 @@ IC T _sqr(T a)
     return a * a;
 }
 
-// float
-IC float _abs(float x) { return fabsf(x); }
-IC float _sqrt(float x) { return sqrtf(x); }
-IC float _sin(float x) { return sinf(x); }
-IC float _cos(float x) { return cosf(x); }
-IC BOOL _valid(const float x)
+IC bool _valid(const float x) noexcept
 {
-    // check for: Signaling NaN, Quiet NaN, Negative infinity ( –INF), Positive infinity (+INF), Negative denormalized,
+    // check for: Signaling NaN, Quiet NaN, Negative infinity ( ???INF), Positive infinity (+INF), Negative denormalized,
     // Positive denormalized
-    int cls = _fpclass(double(x));
+#if defined(WINDOWS) && defined(_MSC_VER)
+#if defined(XR_X64)
+    const int cls = _fpclassf(x);
+#else
+    const int cls = _fpclass(static_cast<double>(x));
+#endif // XR_X64
     if (cls & (_FPCLASS_SNAN + _FPCLASS_QNAN + _FPCLASS_NINF + _FPCLASS_PINF + _FPCLASS_ND + _FPCLASS_PD))
         return false;
+#else
+    const int cls = std::fpclassify(x);
+    switch (cls)
+    {
+    case FP_NAN:
+        [[fallthrough]];
+    case FP_INFINITE:
+        [[fallthrough]];
+    case FP_SUBNORMAL:
+        return false;
+    default:
+        break;
+    }
 
     /* *****other cases are*****
     _FPCLASS_NN Negative normalized non-zero
-    _FPCLASS_NZ Negative zero ( – 0)
+    _FPCLASS_NZ Negative zero ( ??? 0)
     _FPCLASS_PZ Positive 0 (+0)
     _FPCLASS_PN Positive normalized non-zero
     */
+#endif
     return true;
 }
 
 // double
-IC double _abs(double x) { return fabs(x); }
-IC double _sqrt(double x) { return sqrt(x); }
-IC double _sin(double x) { return sin(x); }
-IC double _cos(double x) { return cos(x); }
-IC BOOL _valid(const double x)
+IC bool _valid(const double x)
 {
-    // check for: Signaling NaN, Quiet NaN, Negative infinity ( –INF), Positive infinity (+INF), Negative denormalized,
+    // check for: Signaling NaN, Quiet NaN, Negative infinity ( ???INF), Positive infinity (+INF), Negative denormalized,
     // Positive denormalized
-    int cls = _fpclass(x);
+#if defined(WINDOWS) && defined(_MSC_VER)
+    const int cls = _fpclass(x);
     if (cls & (_FPCLASS_SNAN + _FPCLASS_QNAN + _FPCLASS_NINF + _FPCLASS_PINF + _FPCLASS_ND + _FPCLASS_PD))
         return false;
-
+#else
+    const int cls = std::fpclassify(x);
+    switch (cls)
+    {
+    case FP_NAN:
+        [[fallthrough]];
+    case FP_INFINITE:
+        [[fallthrough]];
+    case FP_SUBNORMAL:
+        return false;
+    default:
+        break;
+    }
     /* *****other cases are*****
     _FPCLASS_NN Negative normalized non-zero
-    _FPCLASS_NZ Negative zero ( – 0)
+    _FPCLASS_NZ Negative zero ( ??? 0)
     _FPCLASS_PZ Positive 0 (+0)
     _FPCLASS_PN Positive normalized non-zero
     */
+#endif
     return true;
 }
 
+// XXX: "magic" specializations, that really require profiling to see if they are worth this effort.
 // int8
 IC s8 _abs(s8 x) { return (x >= 0) ? x : s8(-x); }
-IC s8 _min(s8 x, s8 y) { return y + ((x - y) & ((x - y) >> (sizeof(s8) * 8 - 1))); };
-IC s8 _max(s8 x, s8 y) { return x - ((x - y) & ((x - y) >> (sizeof(s8) * 8 - 1))); };
+IC s8 _min(s8 x, s8 y) { return y + ((x - y) & ((x - y) >> (sizeof(s8) * 8 - 1))); }
+IC s8 _max(s8 x, s8 y) { return x - ((x - y) & ((x - y) >> (sizeof(s8) * 8 - 1))); }
 // unsigned int8
 IC u8 _abs(u8 x) { return x; }
 // int16
 IC s16 _abs(s16 x) { return (x >= 0) ? x : s16(-x); }
-IC s16 _min(s16 x, s16 y) { return y + ((x - y) & ((x - y) >> (sizeof(s16) * 8 - 1))); };
-IC s16 _max(s16 x, s16 y) { return x - ((x - y) & ((x - y) >> (sizeof(s16) * 8 - 1))); };
+IC s16 _min(s16 x, s16 y) { return y + ((x - y) & ((x - y) >> (sizeof(s16) * 8 - 1))); }
+IC s16 _max(s16 x, s16 y) { return x - ((x - y) & ((x - y) >> (sizeof(s16) * 8 - 1))); }
 // unsigned int16
 IC u16 _abs(u16 x) { return x; }
 // int32
 IC s32 _abs(s32 x) { return (x >= 0) ? x : s32(-x); }
-IC s32 _min(s32 x, s32 y) { return y + ((x - y) & ((x - y) >> (sizeof(s32) * 8 - 1))); };
-IC s32 _max(s32 x, s32 y) { return x - ((x - y) & ((x - y) >> (sizeof(s32) * 8 - 1))); };
+IC s32 _min(s32 x, s32 y) { return y + ((x - y) & ((x - y) >> (sizeof(s32) * 8 - 1))); }
+IC s32 _max(s32 x, s32 y) { return x - ((x - y) & ((x - y) >> (sizeof(s32) * 8 - 1))); }
 // int64
 IC s64 _abs(s64 x) { return (x >= 0) ? x : s64(-x); }
-IC s64 _min(s64 x, s64 y) { return y + ((x - y) & ((x - y) >> (sizeof(s64) * 8 - 1))); };
-IC s64 _max(s64 x, s64 y) { return x - ((x - y) & ((x - y) >> (sizeof(s64) * 8 - 1))); };
-IC u32 xr_strlen(const char* S);
+IC s64 _min(s64 x, s64 y) { return y + ((x - y) & ((x - y) >> (sizeof(s64) * 8 - 1))); }
+IC s64 _max(s64 x, s64 y) { return x - ((x - y) & ((x - y) >> (sizeof(s64) * 8 - 1))); }
 
 // string management
 
 // return pointer to ".ext"
 IC char* strext(const char* S) { return (char*)strrchr(S, '.'); }
-IC u32 xr_strlen(const char* S) { return (u32)strlen(S); }
-IC char* xr_strupr(char* S) { return _strupr(S); }
-IC char* xr_strlwr(char* S) { return strlwr(S); }
-#ifdef BREAK_AT_STRCMP
-XRCORE_API int xr_strcmp(const char* S1, const char* S2);
-#else
-IC int xr_strcmp(const char* S1, const char* S2) { return (int)strcmp(S1, S2); }
-#endif
+IC size_t xr_strlen(const char* S) { return strlen(S); }
 
-#ifndef _EDITOR
+//#ifndef _EDITOR
 #ifndef MASTER_GOLD
 
 inline int xr_strcpy(LPSTR destination, size_t const destination_size, LPCSTR source)
@@ -202,15 +188,19 @@ inline int __cdecl xr_sprintf(LPSTR destination, size_t const buffer_size, LPCST
 {
     va_list args;
     va_start(args, format_string);
-    return vsprintf_s(destination, buffer_size, format_string, args);
+    const int result = vsprintf_s(destination, buffer_size, format_string, args);
+    va_end(args);
+    return result;
 }
 
-template <int count>
+template <size_t count>
 inline int __cdecl xr_sprintf(char (&destination)[count], LPCSTR format_string, ...)
 {
     va_list args;
     va_start(args, format_string);
-    return vsprintf_s(destination, count, format_string, args);
+    const int result = vsprintf_s(destination, count, format_string, args);
+    va_end(args);
+    return result;
 }
 #else // #ifndef MASTER_GOLD
 
@@ -238,7 +228,9 @@ inline int __cdecl xr_sprintf(LPSTR destination, size_t const buffer_size, LPCST
 {
     va_list args;
     va_start(args, format_string);
-    return vsnprintf_s(destination, buffer_size, buffer_size - 1, format_string, args);
+    const int result = vsnprintf_s(destination, buffer_size, buffer_size - 1, format_string, args);
+    va_end(args);
+    return result;
 }
 
 template <int count>
@@ -246,22 +238,24 @@ inline int __cdecl xr_sprintf(char (&destination)[count], LPCSTR format_string, 
 {
     va_list args;
     va_start(args, format_string);
-    return vsnprintf_s(destination, count, count - 1, format_string, args);
+    const int result = vsnprintf_s(destination, count, count - 1, format_string, args);
+    va_end(args);
+    return result;
 }
 #endif // #ifndef MASTER_GOLD
 
-template <int count>
-inline int xr_strcpy(char (&destination)[count], LPCSTR source)
+template <size_t count>
+inline int xr_strcpy(char(&destination)[count], LPCSTR source)
 {
     return xr_strcpy(destination, count, source);
 }
 
-template <int count>
-inline int xr_strcat(char (&destination)[count], LPCSTR source)
+template <size_t count>
+inline int xr_strcat(char(&destination)[count], LPCSTR source)
 {
     return xr_strcat(destination, count, source);
 }
-#endif // #ifndef _EDITOR
+//#endif // #ifndef _EDITOR
 
 inline void MemFill32(void* dst, u32 value, size_t dstSize)
 {

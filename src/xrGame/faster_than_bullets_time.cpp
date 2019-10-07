@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "faster_than_bullets_time.h"
 #include "hits_store.h"
 #include "game_state_accumulator.h"
@@ -27,6 +27,7 @@ struct last_hits_fetcher
         m_killer_name = copy.m_killer_name;
         m_victim_name = copy.m_victim_name;
         m_last_hit_time = copy.m_last_hit_time;
+        return *this;
     }
 
     bool operator()(shared_str const& k_name, shared_str const& v_name, hits_store::bullet_hit const& hit)

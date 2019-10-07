@@ -1,11 +1,11 @@
 #include "pch_script.h"
-#include "xrEngine/xr_ioconsole.h"
+#include "xrEngine/XR_IOConsole.h"
 #include "xrEngine/xr_ioc_cmd.h"
-#include "xrEngine/customhud.h"
-#include "xrEngine/fdemorecord.h"
-#include "xrEngine/fdemoplay.h"
+#include "xrEngine/CustomHUD.h"
+#include "xrEngine/FDemoRecord.h"
+#include "xrEngine/FDemoPlay.h"
 #include "xrMessages.h"
-#include "xrserver.h"
+#include "xrServer.h"
 #include "Level.h"
 #include "xrScriptEngine/script_debugger.hpp"
 #include "ai_debug.h"
@@ -13,33 +13,34 @@
 #include "game_cl_base.h"
 #include "game_cl_single.h"
 #include "game_sv_single.h"
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
-#include "actor.h"
+#include "Actor.h"
 #include "Actor_Flags.h"
-#include "customzone.h"
+#include "CustomZone.h"
 #include "xrScriptEngine/script_engine.hpp"
 #include "xrScriptEngine/script_process.hpp"
 #include "xrServer_Objects.h"
 #include "ui/UIMainIngameWnd.h"
-#include "xrPhysics/iphworld.h"
+#include "xrPhysics/IPHWorld.h"
 #include "string_table.h"
 #include "autosave_manager.h"
 #include "ai_space.h"
-#include "ai/monsters/BaseMonster/base_monster.h"
+#include "ai/monsters/basemonster/base_monster.h"
 #include "date_time.h"
 #include "mt_config.h"
 #include "ui/UIOptConCom.h"
 #include "UIGameSP.h"
 #include "ui/UIActorMenu.h"
-#include "ui/UIStatic.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "zone_effector.h"
 #include "GameTask.h"
 #include "MainMenu.h"
 #include "saved_game_wrapper.h"
 #include "xrAICore/Navigation/level_graph.h"
+#include "xrNetServer/NET_Messages.h"
 
-#include "cameralook.h"
+#include "CameraLook.h"
 #include "character_hit_animations_params.h"
 #include "inventory_upgrade_manager.h"
 
@@ -48,6 +49,8 @@
 
 #include "ai_debug_variables.h"
 #include "xrPhysics/console_vars.h"
+#include "GametaskManager.h"
+
 #ifdef DEBUG
 #include "PHDebug.h"
 #include "ui/UIDebugFonts.h"
@@ -85,21 +88,30 @@ extern BOOL g_ShowAnimationInfo;
 extern BOOL g_bShowHitSectors;
 // extern	BOOL	g_bDebugDumpPhysicsStep	;
 extern ESingleGameDifficulty g_SingleGameDifficulty;
-extern BOOL g_show_wnd_rect2;
+XRUICORE_API extern BOOL g_show_wnd_rect2;
 //-----------------------------------------------------------
 extern float g_fTimeFactor;
 extern BOOL b_toggle_weapon_aim;
-// extern  BOOL	g_old_style_ui_hud;
+
+extern u32 UIStyleID;
+extern xr_vector<xr_token> UIStyleToken;
 
 extern float g_smart_cover_factor;
 extern int g_upgrades_log;
 extern float g_smart_cover_animation_speed_factor;
 
 extern BOOL g_ai_use_old_vision;
-float g_aim_predict_time = 0.44f;
+float g_aim_predict_time = 0.40f;
 int g_keypress_on_start = 1;
 
 ENGINE_API extern float g_console_sensitive;
+
+//Alundaio
+extern BOOL g_ai_die_in_anomaly;
+int g_inv_highlight_equipped = 0;
+//-Alundaio
+
+int g_first_person_death = 0;
 
 void register_mp_console_commands();
 //-----------------------------------------------------------
@@ -143,25 +155,16 @@ static void full_memory_stats()
 {
     Memory.mem_compact();
     u32 m_base = 0, c_base = 0, m_lmaps = 0, c_lmaps = 0;
-    GlobalEnv.Render->ResourcesGetMemoryUsage(m_base, c_base, m_lmaps, c_lmaps);
+    GEnv.Render->ResourcesGetMemoryUsage(m_base, c_base, m_lmaps, c_lmaps);
     log_vminfo();
     size_t _process_heap = ::Memory.mem_usage();
-#ifndef PURE_ALLOC
-    u32 _game_lua = CScriptEngine::GetMemoryUsage();
-    u32 _render = GlobalEnv.Render->memory_usage();
-#endif
     int _eco_strings = (int)g_pStringContainer->stat_economy();
     int _eco_smem = (int)g_pSharedMemoryContainer->stat_economy();
-    Msg("* [ D3D ]: textures[%d K]", (m_base + m_lmaps) / 1024);
-#ifdef PURE_ALLOC
-    Msg("* [x-ray]: process heap[%u K]", _process_heap / 1024);
-#else
-    Msg("* [x-ray]: process heap[%u K], game lua[%d K], render[%d K]", _process_heap / 1024, _game_lua / 1024,
-        _render / 1024);
-#endif
-    Msg("* [x-ray]: economy: strings[%d K], smem[%d K]", _eco_strings / 1024, _eco_smem);
+    Msg("* [ Render ]: textures[%d K]", (m_base + m_lmaps) / 1024);
+    Msg("* [ x-ray  ]: process heap[%u K]", _process_heap / 1024);
+    Msg("* [ x-ray  ]: economy: strings[%d K], smem[%d K]", _eco_strings / 1024, _eco_smem);
 #ifdef FS_DEBUG
-    Msg("* [x-ray]: file mapping: memory[%d K], count[%d]", g_file_mapped_memory / 1024, g_file_mapped_count);
+    Msg("* [ x-ray  ]: file mapping: memory[%d K], count[%d]", g_file_mapped_memory / 1024, g_file_mapped_count);
     dump_file_mappings();
 #endif
 }
@@ -176,16 +179,7 @@ public:
     };
     virtual void Execute(LPCSTR args) { full_memory_stats(); }
 };
-#ifdef DEBUG
-class CCC_MemCheckpoint : public IConsole_Command
-{
-public:
-    CCC_MemCheckpoint(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = FALSE; };
-    virtual void Execute(LPCSTR args) { memory_monitor::make_checkpoint(args); }
-    virtual void Save(IWriter* F) {}
-};
 
-#endif // #ifdef DEBUG
 // console commands
 class CCC_GameDifficulty : public CCC_Token
 {
@@ -210,6 +204,40 @@ public:
         }
     }
     virtual void Info(TInfo& I) { xr_strcpy(I, "game difficulty"); }
+};
+
+class CCC_GameLanguage : public CCC_Token
+{
+public:
+    CCC_GameLanguage(pcstr N) : CCC_Token(N, (u32*)&CStringTable::LanguageID, nullptr) {}
+
+    void Execute(pcstr args) override
+    {
+        CCC_Token::Execute(args);
+        StringTable().ReloadLanguage();
+
+        if (g_pGamePersistent && g_pGamePersistent->IsMainMenuActive())
+            MainMenu()->SetLanguageChanged(true);
+
+        if (!g_pGameLevel)
+            return;
+
+        for (u16 id = 0; id < 0xffff; id++)
+        {
+            IGameObject* gameObj = Level().Objects.net_Find(id);
+            if (gameObj)
+            {
+                if (CInventoryItem* invItem = gameObj->cast_inventory_item())
+                    invItem->ReloadNames();
+            }
+        }
+    }
+
+    const xr_token* GetToken() noexcept override
+    {
+        tokens = StringTable().GetLanguagesToken();
+        return CCC_Token::GetToken();
+    }
 };
 
 #ifdef DEBUG
@@ -266,7 +294,7 @@ public:
     }
 
     virtual void Save(IWriter* F){};
-    virtual void Status(TStatus& S)
+    void GetStatus(TStatus& S) override
     {
         if (!g_pGameLevel)
             return;
@@ -386,17 +414,20 @@ public:
 class CCC_DemoRecord : public IConsole_Command
 {
 public:
-    CCC_DemoRecord(LPCSTR N) : IConsole_Command(N){};
+    CCC_DemoRecord(LPCSTR N) : IConsole_Command(N) {}
     virtual void Execute(LPCSTR args)
     {
-#ifndef DEBUG
-// if (GameID() != eGameIDSingle)
-//{
-//	Msg("For this game type Demo Record is disabled.");
-//	return;
-//};
-#endif
+        if (!g_pGameLevel) // level not loaded
+        {
+            Log("Demo Record is disabled when level is not loaded.");
+            return;
+        }
+
         Console->Hide();
+
+        // close main menu if it is open
+        if (MainMenu()->IsActive())
+            MainMenu()->Activate(false);
 
         LPSTR fn_;
         STRCONCAT(fn_, args, ".xrdemo");
@@ -474,7 +505,7 @@ bool valid_saved_game_name(LPCSTR file_name)
     LPCSTR E = file_name + xr_strlen(file_name);
     for (; I != E; ++I)
     {
-        if (!strchr("/\\:*?\"<>|^()[]%", *I))
+        if (!strchr("/" DELIMITER ":*?\"<>|^()[]%", *I))
             continue;
 
         return (false);
@@ -486,7 +517,7 @@ bool valid_saved_game_name(LPCSTR file_name)
 void get_files_list(xr_vector<shared_str>& files, LPCSTR dir, LPCSTR file_ext)
 {
     VERIFY(dir && file_ext);
-    files.clear_not_free();
+    files.clear();
 
     FS_Path* P = FS.get_path(dir);
     P->m_Flags.set(FS_Path::flNeedRescan, TRUE);
@@ -500,8 +531,8 @@ void get_files_list(xr_vector<shared_str>& files, LPCSTR dir, LPCSTR file_ext)
     FS.file_list(files_set, dir, FS_ListFiles, fext);
     u32 len_str_ext = xr_strlen(file_ext);
 
-    FS_FileSetIt itb = files_set.begin();
-    FS_FileSetIt ite = files_set.end();
+    auto itb = files_set.begin();
+    auto ite = files_set.end();
 
     for (; itb != ite; ++itb)
     {
@@ -523,10 +554,10 @@ public:
     virtual void Execute(LPCSTR args)
     {
 #if 0
-		if (!Level().autosave_manager().ready_for_autosave()) {
-			Msg		("! Cannot save the game right now!");
-			return;
-		}
+        if (!Level().autosave_manager().ready_for_autosave()) {
+            Msg		("! Cannot save the game right now!");
+            return;
+        }
 #endif
         if (!IsGameTypeSingle())
         {
@@ -575,9 +606,11 @@ public:
 #ifdef DEBUG
         Msg("Game save overhead  : %f milliseconds", timer.GetElapsed_sec() * 1000.f);
 #endif
-        StaticDrawableWrapper* _s = CurrentGameUI()->AddCustomStatic("game_saved", true);
+        const bool compat = ClearSkyMode || ShadowOfChernobylMode;
+        StaticDrawableWrapper* _s = CurrentGameUI()->AddCustomStatic("game_saved", true, compat ? 3.0f : -1.0f);
+
         LPSTR save_name;
-        STRCONCAT(save_name, CStringTable().translate("st_game_saved").c_str(), ": ", S);
+        STRCONCAT(save_name, StringTable().translate("st_game_saved").c_str(), ": ", S);
         _s->wnd()->TextItemControl()->SetText(save_name);
 
         xr_strcat(S, ".dds");
@@ -593,7 +626,13 @@ public:
 #endif
     } // virtual void Execute
 
-    virtual void fill_tips(vecTips& tips, u32 mode) { get_files_list(tips, "$game_saves$", SAVE_EXTENSION); }
+    virtual void fill_tips(vecTips& tips, u32 mode)
+    {
+        if (ShadowOfChernobylMode || ClearSkyMode)
+            get_files_list(tips, "$game_saves$", SAVE_EXTENSION_LEGACY);
+        else
+            get_files_list(tips, "$game_saves$", SAVE_EXTENSION);
+    }
 }; // CCC_ALifeSave
 
 class CCC_ALifeLoadFrom : public IConsole_Command
@@ -665,7 +704,13 @@ public:
         Level().Send(net_packet, net_flags(TRUE));
     }
 
-    virtual void fill_tips(vecTips& tips, u32 mode) { get_files_list(tips, "$game_saves$", SAVE_EXTENSION); }
+    virtual void fill_tips(vecTips& tips, u32 mode)
+    {
+        if (ShadowOfChernobylMode || ClearSkyMode)
+            get_files_list(tips, "$game_saves$", SAVE_EXTENSION_LEGACY);
+        else
+            get_files_list(tips, "$game_saves$", SAVE_EXTENSION);
+    }
 }; // CCC_ALifeLoadFrom
 
 class CCC_LoadLastSave : public IConsole_Command
@@ -748,7 +793,7 @@ public:
     CCC_ClearLog(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = true; };
     virtual void Execute(LPCSTR)
     {
-        LogFile->clear_not_free();
+        LogFile.clear();
         FlushLog();
         Msg("* Log file has been cleaned successfully!");
     }
@@ -856,7 +901,7 @@ public:
     {
         if (strstr(cName, "script_debug_break") == cName)
         {
-            CScriptDebugger* d = ai().script_engine().debugger();
+            CScriptDebugger* d = GEnv.ScriptEngine->debugger();
             if (d)
             {
                 if (d->Active())
@@ -869,11 +914,11 @@ public:
         }
         else if (strstr(cName, "script_debug_stop") == cName)
         {
-            ai().script_engine().stopDebugger();
+            GEnv.ScriptEngine->stopDebugger();
         }
         else if (strstr(cName, "script_debug_restart") == cName)
         {
-            ai().script_engine().restartDebugger();
+            GEnv.ScriptEngine->restartDebugger();
         };
     };
 
@@ -896,14 +941,14 @@ class CCC_ScriptLuaStudioConnect : public IConsole_Command
 {
 public:
     CCC_ScriptLuaStudioConnect(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = true; };
-    virtual void Execute(LPCSTR args) { ai().script_engine().try_connect_to_debugger(); };
+    virtual void Execute(LPCSTR args) { GEnv.ScriptEngine->try_connect_to_debugger(); };
 };
 
 class CCC_ScriptLuaStudioDisconnect : public IConsole_Command
 {
 public:
     CCC_ScriptLuaStudioDisconnect(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = true; };
-    virtual void Execute(LPCSTR args) { ai().script_engine().disconnect_from_debugger(); };
+    virtual void Execute(LPCSTR args) { GEnv.ScriptEngine->disconnect_from_debugger(); };
 };
 #endif // #if defined(USE_DEBUGGER) && defined(USE_LUA_STUDIO)
 
@@ -1093,7 +1138,7 @@ public:
 #endif
         physics_world()->SetGravity(float(atof(args)));
     }
-    virtual void Status(TStatus& S)
+    void GetStatus(TStatus& S) override
     {
         if (physics_world())
             xr_sprintf(S, "%3.5f", physics_world()->Gravity());
@@ -1121,7 +1166,7 @@ public:
         if (physics_world())
             physics_world()->SetStep(ph_console::ph_step_time);
     }
-    virtual void Status(TStatus& S) { xr_sprintf(S, "%3.5f", 1.f / ph_console::ph_step_time); }
+    void GetStatus(TStatus& S) override { xr_sprintf(S, "%3.5f", 1.f / ph_console::ph_step_time); }
 };
 
 #ifdef DEBUG
@@ -1219,12 +1264,12 @@ public:
             P->m_Flags.set(FS_Path::flNeedRescan, TRUE);
             FS.rescan_pathes();
             // run script
-            if (ai().script_engine().script_process(ScriptProcessor::Level))
-                ai().script_engine().script_process(ScriptProcessor::Level)->add_script(args, false, true);
+            if (GEnv.ScriptEngine->script_process(ScriptProcessor::Level))
+                GEnv.ScriptEngine->script_process(ScriptProcessor::Level)->add_script(args, false, true);
         }
     }
 
-    virtual void Status(TStatus& S) { xr_strcpy(S, "<script_name> (Specify script name!)"); }
+    void GetStatus(TStatus& S) override { xr_strcpy(S, "<script_name> (Specify script name!)"); }
     virtual void Save(IWriter* F) {}
     virtual void fill_tips(vecTips& tips, u32 mode) { get_files_list(tips, "$game_scripts$", ".script"); }
 };
@@ -1239,32 +1284,32 @@ public:
             Log("* Specify string to run!");
         else
         {
-            if (ai().script_engine().script_process(ScriptProcessor::Level))
+            if (GEnv.ScriptEngine->script_process(ScriptProcessor::Level))
             {
-                ai().script_engine().script_process(ScriptProcessor::Level)->add_script(args, true, true);
+                GEnv.ScriptEngine->script_process(ScriptProcessor::Level)->add_script(args, true, true);
                 return;
             }
 
             string4096 S;
             shared_str m_script_name = "console command";
             xr_sprintf(S, "%s\n", args);
-            int l_iErrorCode = luaL_loadbuffer(ai().script_engine().lua(), S, xr_strlen(S), "@console_command");
+            int l_iErrorCode = luaL_loadbuffer(GEnv.ScriptEngine->lua(), S, xr_strlen(S), "@console_command");
             if (!l_iErrorCode)
             {
-                l_iErrorCode = lua_pcall(ai().script_engine().lua(), 0, 0, 0);
+                l_iErrorCode = lua_pcall(GEnv.ScriptEngine->lua(), 0, 0, 0);
                 if (l_iErrorCode)
                 {
-                    ai().script_engine().print_output(ai().script_engine().lua(), *m_script_name, l_iErrorCode);
-                    ai().script_engine().on_error(ai().script_engine().lua());
+                    GEnv.ScriptEngine->print_output(GEnv.ScriptEngine->lua(), *m_script_name, l_iErrorCode);
+                    GEnv.ScriptEngine->on_error(GEnv.ScriptEngine->lua());
                     return;
                 }
             }
 
-            ai().script_engine().print_output(ai().script_engine().lua(), *m_script_name, l_iErrorCode);
+            GEnv.ScriptEngine->print_output(GEnv.ScriptEngine->lua(), *m_script_name, l_iErrorCode);
         }
     } // void	Execute
 
-    virtual void Status(TStatus& S) { xr_strcpy(S, "<script_name.function()> (Specify script and function name!)"); }
+    void GetStatus(TStatus& S) override { xr_strcpy(S, "<script_name.function()> (Specify script and function name!)"); }
     virtual void Save(IWriter* F) {}
     virtual void fill_tips(vecTips& tips, u32 mode)
     {
@@ -1288,7 +1333,7 @@ public:
         clamp(time_factor, EPS, 1000.f);
         Device.time_factor(time_factor);
     }
-    virtual void Status(TStatus& S) { xr_sprintf(S, sizeof(S), "%f", Device.time_factor()); }
+    void GetStatus(TStatus& S) override { xr_sprintf(S, sizeof(S), "%f", Device.time_factor()); }
     virtual void Info(TInfo& I) { xr_strcpy(I, "[0.001 - 1000.0]"); }
     virtual void fill_tips(vecTips& tips, u32 mode)
     {
@@ -1325,6 +1370,17 @@ public:
     }
 };
 
+class CCC_UIRestart : public IConsole_Command
+{
+public:
+    CCC_UIRestart(pcstr name) : IConsole_Command(name) { bEmptyArgsHandled = true; }
+
+    void Execute(pcstr /*args*/) override
+    {
+        Device.seqUIReset.Process();
+    }
+};
+
 struct CCC_StartTimeSingle : public IConsole_Command
 {
     CCC_StartTimeSingle(LPCSTR N) : IConsole_Command(N){};
@@ -1349,7 +1405,7 @@ struct CCC_StartTimeSingle : public IConsole_Command
         Level().SetGameTimeFactor(g_qwStartGameTime, g_fTimeFactor);
     }
 
-    virtual void Status(TStatus& S)
+    void GetStatus(TStatus& S) override
     {
         u32 year = 1, month = 1, day = 1, hours = 0, mins = 0, secs = 0, milisecs = 0;
         split_time(g_qwStartGameTime, year, month, day, hours, mins, secs, milisecs);
@@ -1508,27 +1564,9 @@ public:
     {
         VERIFY3(false, "This is a test crash", "Do not post it as a bug");
         int* pointer = 0;
-        *pointer = 0;
+        *pointer = 0; //-V522
     }
 };
-
-#ifdef DEBUG_MEMORY_MANAGER
-
-class CCC_MemAllocShowStats : public IConsole_Command
-{
-public:
-    CCC_MemAllocShowStats(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = true; };
-    virtual void Execute(LPCSTR) { mem_alloc_show_stats(); }
-};
-
-class CCC_MemAllocClearStats : public IConsole_Command
-{
-public:
-    CCC_MemAllocClearStats(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = true; };
-    virtual void Execute(LPCSTR) { mem_alloc_clear_stats(); }
-};
-
-#endif // DEBUG_MEMORY_MANAGER
 
 class CCC_DumpModelBones : public IConsole_Command
 {
@@ -1557,11 +1595,11 @@ public:
             return;
         }
 
-        IRenderVisual* visual = GlobalEnv.Render->model_Create(arguments);
+        IRenderVisual* visual = GEnv.Render->model_Create(arguments);
         IKinematics* kinematics = smart_cast<IKinematics*>(visual);
         if (!kinematics)
         {
-            GlobalEnv.Render->model_Delete(visual);
+            GEnv.Render->model_Delete(visual);
             Msg("! Invalid visual type \"%s\" (not a IKinematics)", arguments);
             return;
         }
@@ -1570,7 +1608,7 @@ public:
         for (u16 i = 0, n = kinematics->LL_BoneCount(); i < n; ++i)
             Msg("%s", *kinematics->LL_GetData(i).name);
 
-        GlobalEnv.Render->model_Delete(visual);
+        GEnv.Render->model_Delete(visual);
     }
 };
 
@@ -1662,34 +1700,52 @@ public:
 
 class CCC_GSCheckForUpdates : public IConsole_Command
 {
-public:
-    CCC_GSCheckForUpdates(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = true; };
-    virtual void Execute(LPCSTR arguments)
+private:
+    CGameSpy_Patching::PatchCheckCallback m_resultCallbackBinded;
+    std::atomic<bool> m_checkInProgress = false;
+    bool m_informNoPatch = true;
+
+    void xr_stdcall ResultCallback(bool success, pcstr VersionName, pcstr URL)
     {
-        if (!MainMenu())
-            return;
-        /*
-        CGameSpy_Available GSA;
-        shared_str result_string;
-        if (!GSA.CheckAvailableServices(result_string))
+        auto mm = MainMenu();
+        if ((success || m_informNoPatch) && mm != nullptr)
         {
-            Msg(*result_string);
-//			return;
-        };
-        CGameSpy_Patching GameSpyPatching;
-        */
-        bool InformOfNoPatch = true;
-        if (arguments && *arguments)
+            mm->OnPatchCheck(success, VersionName, URL);
+        }
+        m_checkInProgress.store(false);
+    }
+
+    void SetupCallParams(pcstr args)
+    {
+        m_informNoPatch = true;
+        if (args && *args)
         {
             int bInfo = 1;
-            sscanf(arguments, "%d", &bInfo);
-            InformOfNoPatch = (bInfo != 0);
+            sscanf(args, "%d", &bInfo);
+            m_informNoPatch = (bInfo != 0);
         }
+    }
 
-        //		GameSpyPatching.CheckForPatch(InformOfNoPatch);
-        CGameSpy_Patching::PatchCheckCallback cb;
-        cb.bind(MainMenu(), &CMainMenu::OnPatchCheck);
-        MainMenu()->GetGS()->GetGameSpyPatching()->CheckForPatch(InformOfNoPatch, cb);
+public:
+    CCC_GSCheckForUpdates(LPCSTR N) : IConsole_Command(N)
+    {
+        m_resultCallbackBinded.bind(this, &CCC_GSCheckForUpdates::ResultCallback);
+        bEmptyArgsHandled = true;
+    };
+
+    virtual void Execute(LPCSTR arguments)
+    {
+        auto mm = MainMenu();
+        if (mm == nullptr)
+            return;
+
+#ifdef WINDOWS
+        if (!m_checkInProgress.exchange(true))
+        {
+            SetupCallParams(arguments);
+            mm->GetGS()->GetGameSpyPatching()->CheckForPatch(true, m_resultCallbackBinded);
+        }
+#endif
     }
 };
 
@@ -1741,22 +1797,58 @@ public:
     }
 };
 
+// Change weather immediately
+class CCC_SetWeather : public IConsole_Command
+{
+public:
+    CCC_SetWeather(LPCSTR N) : IConsole_Command(N){};
+    virtual void Execute(LPCSTR args)
+    {
+        if (!xr_strlen(args))
+            return;
+        if (!g_pGamePersistent)
+            return;
+        if (!Device.editor())
+            g_pGamePersistent->Environment().SetWeather(args, true);
+    }
+    void fill_tips(vecTips& tips, u32 mode) override
+    {
+        if (!g_pGamePersistent || Device.editor())
+            return;
+        for (auto& [name, cycle] : g_pGamePersistent->Environment().WeatherCycles)
+        {
+            tips.push_back(name);
+        }
+    }
+};
+
+class CCC_CleanupTasks : public IConsole_Command
+{
+public:
+    CCC_CleanupTasks(pcstr name) : IConsole_Command(name) {}
+    void Execute(pcstr /*args*/) override
+    {
+        Level().GameTaskManager().CleanupTasks();
+    }
+};
+
 void CCC_RegisterCommands()
 {
     // options
     g_OptConCom.Init();
 
     CMD1(CCC_MemStats, "stat_memory");
-#ifdef DEBUG
-    CMD1(CCC_MemCheckpoint, "stat_memory_checkpoint");
-#endif //#ifdef DEBUG
+
     // game
     CMD3(CCC_Mask, "g_crouch_toggle", &psActorFlags, AF_CROUCH_TOGGLE);
     CMD1(CCC_GameDifficulty, "g_game_difficulty");
+    CMD1(CCC_GameLanguage, "g_language");
 
     CMD3(CCC_Mask, "g_backrun", &psActorFlags, AF_RUN_BACKWARD);
 
-// alife
+    CMD3(CCC_Mask, "g_multi_item_pickup", &psActorFlags, AF_MULTI_ITEM_PICKUP);
+
+    // alife
 #ifdef DEBUG
     CMD1(CCC_ALifePath, "al_path"); // build path
 
@@ -1790,17 +1882,13 @@ void CCC_RegisterCommands()
     CMD3(CCC_Mask, "hud_crosshair", &psHUD_Flags, HUD_CROSSHAIR);
     CMD3(CCC_Mask, "hud_crosshair_dist", &psHUD_Flags, HUD_CROSSHAIR_DIST);
 
-#ifdef DEBUG
     CMD4(CCC_Float, "hud_fov", &psHUD_FOV, 0.1f, 1.0f);
     CMD4(CCC_Float, "fov", &g_fov, 5.0f, 180.0f);
-#endif // DEBUG
 
-// Demo
-#if 1 // ndef MASTER_GOLD
+    // Demo
     CMD1(CCC_DemoPlay, "demo_play");
     CMD1(CCC_DemoRecord, "demo_record");
     CMD1(CCC_DemoRecordSetPos, "demo_set_cam_position");
-#endif // #ifndef MASTER_GOLD
 
 #ifndef MASTER_GOLD
     // ai
@@ -1877,13 +1965,6 @@ void CCC_RegisterCommands()
     CMD4(CCC_Integer, "hit_anims_tune", &tune_hit_anims, 0, 1);
 /////////////////////////////////////////////HIT ANIMATION END////////////////////////////////////////////////////
 
-#ifdef DEBUG_MEMORY_MANAGER
-    CMD3(CCC_Mask, "debug_on_frame_gather_stats", &psAI_Flags, aiDebugOnFrameAllocs);
-    CMD4(CCC_Float, "debug_on_frame_gather_stats_frequency", &debug_on_frame_gather_stats_frequency, 0.f, 1.f);
-    CMD1(CCC_MemAllocShowStats, "debug_on_frame_show_stats");
-    CMD1(CCC_MemAllocClearStats, "debug_on_frame_clear_stats");
-#endif // DEBUG_MEMORY_MANAGER
-
     CMD1(CCC_DumpModelBones, "debug_dump_model_bones");
 
     CMD1(CCC_DrawGameGraphAll, "ai_draw_game_graph_all");
@@ -1927,6 +2008,7 @@ void CCC_RegisterCommands()
     CMD4(CCC_Integer, "ph_tri_clear_disable_count", &ph_console::ph_tri_clear_disable_count, 0, 255);
     CMD4(CCC_FloatBlock, "ph_tri_query_ex_aabb_rate", &ph_console::ph_tri_query_ex_aabb_rate, 1.01f, 3.f);
     CMD3(CCC_Mask, "g_no_clip", &psActorFlags, AF_NO_CLIP);
+    CMD1(CCC_SetWeather, "set_weather");
 #endif // DEBUG
 
 #ifndef MASTER_GOLD
@@ -1941,6 +2023,10 @@ void CCC_RegisterCommands()
     CMD3(CCC_Mask, "g_autopickup", &psActorFlags, AF_AUTOPICKUP);
     CMD3(CCC_Mask, "g_dynamic_music", &psActorFlags, AF_DYNAMIC_MUSIC);
     CMD3(CCC_Mask, "g_important_save", &psActorFlags, AF_IMPORTANT_SAVE);
+    CMD4(CCC_Integer, "g_inv_highlight_equipped", &g_inv_highlight_equipped, 0, 1);
+    CMD4(CCC_Integer, "g_first_person_death", &g_first_person_death, 0, 1);
+
+    CMD1(CCC_CleanupTasks, "dbg_cleanup_tasks");
 
 #ifdef DEBUG
     CMD1(CCC_ShowSmartCastStats, "show_smart_cast_stats");
@@ -2016,8 +2102,10 @@ void CCC_RegisterCommands()
 
     extern float ik_cam_shift_tolerance;
     CMD4(CCC_Float, "ik_cam_shift_tolerance", &ik_cam_shift_tolerance, 0.f, 2.f);
-    float ik_cam_shift_speed;
+    extern float ik_cam_shift_speed;
     CMD4(CCC_Float, "ik_cam_shift_speed", &ik_cam_shift_speed, 0.f, 1.f);
+    extern float ik_cam_shift_interpolation;
+    CMD4(CCC_Float, "ik_cam_shift_interpolation", &ik_cam_shift_interpolation, 1.f, 10.f);
     extern BOOL dbg_draw_doors;
     CMD4(CCC_Integer, "dbg_draw_doors", &dbg_draw_doors, FALSE, TRUE);
 
@@ -2138,7 +2226,9 @@ void CCC_RegisterCommands()
 #endif
     CMD4(CCC_Float, "con_sensitive", &g_console_sensitive, 0.01f, 1.0f);
     CMD4(CCC_Integer, "wpn_aim_toggle", &b_toggle_weapon_aim, 0, 1);
-//	CMD4(CCC_Integer,	"hud_old_style",			&g_old_style_ui_hud, 0, 1);
+
+    CMD1(CCC_UIRestart, "ui_restart");
+    CMD3(CCC_Token, "ui_style", &UIStyleID, UIStyleToken.data());
 
 #ifdef DEBUG
     CMD4(CCC_Float, "ai_smart_cover_animation_speed_factor", &g_smart_cover_animation_speed_factor, .1f, 10.f);
@@ -2148,6 +2238,8 @@ void CCC_RegisterCommands()
     CMD4(CCC_Integer, "g_sleep_time", &psActorSleepTime, 1, 24);
 
     CMD4(CCC_Integer, "ai_use_old_vision", &g_ai_use_old_vision, 0, 1);
+
+    CMD4(CCC_Integer, "ai_die_in_anomaly", &g_ai_die_in_anomaly, 0, 1); //Alundaio
 
     CMD4(CCC_Float, "ai_aim_predict_time", &g_aim_predict_time, 0.f, 10.f);
 
@@ -2161,10 +2253,11 @@ void CCC_RegisterCommands()
 #ifdef DEBUG
     extern BOOL g_ai_dbg_sight;
     CMD4(CCC_Integer, "ai_dbg_sight", &g_ai_dbg_sight, 0, 1);
+#endif // #ifdef DEBUG
 
+    //Alundaio: Scoped outside DEBUG
     extern BOOL g_ai_aim_use_smooth_aim;
     CMD4(CCC_Integer, "ai_aim_use_smooth_aim", &g_ai_aim_use_smooth_aim, 0, 1);
-#endif // #ifdef DEBUG
 
     extern float g_ai_aim_min_speed;
     CMD4(CCC_Float, "ai_aim_min_speed", &g_ai_aim_min_speed, 0.f, 10.f * PI);

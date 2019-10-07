@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "xrtheora_stream.h"
+#include "xrTheora_Stream.h"
 
 #ifdef _EDITOR
 //# pragma comment(lib, "x:\\oggB.lib")
@@ -48,7 +48,7 @@ void CTheoraStream::Reset()
 int CTheoraStream::ReadData()
 {
     char* buffer = ogg_sync_buffer(&o_sync_state, 4096);
-    long bytes = 4096 > (size_t)source->elapsed() ? source->elapsed() : 4096;
+    size_t bytes = 4096 > source->elapsed() ? source->elapsed() : 4096;
     source->r(buffer, bytes);
     ogg_sync_wrote(&o_sync_state, bytes);
     return bytes;
@@ -134,7 +134,7 @@ BOOL CTheoraStream::ParseHeaders()
         }
         else
         {
-            int ret = ReadData(); // someone needs more data
+            ret = ReadData(); // someone needs more data
             if (ret == 0)
                 FATAL("End of file while searching for codec headers.");
         }

@@ -1,6 +1,4 @@
 #pragma once
-
-#include "xrCore/xrCore.h"
 #include "xrGameSpy/xrGameSpy.h"
 
 class xrGameSpyServer;
@@ -8,7 +6,7 @@ class xrGameSpyServer;
 class XRGAMESPY_API CGameSpy_QR2
 {
 public:
-    class Context
+    struct SInitConfig
     {
     public:
         void(__cdecl* OnServerKey)(int keyid, qr2_buffer_t outbuf, void* userdata);
@@ -27,7 +25,7 @@ private:
     //	string16	m_SecretKey;
 
 public:
-    bool Init(int PortID, int Public, Context& ctx);
+    bool Init(int PortID, int Public, SInitConfig& ctx);
     void Think(void* qrec);
     void ShutDown(void* qrec);
     void RegisterAdditionalKeys();

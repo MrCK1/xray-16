@@ -1,59 +1,78 @@
 #include "stdafx.h"
+#include "xrEngine/TaskScheduler.hpp"
 #include "Include/xrRender/DrawUtils.h"
 #include "Render.h"
 #include "IGame_Persistent.h"
-#include "xr_IOConsole.h"
+#include "XR_IOConsole.h"
+#include "xr_input.h"
+#include "SDL.h"
+#include "SDL_syswm.h"
 
-void CRenderDevice::Destroy(void)
+void CRenderDevice::Destroy()
 {
     if (!b_is_Ready)
         return;
-    Log("Destroying Direct3D...");
-    ShowCursor(TRUE);
-    GlobalEnv.Render->ValidateHW();
-    GlobalEnv.DU->OnDeviceDestroy();
-    b_is_Ready = FALSE;
+    Log("Destroying Render...");
+    GEnv.DU->OnDeviceDestroy();
+    b_is_Ready = false;
     Statistic->OnDeviceDestroy();
-    GlobalEnv.Render->destroy();
-    GlobalEnv.Render->OnDeviceDestroy(false);
+    GEnv.Render->destroy();
+    GEnv.Render->OnDeviceDestroy(false);
     Memory.mem_compact();
-    GlobalEnv.Render->DestroyHW();
-    seqRender.R.clear();
-    seqAppActivate.R.clear();
-    seqAppDeactivate.R.clear();
-    seqAppStart.R.clear();
-    seqAppEnd.R.clear();
-    seqFrame.R.clear();
-    seqFrameMT.R.clear();
-    seqDeviceReset.R.clear();
+    GEnv.Render->DestroyHW();
+    TaskScheduler->Destroy();
+    seqRender.Clear();
+    seqAppActivate.Clear();
+    seqAppDeactivate.Clear();
+    seqAppStart.Clear();
+    seqAppEnd.Clear();
+    seqFrame.Clear();
+    seqFrameMT.Clear();
+    seqDeviceReset.Clear();
     seqParallel.clear();
     xr_delete(Statistic);
+
+    SDL_DestroyWindow(m_sdlWnd);
+}
+
+void CRenderDevice::Reset(bool precache /*= true*/)
+{
+    shouldReset = true;
+    precacheWhileReset = precache;
 }
 
 #include "IGame_Level.h"
 #include "CustomHUD.h"
 extern BOOL bNeed_re_create_env;
 
-void CRenderDevice::Reset(bool precache)
+void CRenderDevice::ResetInternal(bool precache)
 {
-    u32 dwWidth_before = dwWidth;
-    u32 dwHeight_before = dwHeight;
-    ShowCursor(TRUE);
-    u32 tm_start = TimerAsync();
-    GlobalEnv.Render->Reset(m_hWnd, dwWidth, dwHeight, fWidth_2, fHeight_2);
+    const auto dwWidth_before = dwWidth;
+    const auto dwHeight_before = dwHeight;
+    pInput->GrabInput(false);
+
+    const auto tm_start = TimerAsync();
+
+    UpdateWindowProps(!psDeviceFlags.is(rsFullscreen));
+    GEnv.Render->Reset(m_sdlWnd, dwWidth, dwHeight, fWidth_2, fHeight_2);
+
     if (g_pGamePersistent)
-        g_pGamePersistent->Environment().bNeed_re_create_env = TRUE;
+        g_pGamePersistent->Environment().bNeed_re_create_env = true;
     _SetupStates();
+
     if (precache)
         PreCache(20, true, false);
-    u32 tm_end = TimerAsync();
+
+    const auto tm_end = TimerAsync();
     Msg("*** RESET [%d ms]", tm_end - tm_start);
+
     // TODO: Remove this! It may hide crash
     Memory.mem_compact();
-#ifndef DEDICATED_SERVER
-    ShowCursor(FALSE);
-#endif
-    seqDeviceReset.Process(rp_DeviceReset);
+
+    seqDeviceReset.Process();
     if (dwWidth_before != dwWidth || dwHeight_before != dwHeight)
-        seqResolutionChanged.Process(rp_ScreenResolutionChanged);
+        seqResolutionChanged.Process();
+
+    if (!GEnv.isDedicatedServer)
+        pInput->GrabInput(true);
 }

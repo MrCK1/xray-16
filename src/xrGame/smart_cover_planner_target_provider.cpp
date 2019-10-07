@@ -10,9 +10,10 @@
 #include "script_game_object.h"
 #include "smart_cover_animation_planner.h"
 #include "ai/stalker/ai_stalker.h"
+#include "ai/stalker/ai_stalker_impl.h"
 #include "agent_manager.h"
 #include "agent_enemy_manager.h"
-#include "weapon.h"
+#include "Weapon.h"
 
 using smart_cover::animation_planner;
 using smart_cover::target_provider;

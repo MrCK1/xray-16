@@ -9,6 +9,7 @@
 #pragma once
 
 #include "action_planner.h"
+#include "ai/stalker/ai_stalker.h"
 
 class CAI_Stalker;
 class CInventoryItem;
@@ -18,12 +19,12 @@ class CFoodItem;
 
 namespace ObjectHandlerSpace
 {
-enum EWorldProperties;
+enum EWorldProperties : u32;
 };
 
 namespace MonsterSpace
 {
-enum EObjectAction;
+enum EObjectAction : u32;
 };
 
 class CObjectHandlerPlanner : public CActionPlanner<CAI_Stalker, true>

@@ -1,5 +1,4 @@
-#ifndef CYCLE_CONST_STORAGE_H
-#define CYCLE_CONST_STORAGE_H
+#pragma once
 
 template <class T, int size>
 class CCycleConstStorage
@@ -18,4 +17,3 @@ public:
     IC T& operator[](int i) { return array[position(i)]; }
     IC const T& operator[](int i) const { return array[position(i)]; }
 };
-#endif

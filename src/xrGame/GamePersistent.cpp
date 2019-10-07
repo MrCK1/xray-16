@@ -1,12 +1,12 @@
 #include "pch_script.h"
-#include "gamepersistent.h"
+#include "GamePersistent.h"
 #include "xrCore/FMesh.hpp"
-#include "xrEngine/xr_ioconsole.h"
+#include "xrEngine/XR_IOConsole.h"
 #include "xrEngine/GameMtlLib.h"
 #include "Include/xrRender/Kinematics.h"
 #include "xrEngine/profiler.h"
 #include "MainMenu.h"
-#include "UICursor.h"
+#include "xrUICore/Cursor/UICursor.h"
 #include "game_base_space.h"
 #include "Level.h"
 #include "ParticlesObject.h"
@@ -15,10 +15,10 @@
 #include "stalker_velocity_holder.h"
 
 #include "ActorEffector.h"
-#include "actor.h"
-#include "spectator.h"
+#include "Actor.h"
+#include "Spectator.h"
 
-#include "UI/UItextureMaster.h"
+#include "xrUICore/XML/UITextureMaster.h"
 
 #include "xrEngine/xrSASH.h"
 #include "ai_space.h"
@@ -26,32 +26,88 @@
 
 #include "holder_custom.h"
 #include "game_cl_base.h"
-#include "xrserver_objects_alife_monsters.h"
+#include "xrServer_Objects_ALife_Monsters.h"
 #include "xrServerEntities/xrServer_Object_Base.h"
-#include "UI/UIGameTutorial.h"
+#include "ui/UIGameTutorial.h"
 #include "xrEngine/GameFont.h"
 #include "xrEngine/PerformanceAlert.hpp"
 #include "xrEngine/xr_input.h"
+#include "xrEngine/x_ray.h"
+#include "ui/UILoadingScreen.h"
+#include "AnselManager.h"
+#include "xrEngine/TaskScheduler.hpp"
 
 #ifndef MASTER_GOLD
-#include "custommonster.h"
+#include "CustomMonster.h"
 #endif // MASTER_GOLD
 
 #ifndef _EDITOR
 #include "ai_debug.h"
 #endif // _EDITOR
 
-//#ifdef DEBUG_MEMORY_MANAGER
-//	static	void *	ode_alloc	(size_t size)								{ return Memory.mem_alloc(size,"ODE");
-//}
-//	static	void *	ode_realloc	(void *ptr, size_t oldsize, size_t newsize)	{ return
-// Memory.mem_realloc(ptr,newsize,"ODE");	}
-//	static	void	ode_free	(void *ptr, size_t size)					{ return xr_free(ptr); }
-//#else // DEBUG_MEMORY_MANAGER
-//	static	void *	ode_alloc	(size_t size)								{ return xr_malloc(size);			}
-//	static	void *	ode_realloc	(void *ptr, size_t oldsize, size_t newsize)	{ return xr_realloc(ptr,newsize);	}
-//	static	void	ode_free	(void *ptr, size_t size)					{ return xr_free(ptr);				}
-//#endif // DEBUG_MEMORY_MANAGER
+u32 UIStyleID = 0;
+xr_vector<xr_token> UIStyleToken;
+
+void FillUIStyleToken()
+{
+    UIStyleToken.emplace_back("ui_style_default", 0);
+
+    string_path path;
+    strconcat(sizeof(path), path, UI_PATH, DELIMITER "styles" DELIMITER);
+    FS.update_path(path, _game_config_, path);
+    auto styles = FS.file_list_open(path, FS_ListFolders | FS_RootOnly);
+    if (styles != nullptr)
+    {
+        int i = 1; // It's 1, because 0 is default style
+        for (const auto& style : *styles)
+        {
+            const auto pos = strchr(style, _DELIMITER);
+            *pos = '\0'; // we don't need that backslash in the end
+            UIStyleToken.emplace_back(xr_strdup(style), i++); // It's important to have postfix increment!
+        }
+        FS.file_list_close(styles);
+    }
+
+    UIStyleToken.emplace_back(nullptr, -1);
+}
+
+bool defaultUIStyle = true;
+
+void SetupUIStyle()
+{
+    if (UIStyleID == 0)
+        return;
+
+    pcstr selectedStyle = nullptr;
+    for (const auto& token : UIStyleToken)
+        if (token.id == UIStyleID)
+            selectedStyle = token.name;
+
+    string128 selectedStylePath;
+    strconcat(sizeof(selectedStylePath), selectedStylePath, UI_PATH, DELIMITER "styles" DELIMITER, selectedStyle);
+
+    UI_PATH = xr_strdup(selectedStylePath);
+
+    strconcat(sizeof(selectedStylePath), selectedStylePath, selectedStylePath, DELIMITER);
+    UI_PATH_WITH_DELIMITER = xr_strdup(selectedStylePath);
+
+    defaultUIStyle = false;
+}
+
+void CleanupUIStyleToken()
+{
+    for (auto& token : UIStyleToken)
+    {
+        if (token.name && token.id != 0)
+            xr_free(token.name);
+    }
+    UIStyleToken.clear();
+    if (!defaultUIStyle)
+    {
+        xr_free(UI_PATH);
+        xr_free(UI_PATH_WITH_DELIMITER);
+    }
+}
 
 CGamePersistent::CGamePersistent(void)
 {
@@ -67,22 +123,16 @@ CGamePersistent::CGamePersistent(void)
     ambient_effect_wind_out_time = 0.f;
     ambient_effect_wind_on = false;
 
-    ZeroMemory(ambient_sound_next_time, sizeof(ambient_sound_next_time));
+    ambient_sound_next_time.reserve(32);
 
-    m_pUI_core = NULL;
-    m_pMainMenu = NULL;
-    m_intro = NULL;
+    m_pMainMenu = nullptr;
+    m_intro = nullptr;
     m_intro_event.bind(this, &CGamePersistent::start_logo_intro);
 #ifdef DEBUG
     m_frame_counter = 0;
     m_last_stats_frame = u32(-2);
 #endif
-    //
-    // dSetAllocHandler			(ode_alloc		);
-    // dSetReallocHandler			(ode_realloc	);
-    // dSetFreeHandler				(ode_free		);
 
-    //
     BOOL bDemoMode = (0 != strstr(Core.Params, "-demomode "));
     if (bDemoMode)
     {
@@ -113,6 +163,11 @@ CGamePersistent::~CGamePersistent(void)
     Device.seqFrame.Remove(this);
     Engine.Event.Handler_Detach(eDemoStart, this);
     Engine.Event.Handler_Detach(eQuickLoad, this);
+}
+
+void CGamePersistent::PreStart(LPCSTR op)
+{
+    inherited::PreStart(op);
 }
 
 void CGamePersistent::RegisterModel(IRenderVisual* V)
@@ -152,12 +207,48 @@ extern void init_game_globals();
 
 void CGamePersistent::OnAppStart()
 {
+    Event materialsLoaded, globalsInitialized, menuCreated;
+
+    // init game globals
+    TaskScheduler->AddTask("init_game_globals()", init_game_globals,
+        nullptr, nullptr, &globalsInitialized);
+
     // load game materials
-    GMLib.Load();
-    init_game_globals();
-    __super ::OnAppStart();
-    m_pUI_core = new ui_core();
-    m_pMainMenu = new CMainMenu();
+    if (psDeviceFlags.test(rsRGL))
+    {
+        // OpenGL renderer requires context switch,
+        // let's just load it synchronously
+        GMLib.Load();
+        materialsLoaded.Set();
+    }
+    else // yay, async
+    {
+        TaskScheduler->AddTask("GMLib.Load()", { &GMLib, &CGameMtlLibrary::Load },
+            nullptr, nullptr, &materialsLoaded);
+    }
+
+    SetupUIStyle();
+    GEnv.UI = new UICore();
+
+    TaskScheduler->AddTask("CMainMenu::CMainMenu()", [&]()
+    {
+        m_pMainMenu = new CMainMenu();
+    }, nullptr, nullptr, &menuCreated);
+
+    inherited::OnAppStart();
+
+    if (!GEnv.isDedicatedServer)
+        pApp->SetLoadingScreen(new UILoadingScreen());
+
+#ifdef WINDOWS
+    ansel = new AnselManager();
+    ansel->Load();
+    ansel->Init();
+#endif
+
+    Device.WaitEvent(globalsInitialized);
+    Device.WaitEvent(menuCreated);
+    Device.WaitEvent(materialsLoaded);
 }
 
 void CGamePersistent::OnAppEnd()
@@ -165,25 +256,28 @@ void CGamePersistent::OnAppEnd()
     if (m_pMainMenu->IsActive())
         m_pMainMenu->Activate(false);
 
+    pApp->DestroyLoadingScreen();
     xr_delete(m_pMainMenu);
-    xr_delete(m_pUI_core);
+    xr_delete(GEnv.UI);
 
-    __super ::OnAppEnd();
+    inherited::OnAppEnd();
 
     clean_game_globals();
 
     GMLib.Unload();
+
+    xr_delete(ansel);
 }
 
-void CGamePersistent::Start(LPCSTR op) { __super ::Start(op); }
+void CGamePersistent::Start(LPCSTR op) { inherited::Start(op); }
 void CGamePersistent::Disconnect()
 {
     // destroy ambient particles
     CParticlesObject::Destroy(ambient_particles);
 
-    __super ::Disconnect();
+    inherited::Disconnect();
     // stop all played emitters
-    ::Sound->stop_emitters();
+    GEnv.Sound->stop_emitters();
     m_game_params.m_e_game_type = eGameIDNoGame;
 }
 
@@ -191,7 +285,7 @@ void CGamePersistent::Disconnect()
 
 void CGamePersistent::OnGameStart()
 {
-    __super ::OnGameStart();
+    inherited::OnGameStart();
     UpdateGameType();
 }
 
@@ -212,7 +306,7 @@ LPCSTR GameTypeToString(EGameIDs gt, bool bShort)
 
 void CGamePersistent::UpdateGameType()
 {
-    __super ::UpdateGameType();
+    inherited::UpdateGameType();
 
     m_game_params.m_e_game_type = ParseStringToGameType(m_game_params.m_game_type);
 
@@ -224,7 +318,7 @@ void CGamePersistent::UpdateGameType()
 
 void CGamePersistent::OnGameEnd()
 {
-    __super ::OnGameEnd();
+    inherited::OnGameEnd();
 
     xr_delete(g_stalker_animation_data_storage);
     xr_delete(g_stalker_velocity_holder);
@@ -232,17 +326,14 @@ void CGamePersistent::OnGameEnd()
 
 void CGamePersistent::WeathersUpdate()
 {
-    if (g_pGameLevel && !g_dedicated_server)
+    if (g_pGameLevel && !GEnv.isDedicatedServer)
     {
         CActor* actor = smart_cast<CActor*>(Level().CurrentViewEntity());
         BOOL bIndoor = TRUE;
         if (actor)
             bIndoor = actor->renderable_ROS()->get_luminocity_hemi() < 0.05f;
 
-        int data_set = (Random.randF() < (1.f - Environment().CurrentEnv->weight)) ? 0 : 1;
-
-        CEnvDescriptor* const current_env = Environment().Current[0];
-        VERIFY(current_env);
+        const size_t data_set = (Random.randF() < (1.f - Environment().CurrentEnv->weight)) ? 0 : 1;
 
         CEnvDescriptor* const _env = Environment().Current[data_set];
         VERIFY(_env);
@@ -250,14 +341,15 @@ void CGamePersistent::WeathersUpdate()
         CEnvAmbient* env_amb = _env->env_ambient;
         if (env_amb)
         {
-            CEnvAmbient::SSndChannelVec& vec = current_env->env_ambient->get_snd_channels();
-            CEnvAmbient::SSndChannelVecIt I = vec.begin();
-            CEnvAmbient::SSndChannelVecIt E = vec.end();
+            CEnvAmbient::SSndChannelVec& vec = env_amb->get_snd_channels();
 
-            for (u32 idx = 0; I != E; ++I, ++idx)
+            auto I = vec.cbegin();
+            const auto E = vec.cend();
+
+            for (size_t idx = 0; I != E; ++I, ++idx)
             {
                 CEnvAmbient::SSndChannel& ch = **I;
-                R_ASSERT(idx < 20);
+
                 if (ambient_sound_next_time[idx] == 0) // first
                 {
                     ambient_sound_next_time[idx] = Device.dwTimeGlobal + ch.get_rnd_sound_first_time();
@@ -281,30 +373,12 @@ void CGamePersistent::WeathersUpdate()
 #endif // DEBUG
 
                     VERIFY(snd._handle());
-                    u32 _length_ms = iFloor(snd.get_length_sec() * 1000.0f);
+                    const u32 _length_ms = iFloor(snd.get_length_sec() * 1000.0f);
                     ambient_sound_next_time[idx] = Device.dwTimeGlobal + _length_ms + ch.get_rnd_sound_time();
-                    //					Msg("- Playing ambient sound channel [%s]
-                    // file[%s]",ch.m_load_section.c_str(),snd._handle()->file_name());
+                    //Msg("- Playing ambient sound channel [%s] file[%s]", ch.m_load_section.c_str(), snd._handle()->file_name());
                 }
             }
-            /*
-                        if (Device.dwTimeGlobal > ambient_sound_next_time)
-                        {
-                            ref_sound* snd			= env_amb->get_rnd_sound();
-                            ambient_sound_next_time	= Device.dwTimeGlobal + env_amb->get_rnd_sound_time();
-                            if (snd)
-                            {
-                                Fvector	pos;
-                                float	angle		= ::Random.randF(PI_MUL_2);
-                                pos.x				= _cos(angle);
-                                pos.y				= 0;
-                                pos.z				= _sin(angle);
-                                pos.normalize		().mul(env_amb->get_rnd_sound_dist()).add(Device.vCameraPosition);
-                                pos.y				+= 10.f;
-                                snd->play_at_pos	(0,pos);
-                            }
-                        }
-            */
+
             // start effect
             if ((FALSE == bIndoor) && (0 == ambient_particles) && Device.dwTimeGlobal > ambient_effect_next_time)
             {
@@ -415,11 +489,11 @@ void CGamePersistent::WeathersUpdate()
 
 bool allow_intro()
 {
-#ifdef MASTER_GOLD
-    if (g_SASH.IsRunning())
-#else // #ifdef MASTER_GOLD
+#if defined(WINDOWS)
     if ((0 != strstr(Core.Params, "-nointro")) || g_SASH.IsRunning())
-#endif // #ifdef MASTER_GOLD
+#else
+    if (0 != strstr(Core.Params, "-nointro"))
+#endif
     {
         return false;
     }
@@ -429,10 +503,17 @@ bool allow_intro()
 
 void CGamePersistent::start_logo_intro()
 {
+    if(!allow_intro()) // TODO this is dirty hack, rewrite!
+    {
+        m_intro_event = 0;
+        Console->Execute("main_menu on");
+        return;
+    }
+
     if (Device.dwPrecacheFrame == 0)
     {
         m_intro_event.bind(this, &CGamePersistent::update_logo_intro);
-        if (!g_dedicated_server && 0 == xr_strlen(m_game_params.m_game_or_spawn) && NULL == g_pGameLevel)
+        if (!GEnv.isDedicatedServer && 0 == xr_strlen(m_game_params.m_game_or_spawn) && NULL == g_pGameLevel)
         {
             VERIFY(NULL == m_intro);
             m_intro = new CUISequencer();
@@ -467,10 +548,10 @@ void CGamePersistent::game_loaded()
             load_screen_renderer.b_need_user_input && m_game_params.m_e_game_type == eGameIDSingle)
         {
             VERIFY(NULL == m_intro);
-            m_intro = new CUISequencer();
-            m_intro->Start("game_loaded");
             Msg("intro_start game_loaded");
+            m_intro = new CUISequencer();
             m_intro->m_on_destroy_event.bind(this, &CGamePersistent::update_game_loaded);
+            m_intro->Start("game_loaded");
         }
         m_intro_event = 0;
     }
@@ -485,6 +566,8 @@ void CGamePersistent::update_game_loaded()
 
 void CGamePersistent::start_game_intro()
 {
+    load_screen_renderer.stop();
+
     if (!allow_intro())
     {
         m_intro_event = 0;
@@ -494,12 +577,12 @@ void CGamePersistent::start_game_intro()
     if (g_pGameLevel && g_pGameLevel->bReady && Device.dwPrecacheFrame <= 2)
     {
         m_intro_event.bind(this, &CGamePersistent::update_game_intro);
-        if (0 == stricmp(m_game_params.m_new_or_load, "new"))
+        if (0 == xr_stricmp(m_game_params.m_new_or_load, "new"))
         {
             VERIFY(NULL == m_intro);
+            Log("intro_start intro_game");
             m_intro = new CUISequencer();
             m_intro->Start("intro_game");
-            Msg("intro_start intro_game");
         }
     }
 }
@@ -525,6 +608,7 @@ void CGamePersistent::OnFrame()
 {
     if (Device.dwPrecacheFrame == 5 && m_intro_event.empty())
     {
+        SetLoadStageTitle();
         m_intro_event.bind(this, &CGamePersistent::game_loaded);
     }
 
@@ -544,10 +628,13 @@ void CGamePersistent::OnFrame()
 #ifdef DEBUG
     ++m_frame_counter;
 #endif
-    if (!g_dedicated_server && !m_intro_event.empty())
+    if (!GEnv.isDedicatedServer && !m_intro_event.empty())
         m_intro_event();
 
-    if (!g_dedicated_server && Device.dwPrecacheFrame == 0 && !m_intro && m_intro_event.empty())
+    if (!GEnv.isDedicatedServer && Device.dwPrecacheFrame == 1 && !m_intro && m_intro_event.empty())
+        pApp->LoadForceFinish(); // hack
+
+    if (!GEnv.isDedicatedServer && Device.dwPrecacheFrame == 0 && !m_intro && m_intro_event.empty())
         load_screen_renderer.stop();
 
     if (!m_pMainMenu->IsActive())
@@ -557,6 +644,8 @@ void CGamePersistent::OnFrame()
         return;
     if (!g_pGameLevel->bReady)
         return;
+
+    g_pGameLevel->WorldRendered(false);
 
     if (Device.Paused())
     {
@@ -588,7 +677,7 @@ void CGamePersistent::OnFrame()
                         C = Actor()->Holder()->Camera();
 
                     Actor()->Cameras().UpdateFromCamera(C);
-                    Actor()->Cameras().ApplyDevice(VIEWPORT_NEAR);
+                    Actor()->Cameras().ApplyDevice();
 #ifdef DEBUG
                     if (psActorFlags.test(AF_NO_CLIP))
                     {
@@ -606,7 +695,7 @@ void CGamePersistent::OnFrame()
                         CSE_ALifeCreatureActor* s_actor = smart_cast<CSE_ALifeCreatureActor*>(e);
                         VERIFY(s_actor);
                         xr_vector<u16>::iterator it = s_actor->children.begin();
-                        for (; it != s_actor->children.end(); it++)
+                        for (; it != s_actor->children.end(); ++it)
                         {
                             IGameObject* obj = Level().Objects.net_Find(*it);
                             if (obj && Engine.Sheduler.Registered(obj))
@@ -634,14 +723,17 @@ void CGamePersistent::OnFrame()
                 C = Actor()->Holder()->Camera();
 
             Actor()->Cameras().UpdateFromCamera(C);
-            Actor()->Cameras().ApplyDevice(VIEWPORT_NEAR);
+            Actor()->Cameras().ApplyDevice();
         }
 #endif // MASTER_GOLD
     }
-    __super ::OnFrame();
+    inherited::OnFrame();
 
     if (!Device.Paused())
+    {
         Engine.Sheduler.Update();
+        Engine.Scheduler.ProcessStep();
+    }
 
     // update weathers ambient
     if (!Device.Paused())
@@ -671,9 +763,8 @@ void CGamePersistent::OnFrame()
     }
 
 #ifdef DEBUG
-// XXX nitrocaster PROFILER: temporarily disabled due to linkage issues
-// if ((m_last_stats_frame + 1) < m_frame_counter)
-//	profiler().clear		();
+    if ((m_last_stats_frame + 1) < m_frame_counter)
+        profiler().clear();
 #endif
     UpdateDof();
 }
@@ -729,9 +820,11 @@ void CGamePersistent::DumpStatistics(IGameFont& font, IPerformanceAlert* alert)
     IGame_Persistent::DumpStatistics(font, alert);
 #ifdef DEBUG
 #ifndef _EDITOR
+    const Fvector2 prev = font.GetPosition();
+    font.OutSet(400, 120);
     m_last_stats_frame = m_frame_counter;
-// XXX nitrocaster PROFILER: temporarily disabled due to linkage issues
-// profiler().show_stats(font,!!psAI_Flags.test(aiStats));
+    profiler().show_stats(font, psAI_Flags.test(aiStats));
+    font.OutSet(prev.x, prev.y);
 #endif
 #endif
 }
@@ -749,16 +842,11 @@ void CGamePersistent::OnAppActivate()
     bIsMP &= !Device.Paused();
 
     if (!bIsMP)
-    {
         Device.Pause(FALSE, !bRestorePause, TRUE, "CGP::OnAppActivate");
-    }
     else
-    {
         Device.Pause(FALSE, TRUE, TRUE, "CGP::OnAppActivate MP");
-    }
 
     bEntryFlag = TRUE;
-    pInput->ClipCursor(!GetUICursor().IsVisible());
 }
 
 void CGamePersistent::OnAppDeactivate()
@@ -804,22 +892,29 @@ void CGamePersistent::LoadTitle(bool change_tip, shared_str map_name)
     pApp->LoadStage();
     if (change_tip)
     {
+        bool noTips = false;
         string512 buff;
         u8 tip_num;
         luabind::functor<u8> m_functor;
-        bool is_single = !xr_strcmp(m_game_params.m_game_type, "single");
+        const bool is_single = !xr_strcmp(m_game_params.m_game_type, "single");
         if (is_single)
         {
-            R_ASSERT(ai().script_engine().functor("loadscreen.get_tip_number", m_functor));
-            tip_num = m_functor(map_name.c_str());
+            if (GEnv.ScriptEngine->functor("loadscreen.get_tip_number", m_functor))
+                tip_num = m_functor(map_name.c_str());
+            else
+                noTips = true;
         }
         else
         {
-            R_ASSERT(ai().script_engine().functor("loadscreen.get_mp_tip_number", m_functor));
-            tip_num = m_functor(map_name.c_str());
+            if (GEnv.ScriptEngine->functor("loadscreen.get_mp_tip_number", m_functor))
+                tip_num = m_functor(map_name.c_str());
+            else
+                noTips = true;
         }
-        //		tip_num = 83;
-        xr_sprintf(buff, "%s%d:", CStringTable().translate("ls_tip_number").c_str(), tip_num);
+        if (noTips)
+            return;
+
+        xr_sprintf(buff, "%s%d:", StringTable().translate("ls_tip_number").c_str(), tip_num);
         shared_str tmp = buff;
 
         if (is_single)
@@ -828,8 +923,20 @@ void CGamePersistent::LoadTitle(bool change_tip, shared_str map_name)
             xr_sprintf(buff, "ls_mp_tip_%d", tip_num);
 
         pApp->LoadTitleInt(
-            CStringTable().translate("ls_header").c_str(), tmp.c_str(), CStringTable().translate(buff).c_str());
+            StringTable().translate("ls_header").c_str(), tmp.c_str(), StringTable().translate(buff).c_str());
     }
+}
+
+void CGamePersistent::SetLoadStageTitle(pcstr ls_title)
+{
+    string256 buff;
+    if (ls_title)
+    {
+        xr_sprintf(buff, "%s%s", StringTable().translate(ls_title).c_str(), "...");
+        pApp->SetLoadStageTitle(buff);
+    }
+    else
+        pApp->SetLoadStageTitle("");
 }
 
 bool CGamePersistent::CanBePaused() { return IsGameTypeSingle() || (g_pGameLevel && Level().IsDemoPlay()); }
@@ -851,16 +958,16 @@ void CGamePersistent::SetEffectorDOF(const Fvector& needed_dof)
 }
 
 void CGamePersistent::RestoreEffectorDOF() { SetEffectorDOF(m_dof[3]); }
-#include "hudmanager.h"
+#include "HUDManager.h"
 
 //	m_dof		[4];	// 0-dest 1-current 2-from 3-original
 void CGamePersistent::UpdateDof()
 {
-    static float diff_far = pSettings->r_float("zone_pick_dof", "far"); // 70.0f;
-    static float diff_near = pSettings->r_float("zone_pick_dof", "near"); //-70.0f;
-
     if (m_bPickableDOF)
     {
+        static float diff_far = pSettings->read_if_exists<float>("zone_pick_dof", "far", 70.0f);
+        static float diff_near = pSettings->read_if_exists<float>("zone_pick_dof", "near", -70.0f);
+
         Fvector pick_dof;
         pick_dof.y = HUD().GetCurrentRayQuery().range;
         pick_dof.x = pick_dof.y + diff_near;
@@ -881,7 +988,6 @@ void CGamePersistent::UpdateDof()
     (m_dof[0].z < m_dof[2].z) ? clamp(m_dof[1].z, m_dof[0].z, m_dof[2].z) : clamp(m_dof[1].z, m_dof[2].z, m_dof[0].z);
 }
 
-#include "ui\uimainingamewnd.h"
 void CGamePersistent::OnSectorChanged(int sector)
 {
     if (CurrentGameUI())
@@ -891,5 +997,5 @@ void CGamePersistent::OnSectorChanged(int sector)
 void CGamePersistent::OnAssetsChanged()
 {
     IGame_Persistent::OnAssetsChanged();
-    CStringTable().rescan();
+    StringTable().rescan();
 }

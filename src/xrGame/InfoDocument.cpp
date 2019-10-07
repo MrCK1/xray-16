@@ -2,12 +2,13 @@
 // InfoDocument.cpp
 // InfoDocument - документ, содержащий сюжетную информацию
 ///////////////////////////////////////////////////////////////
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "InfoDocument.h"
 #include "xrPhysics/PhysicsShell.h"
 #include "PDA.h"
-#include "inventoryowner.h"
-#include "xrserver_objects_alife_items.h"
+#include "InventoryOwner.h"
+#include "xrServer_Objects_ALife_Items.h"
+#include "xrServerEntities/xrMessages.h"
 
 CInfoDocument::CInfoDocument(void) { m_Info = NULL; }
 CInfoDocument::~CInfoDocument(void) {}
@@ -51,4 +52,3 @@ void CInfoDocument::OnH_A_Chield()
 }
 
 void CInfoDocument::OnH_B_Independent(bool just_before_destroy) { inherited::OnH_B_Independent(just_before_destroy); }
-void CInfoDocument::renderable_Render() { inherited::renderable_Render(); }

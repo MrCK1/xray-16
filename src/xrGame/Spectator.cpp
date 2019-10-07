@@ -2,12 +2,12 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
-#include "spectator.h"
-#include "effectorfall.h"
+#include "StdAfx.h"
+#include "Spectator.h"
+#include "EffectorFall.h"
 #include "CameraLook.h"
 #include "spectator_camera_first_eye.h"
-#include "actor.h"
+#include "Actor.h"
 #include "xrServer_Objects.h"
 #include "game_cl_base.h"
 #include "Level.h"
@@ -18,7 +18,7 @@
 #include "group_hierarchy_holder.h"
 #include "xrEngine/CameraManager.h"
 #include "Inventory.h"
-#include "huditem.h"
+#include "HudItem.h"
 #include "game_cl_mp.h"
 #include "string_table.h"
 #include "map_manager.h"
@@ -364,11 +364,11 @@ void CSpectator::FirstEye_ToPlayer(IGameObject* pObject)
         {
             pActor->inventory().Items_SetCurrentEntityHud(true);
 
-            /*			CHudItem* pHudItem = smart_cast<CHudItem*>(pActor->inventory().ActiveItem());
-                        if (pHudItem)
-                        {
-                            pHudItem->OnStateSwitch(pHudItem->GetState());
-                        }*/
+            /*CHudItem* pHudItem = smart_cast<CHudItem*>(pActor->inventory().ActiveItem());
+            if (pHudItem)
+            {
+                pHudItem->OnStateSwitch(pHudItem->GetState(), pHudItem->GetState());
+            }*/
         }
     };
     if (Device.Paused() && pOldActor)
@@ -541,7 +541,7 @@ BOOL CSpectator::net_Spawn(CSE_Abstract* DC)
 void CSpectator::net_Destroy()
 {
     inherited::net_Destroy();
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         Level().MapManager().OnObjectDestroyNotify(ID());
 }
 
@@ -641,21 +641,20 @@ void CSpectator::GetSpectatorString(string1024& pStr)
         return;
 
     xr_string SpectatorMsg;
-    CStringTable st;
     switch (cam_active)
     {
     case eacFreeFly:
     {
-        SpectatorMsg = *st.translate("mp_spectator");
+        SpectatorMsg = *StringTable().translate("mp_spectator");
         SpectatorMsg += " ";
-        SpectatorMsg += *st.translate("mp_free_fly");
+        SpectatorMsg += *StringTable().translate("mp_free_fly");
     }
     break;
     case eacFirstEye:
     {
-        SpectatorMsg = *st.translate("mp_spectator");
+        SpectatorMsg = *StringTable().translate("mp_spectator");
         SpectatorMsg += " ";
-        SpectatorMsg += *st.translate("mp_first_eye");
+        SpectatorMsg += *StringTable().translate("mp_first_eye");
         SpectatorMsg += " ";
         //			SpectatorMsg = "SPECTATOR (First-Eye): ";
         SpectatorMsg += m_pActorToLookAt ? m_pActorToLookAt->Name() : "";
@@ -663,9 +662,9 @@ void CSpectator::GetSpectatorString(string1024& pStr)
     break;
     case eacFreeLook:
     {
-        SpectatorMsg = *st.translate("mp_spectator");
+        SpectatorMsg = *StringTable().translate("mp_spectator");
         SpectatorMsg += " ";
-        SpectatorMsg += *st.translate("mp_free_look");
+        SpectatorMsg += *StringTable().translate("mp_free_look");
         SpectatorMsg += " ";
         //			SpectatorMsg = "SPECTATOR (Free-Look):";
         SpectatorMsg += m_pActorToLookAt ? m_pActorToLookAt->Name() : "";
@@ -673,9 +672,9 @@ void CSpectator::GetSpectatorString(string1024& pStr)
     break;
     case eacLookAt:
     {
-        SpectatorMsg = *st.translate("mp_spectator");
+        SpectatorMsg = *StringTable().translate("mp_spectator");
         SpectatorMsg += " ";
-        SpectatorMsg += *st.translate("mp_look_at");
+        SpectatorMsg += *StringTable().translate("mp_look_at");
         SpectatorMsg += " ";
         //			SpectatorMsg = "SPECTATOR (Look-At):";
         SpectatorMsg += m_pActorToLookAt ? m_pActorToLookAt->Name() : "";

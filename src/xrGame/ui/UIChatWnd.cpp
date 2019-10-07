@@ -1,10 +1,10 @@
-#include <stdafx.h>
+#include <StdAfx.h>
 #include "UIChatWnd.h"
 #include "UIGameLog.h"
-#include "UIEditBox.h"
+#include "xrUICore/EditBox/UIEditBox.h"
 #include "UIXmlInit.h"
 #include "UIHelper.h"
-#include "xrUIXmlParser.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 #include "UIDialogHolder.h"
 #include "game_cl_base.h"
 #include "xr_level_controller.h"
@@ -31,8 +31,8 @@ void CUIChatWnd::PendingMode(bool const is_pending_mode)
     pendingGameMode = false;
 }
 
-#define CHAT_PREFIX_PENDING "chat_prefix_pending"
-#define CHAT_EDITBOX_PENDING "chat_editbox_pending"
+const pcstr CHAT_PREFIX_PENDING = "chat_prefix_pending";
+const pcstr CHAT_EDITBOX_PENDING = "chat_editbox_pending";
 
 void CUIChatWnd::Init(CUIXml& uiXml)
 {

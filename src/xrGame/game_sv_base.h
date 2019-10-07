@@ -7,7 +7,11 @@
 #include "game_sv_base_console_vars.h"
 #include "game_sv_event_queue.h"
 #include "game_sv_item_respawner.h"
+#if defined(WINDOWS)
 #include "xrNetServer/NET_Server.h"
+#elif defined(LINUX)
+#include "xrNetServer/empty/NET_Server.h"
+#endif
 
 #define MAX_PLAYERS_COUNT 32
 
@@ -134,7 +138,7 @@ protected:
         shared_str map_name;
         shared_str map_ver;
     };
-    DEF_DEQUE(MAP_ROTATION_LIST, SMapRot);
+    using MAP_ROTATION_LIST = xr_deque<SMapRot>;
     bool m_bMapRotation;
     bool m_bMapNeedRotation;
     bool m_bMapSwitched;
@@ -150,7 +154,7 @@ public:
     BOOL sv_force_sync;
     float rpoints_MinDist[TEAM_COUNT];
     xr_vector<RPoint> rpoints[TEAM_COUNT];
-    DEF_VECTOR(RPRef, RPoint*);
+    using RPRef = xr_vector<RPoint*>;
     RPRef rpointsBlocked;
 
     virtual void SaveMapList() override;
@@ -214,7 +218,7 @@ public:
     virtual u32 get_alive_count(u32 team);
     virtual xr_vector<u16>* get_children(ClientID id_who);
     void u_EventGen(NET_Packet& P, u16 type, u16 dest);
-    void u_EventSend(NET_Packet& P, u32 dwFlags = DPNSEND_GUARANTEED);
+    void u_EventSend(NET_Packet& P, u32 dwFlags = 0x0008 /*DPNSEND_GUARANTEED*/);
 
     // Events
     virtual BOOL OnPreCreate(CSE_Abstract* E) { return TRUE; };

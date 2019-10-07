@@ -50,7 +50,7 @@ CROS_impl::CROS_impl()
 void CROS_impl::add(light* source)
 {
     // Search
-    for (xr_vector<Item>::iterator I = track.begin(); I != track.end(); I++)
+    for (xr_vector<Item>::iterator I = track.begin(); I != track.end(); ++I)
         if (source == I->source)
         {
             I->frame_touched = Device.dwFrame;
@@ -164,9 +164,9 @@ void CROS_impl::update(IRenderable* O)
     if (dwFrame == Device.dwFrame)
         return;
     dwFrame = Device.dwFrame;
-    if (0 == O)
+    if (nullptr == O)
         return;
-    if (0 == O->GetRenderData().visual)
+    if (nullptr == O->GetRenderData().visual)
         return;
     VERIFY(dynamic_cast<CROS_impl*>(O->renderable_ROS()));
     // float	dt			=	Device.fTimeDelta;
@@ -365,11 +365,8 @@ void CROS_impl::update_smooth(IRenderable* O)
 
 void CROS_impl::calc_sun_value(Fvector& position, IGameObject* _object)
 {
-#if RENDER == R_R1
-    light* sun = (light*)RImplementation.L_DB->sun_adapted._get();
-#else
-    light* sun = (light*)RImplementation.Lights.sun_adapted._get();
-#endif
+    light* sun = (light*)RImplementation.Lights.sun._get();
+
     if (MODE & IRender_ObjectSpecific::TRACE_SUN)
     {
         if (--result_sun < 0)
@@ -530,7 +527,7 @@ void CROS_impl::prepare_lights(Fvector& position, IRenderable* O)
         }
 
 #if RENDER == R_R1
-        light* sun = (light*)RImplementation.L_DB->sun_adapted._get();
+        light* sun = (light*)RImplementation.Lights.sun._get();
 
         // Sun
         float E = sun_smooth * sun->color.intensity();

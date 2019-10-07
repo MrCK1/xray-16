@@ -1,12 +1,24 @@
 #pragma once
-
-#include "UIWindow.h"
+#include "xrUICore/Windows/UIWindow.h"
 
 class CUIStatic;
 class CUITextWnd;
 class CUIXml;
 class CUIScrollView;
 class CMMSound;
+
+class CUIMMMagnifer : public CUIStatic
+{
+public:
+    CUIMMMagnifer();
+    virtual ~CUIMMMagnifer();
+    void SetPPMode();
+    void ResetPPMode();
+    bool GetPPMode() { return m_bPP; };
+
+protected:
+    bool m_bPP;
+};
 
 class CUIMMShniaga : public CUIWindow, public CDeviceResetNotifier
 {
@@ -44,14 +56,16 @@ protected:
     void ProcessEvent(EVENT ev);
 
     bool IsButton(CUIWindow* st);
-    void CreateList(xr_vector<CUITextWnd*>& lst, CUIXml& xml_doc, LPCSTR path);
+    void CreateList(xr_vector<CUITextWnd*>& lst, CUIXml& xml_doc, LPCSTR path, bool required = true);
     void ShowMain();
     void ShowNewGame();
     void ShowNetworkGame();
     float pos(float x1, float x2, u32 t);
 
     CUIStatic* m_shniaga;
-    CUIStatic* m_magnifier;
+    CUIMMMagnifer* m_magnifier;
+    CUIStatic* m_anims[2];
+    CUIStatic* m_gratings[2];
     CUIScrollView* m_view;
 
     u32 m_start_time;
@@ -69,7 +83,7 @@ protected:
     enum_page_id m_page;
     CUIWindow* m_selected;
     CMMSound* m_sound;
-    //	Fvector2				m_wheel_size[2];
+
     enum
     {
         fl_SoundFinalized = 1,

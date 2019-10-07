@@ -1,9 +1,9 @@
 #pragma once
 
 #include "UIDialogWnd.h"
-#include "UIWndCallback.h"
+#include "xrUICore/Callbacks/UIWndCallback.h"
 #include "xrServerEntities/inventory_space.h"
-#include "UIHint.h"
+#include "xrUICore/Hint/UIHint.h"
 
 class CUICharacterInfo;
 class CUIDragDropListEx;
@@ -88,6 +88,7 @@ protected:
     CUICellItem* m_InfoCellItem;
     u32 m_InfoCellItem_timer;
     CUICellItem* m_pCurrentCellItem;
+
     CUICellItem* m_upgrade_selected;
     CUIPropertiesBox* m_UIPropertiesBox;
 
@@ -114,6 +115,7 @@ protected:
     {
         e_af_count = 5
     };
+
     CUIStatic* m_belt_list_over[e_af_count];
     CUIStatic* m_HelmetOver;
 
@@ -160,23 +162,24 @@ protected:
 
     // delimiter ------------------------------
     CUIStatic* m_LeftDelimiter;
-    //	CUITextWnd*					m_PartnerTradeCaption;
+    CUITextWnd* m_PartnerTradeCaption;
     CUITextWnd* m_PartnerTradePrice;
     CUITextWnd* m_PartnerTradeWeightMax;
 
     CUIStatic* m_RightDelimiter;
-    //	CUITextWnd*					m_ActorTradeCaption;
+    CUITextWnd* m_ActorTradeCaption;
     CUITextWnd* m_ActorTradePrice;
     CUITextWnd* m_ActorTradeWeightMax;
 
     CTrade* m_actor_trade;
     CTrade* m_partner_trade;
 
+    CUI3tButton* m_trade_button;
     CUI3tButton* m_trade_buy_button;
     CUI3tButton* m_trade_sell_button;
     CUI3tButton* m_takeall_button;
     CUI3tButton* m_exit_button;
-    //	CUIStatic*					m_clock_value;
+    CUIStatic* m_clock_value;
 
     u32 m_last_time;
     bool m_repair_mode;
@@ -203,6 +206,7 @@ private:
     void PropertiesBoxForPlaying(PIItem item, bool& b_show);
     void PropertiesBoxForDrop(CUICellItem* cell_item, PIItem item, bool& b_show);
     void PropertiesBoxForRepair(PIItem item, bool& b_show);
+    void PropertiesBoxForDonate(PIItem item, bool& b_show); //Alundaio
 
 private:
     void clear_highlight_lists();
@@ -224,7 +228,11 @@ protected:
     void BindDragDropListEvents(CUIDragDropListEx* lst);
 
     EDDListType GetListType(CUIDragDropListEx* l);
-    CUIDragDropListEx* GetListByType(EDDListType t);
+
+public:
+    CUIDragDropListEx* GetListByType(EDDListType t); //Alundaio: Made public
+
+protected:
     CUIDragDropListEx* GetSlotList(u16 slot_idx);
     bool CanSetItemToList(PIItem item, CUIDragDropListEx* l, u16& ret_slot);
 
@@ -250,13 +258,17 @@ protected:
     void InitUpgradeMode();
     void DeInitUpgradeMode();
     void InitDeadBodySearchMode();
-    void DeInitDeadBodySearchMode();
+    void DeInitDeadBodySearchMode() const;
 
     void CurModeToScript();
     void RepairEffect_CurItem();
 
+public:
+    //Alundaio: Made public
     void SetCurrentItem(CUICellItem* itm);
     CUICellItem* CurrentItem();
+
+protected:
     PIItem CurrentIItem();
 
     void InfoCurItem(CUICellItem* cell_item); // on update item
@@ -342,6 +354,7 @@ public:
     void UpdatePartnerBag();
     void UpdateDeadBodyBag();
 
+    void xr_stdcall OnBtnPerformTrade(CUIWindow* w, void* d);
     void xr_stdcall OnBtnPerformTradeBuy(CUIWindow* w, void* d);
     void xr_stdcall OnBtnPerformTradeSell(CUIWindow* w, void* d);
     void xr_stdcall OnBtnExitClicked(CUIWindow* w, void* d);
@@ -350,4 +363,7 @@ public:
     void UpdateConditionProgressBars();
 
     IC UIHint* get_hint_wnd() { return m_hint_wnd; }
+
+    void RefreshCurrentItemCell();
+    void DonateCurrentItem(CUICellItem* cell_item); //Alundaio: Donate item via context menu while in trade menu
 }; // class CUIActorMenu

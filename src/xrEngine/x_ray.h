@@ -3,15 +3,11 @@
 
 // refs
 class ENGINE_API CGameFont;
-
-#include "Include/xrRender/FactoryPtr.h"
-#include "Include/xrRender/ApplicationRender.h"
+class ILoadingScreen;
 
 // definition
 class ENGINE_API CApplication : public pureFrame, public IEventReceiver
 {
-    friend class dxApplicationRender;
-
     // levels
     struct sLevelInfo
     {
@@ -19,13 +15,8 @@ class ENGINE_API CApplication : public pureFrame, public IEventReceiver
         char* name;
     };
 
-public:
-    string2048 ls_header;
-    string2048 ls_tip_number;
-    string2048 ls_tip;
-
 private:
-    FactoryPtr<IApplicationRender> m_pRender;
+    ILoadingScreen* loadingScreen;
 
     int max_load_stage;
 
@@ -55,7 +46,7 @@ public:
     int Level_ID(LPCSTR name, LPCSTR ver, bool bSet);
     void Level_Set(u32 ID);
     void LoadAllArchives();
-    CInifile* GetArchiveHeader(LPCSTR name, LPCSTR ver);
+    static CInifile* GetArchiveHeader(LPCSTR name, LPCSTR ver);
 
     // Loading
     void LoadBegin();
@@ -64,6 +55,10 @@ public:
     void LoadStage();
     void LoadSwitch();
     void LoadDraw();
+    void LoadForceDrop();
+    void LoadForceFinish();
+
+    void SetLoadStageTitle(pcstr ls_title);
 
     virtual void OnEvent(EVENT E, u64 P1, u64 P2);
 
@@ -72,8 +67,11 @@ public:
     virtual ~CApplication();
 
     virtual void OnFrame();
-    void load_draw_internal();
-    void destroy_loading_shaders();
+    void load_draw_internal(bool precaching = false);
+
+    void SetLoadingScreen(ILoadingScreen* newScreen);
+    void DestroyLoadingScreen();
+    void ShowLoadingScreen(bool show);
 };
 
 extern ENGINE_API CApplication* pApp;

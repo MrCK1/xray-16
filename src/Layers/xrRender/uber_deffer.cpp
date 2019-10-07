@@ -44,6 +44,8 @@ void uber_deffer(CBlender_Compile& C, bool hq, LPCSTR _vspec, LPCSTR _pspec, BOO
             bHasDetailBump = true;
             xr_strcpy(texDetailBump, sizeof(texDetailBump), detail_bump_texture);
             xr_strcpy(texDetailBumpX, sizeof(texDetailBumpX), detail_bump_texture);
+            VERIFY(xr_strlen(texDetailBump) > 2);
+            VERIFY(xr_strlen(texDetailBumpX) > 2);
             xr_strcat(texDetailBumpX, "#");
         }
     }
@@ -99,7 +101,7 @@ void uber_deffer(CBlender_Compile& C, bool hq, LPCSTR _vspec, LPCSTR _pspec, BOO
 #ifdef USE_DX11
     if (bump && hq && RImplementation.o.dx11_enable_tessellation && C.TessMethod != 0)
     {
-        char hs[256], ds[256]; // = "DX11\\tess", ds[256] = "DX11\\tess";
+        char hs[256], ds[256]; // = "DX11" DELIMITER "tess", ds[256] = "DX11" DELIMITER "tess";
         char params[256] = "(";
 
         if (C.TessMethod == CBlender_Compile::TESS_PN || C.TessMethod == CBlender_Compile::TESS_PN_HM)
@@ -136,8 +138,8 @@ void uber_deffer(CBlender_Compile& C, bool hq, LPCSTR _vspec, LPCSTR _pspec, BOO
 
         strconcat(sizeof(vs), vs, "deffer_", _vspec, "_bump", params);
         strconcat(sizeof(ps), ps, "deffer_", _pspec, _aref ? "_aref" : "", "_bump", params);
-        strconcat(sizeof(hs), hs, "DX11\\tess", params);
-        strconcat(sizeof(ds), ds, "DX11\\tess", params);
+        strconcat(sizeof(hs), hs, "DX11" DELIMITER "tess", params);
+        strconcat(sizeof(ds), ds, "DX11" DELIMITER "tess", params);
 
         VERIFY(strstr(vs, "bump") != 0);
         VERIFY(strstr(ps, "bump") != 0);
@@ -146,7 +148,7 @@ void uber_deffer(CBlender_Compile& C, bool hq, LPCSTR _vspec, LPCSTR _pspec, BOO
         u32 stage = C.r_dx10Sampler("smp_bump_ds");
         if (stage != -1)
         {
-            C.i_dx10Address(stage, D3DTADDRESS_WRAP);
+            C.i_Address(stage, D3DTADDRESS_WRAP);
             C.i_dx10FilterAnizo(stage, TRUE);
         }
         if (ps_r2_ls_flags_ext.test(R2FLAGEXT_WIREFRAME))
@@ -185,6 +187,8 @@ void uber_deffer(CBlender_Compile& C, bool hq, LPCSTR _vspec, LPCSTR _pspec, BOO
     {
         C.r_dx10Texture("s_detailBump", texDetailBump);
         C.r_dx10Texture("s_detailBumpX", texDetailBumpX);
+        VERIFY(xr_strlen(texDetailBump) > 2);
+        VERIFY(xr_strlen(texDetailBumpX) > 2);
     }
     C.r_dx10Sampler("smp_base");
     if (lmap)
@@ -285,7 +289,7 @@ void uber_shadow(CBlender_Compile& C, LPCSTR _vspec)
 
     if (bump && RImplementation.o.dx11_enable_tessellation && C.TessMethod != 0)
     {
-        char hs[256], ds[256]; // = "DX11\\tess", ds[256] = "DX11\\tess";
+        char hs[256], ds[256]; // = "DX11" DELIMITER "tess", ds[256] = "DX11" DELIMITER "tess";
         char params[256] = "(";
 
         if (C.TessMethod == CBlender_Compile::TESS_PN || C.TessMethod == CBlender_Compile::TESS_PN_HM)
@@ -321,8 +325,8 @@ void uber_shadow(CBlender_Compile& C, LPCSTR _vspec)
         xr_strcat(params, ")");
 
         strconcat(sizeof(vs), vs, "deffer_", _vspec, "_bump", params);
-        strconcat(sizeof(hs), hs, "DX11\\tess", params);
-        strconcat(sizeof(ds), ds, "DX11\\tess_shadow", params);
+        strconcat(sizeof(hs), hs, "DX11" DELIMITER "tess", params);
+        strconcat(sizeof(ds), ds, "DX11" DELIMITER "tess_shadow", params);
 
         C.r_TessPass(vs, hs, ds, "null", "dumb", FALSE, TRUE, TRUE, FALSE);
         RImplementation.clearAllShaderOptions();
@@ -337,7 +341,7 @@ void uber_shadow(CBlender_Compile& C, LPCSTR _vspec)
         u32 stage = C.r_dx10Sampler("smp_bump_ds");
         if (stage != -1)
         {
-            C.i_dx10Address(stage, D3DTADDRESS_WRAP);
+            C.i_Address(stage, D3DTADDRESS_WRAP);
             C.i_dx10FilterAnizo(stage, TRUE);
         }
         if (ps_r2_ls_flags_ext.test(R2FLAGEXT_WIREFRAME))

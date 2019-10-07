@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "reward_manager.h"
 #include "game_cl_mp.h"
 #include "UIGameMP.h"
@@ -33,22 +33,22 @@ void reward_manager::load_rewards()
 {
     static char const* section_name_prefix = "reward_";
     string_path reward_config_path;
-    FS.update_path(reward_config_path, "$game_config$", "mp\\rewarding.ltx");
+    FS.update_path(reward_config_path, "$game_config$", "mp" DELIMITER "rewarding.ltx");
     IReader* tmp_reader = FS.r_open(reward_config_path);
-    VERIFY2(tmp_reader, "can't open $game_config$\\mp\\rewarding.ltx");
+    VERIFY2(tmp_reader, "can't open $game_config$" DELIMITER "mp" DELIMITER "rewarding.ltx");
     CInifile rewards_config(tmp_reader);
 
     u32 reward_index = 0;
     LPCSTR section_name = NULL;
     char tmp_dst_buff[16];
 
-    STRCONCAT(section_name, section_name_prefix, itoa(reward_index, tmp_dst_buff, 10));
+    STRCONCAT(section_name, section_name_prefix, xr_itoa(reward_index, tmp_dst_buff, 10));
 
     while (rewards_config.section_exist(section_name))
     {
         load_reward_item(rewards_config, reward_index, section_name);
         ++reward_index;
-        STRCONCAT(section_name, section_name_prefix, itoa(reward_index, tmp_dst_buff, 10));
+        STRCONCAT(section_name, section_name_prefix, xr_itoa(reward_index, tmp_dst_buff, 10));
     }
 
     FS.r_close(tmp_reader);

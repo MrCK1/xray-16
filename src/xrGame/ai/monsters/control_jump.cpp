@@ -1,6 +1,6 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "control_jump.h"
-#include "BaseMonster/base_monster.h"
+#include "basemonster/base_monster.h"
 #include "control_manager.h"
 #include "PHMovementControl.h"
 #include "Include/xrRender/KinematicsAnimated.h"
@@ -599,16 +599,16 @@ bool CControlJump::jump_intersect_geometry(Fvector const& target, IGameObject* c
             ignored_object, temp_rq_results, pass_jump_picks, pass_collide_tris, sizes))
     {
 #ifdef DEBUG
-        m_object->m_jump_picks = jump_picks;
-        m_object->m_jump_collide_tris = collide_tris;
+        m_object->m_jump_picks = std::move(jump_picks);
+        m_object->m_jump_collide_tris = std::move(collide_tris);
 #endif // #ifdef DEBUG
 
         return true;
     }
 
 #ifdef DEBUG
-    m_object->m_jump_picks = jump_picks;
-    m_object->m_jump_collide_tris = collide_tris;
+    m_object->m_jump_picks = std::move(jump_picks);
+    m_object->m_jump_collide_tris = std::move(collide_tris);
 #endif // #ifdef DEBUG
 
     return false;
@@ -635,7 +635,7 @@ bool CControlJump::can_jump(Fvector const& target, bool const aggressive_jump)
     float dist = source_position.distance_to(target_position);
 
     // in aggressive mode we can jump from distance >= 1
-    const float test_min_distance = aggressive_jump ? _min(1.f, m_min_distance) : m_min_distance;
+    const float test_min_distance = aggressive_jump ? std::min(1.f, m_min_distance) : m_min_distance;
     if ((dist < test_min_distance) || (dist > m_max_distance))
         return false;
 

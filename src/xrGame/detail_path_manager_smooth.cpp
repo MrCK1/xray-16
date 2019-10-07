@@ -6,14 +6,14 @@
 //	Description : Detail path manager criteria path builder
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "detail_path_manager.h"
 #include "ai_space.h"
 #include "xrEngine/profiler.h"
 #include "xrAICore/Navigation/level_graph.h"
 
 #ifdef DEBUG
-#include "custommonster.h"
+#include "CustomMonster.h"
 extern bool show_restrictions(CRestrictedObject* object);
 #endif
 
@@ -752,6 +752,8 @@ void CDetailPathManager::postprocess_key_points(const xr_vector<u32>& level_path
             compute_better_key_point(m_key_points[i - 1], m_key_points[i], m_key_points[i + 1], false);
         STravelPoint key_point1 =
             compute_better_key_point(m_key_points[i + 1], m_key_points[i], m_key_points[i - 1], true);
+
+        // XXX: check out what is this
         {
             u32 vertex_id = ai().level_graph().check_position_in_direction(
                 m_key_points[i - 1].vertex_id, m_key_points[i - 1].position, key_point0.position);

@@ -1,4 +1,8 @@
 #pragma once
+#include "xrCore/_flags.h"
+#include "xrEngine/pure.h"
+#include "xrCommon/xr_vector.h"
+#include "SDL.h"
 
 class CUIDialogWnd;
 class CUIWindow;
@@ -54,10 +58,12 @@ public:
     virtual bool UseIndicators() { return true; }
     virtual void StartDialog(CUIDialogWnd* pDialog, bool bDoHideIndicators);
     virtual void StopDialog(CUIDialogWnd* pDialog);
+    virtual void StartStopMenu(CUIDialogWnd* pDialog, bool bDoHideIndicators);
     virtual bool IgnorePause() { return false; }
     virtual bool IR_UIOnKeyboardPress(int dik);
     virtual bool IR_UIOnKeyboardRelease(int dik);
+    virtual bool IR_UIOnTextInput(pcstr text);
     virtual bool IR_UIOnMouseMove(int dx, int dy);
-    virtual bool IR_UIOnMouseWheel(int direction);
+    virtual bool IR_UIOnMouseWheel(int x, int y);
     virtual bool IR_UIOnKeyboardHold(int dik);
 };

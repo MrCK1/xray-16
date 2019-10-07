@@ -1,8 +1,8 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "dTriColliderCommon.h"
 #include "dTriColliderMath.h"
 #include "dTriSphere.h"
-#include "dctrilistcollider.h"
+#include "dcTriListCollider.h"
 #include "xrPhysics/PHWorld.h"
 #include "xrCDB/xr_area.h"
 

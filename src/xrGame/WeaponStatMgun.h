@@ -1,9 +1,9 @@
 #pragma once
 
 #include "holder_custom.h"
-#include "shootingobject.h"
-#include "physicsshellholder.h"
-#include "hudsound.h"
+#include "ShootingObject.h"
+#include "PhysicsShellHolder.h"
+#include "HudSound.h"
 class CCartridge;
 class CCameraBase;
 
@@ -85,7 +85,7 @@ public:
     virtual CInventory* GetInventory() { return NULL; };
     virtual void cam_Update(float dt, float fov = 90.0f);
 
-    virtual void renderable_Render();
+    void renderable_Render(IRenderable* root) override;
 
     virtual bool attach_Actor(CGameObject* actor);
     virtual void detach_Actor();

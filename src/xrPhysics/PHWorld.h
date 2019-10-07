@@ -1,7 +1,7 @@
-#ifndef PH_WORLD_H
-#define PH_WORLD_H
+#pragma once
+
 #include "Physics.h"
-#include "phupdateobject.h"
+#include "PHUpdateObject.h"
 #include "IPHWorld.h"
 #include "Common/Noncopyable.hpp"
 #include "physics_scripted.h"
@@ -165,6 +165,5 @@ private:
         m_update_callback = cb;
     }
 };
-extern CPHWorld* ph_world;
+extern XRPHYSICS_API CPHWorld* ph_world;
 IC CPHWorld& inl_ph_world() { return *ph_world; }
-#endif

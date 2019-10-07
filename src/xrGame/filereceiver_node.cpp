@@ -1,16 +1,19 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "filereceiver_node.h"
+#include "xrCore/buffer_vector.h"
 
 namespace file_transfer
 {
 filereceiver_node::filereceiver_node(shared_str const& file_name, receiving_state_callback_t const& callback)
-    : m_file_name(file_name), m_is_writer_memory(false), m_process_callback(callback), m_last_read_time(0)
+    : m_file_name(file_name), m_data_size_to_receive(0), m_user_param(0),
+      m_is_writer_memory(false), m_process_callback(callback), m_last_read_time(0)
 {
     m_writer = FS.w_open(file_name.c_str());
 }
 
 filereceiver_node::filereceiver_node(CMemoryWriter* mem_writer, receiving_state_callback_t const& callback)
-    : m_is_writer_memory(true), m_process_callback(callback), m_last_read_time(0)
+    : m_data_size_to_receive(0), m_user_param(0), m_is_writer_memory(true),
+      m_process_callback(callback), m_last_read_time(0)
 {
     m_writer = static_cast<IWriter*>(mem_writer);
 }
@@ -60,7 +63,7 @@ void split_received_to_buffers(u8* data_ptr, u32 data_size, buffer_vector<const_
     while (!tmp_reader.eof())
     {
         u32 const tmp_buffer_size = tmp_reader.r_u32();
-        int current_pos = tmp_reader.tell();
+        const size_t current_pos = tmp_reader.tell();
         u8 const* tmp_buffer_ptr = static_cast<u8 const*>(tmp_reader.pointer());
         dst_buffers.push_back(std::make_pair(tmp_buffer_ptr, tmp_buffer_size));
         tmp_reader.seek(current_pos + tmp_buffer_size);

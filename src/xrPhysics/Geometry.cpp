@@ -1,8 +1,8 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "Geometry.h"
 #include "PHDynamicData.h"
 #include "ExtendedGeom.h"
-#include "dcylinder//dCylinder.h"
+#include "dcylinder/dCylinder.h"
 
 #include "xrCore/Animation/Bone.hpp"
 

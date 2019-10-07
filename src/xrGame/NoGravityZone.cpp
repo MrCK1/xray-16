@@ -1,6 +1,6 @@
-#include "stdafx.h"
-#include "nogravityzone.h"
-#include "xrPhysics/physicsshell.h"
+#include "StdAfx.h"
+#include "NoGravityZone.h"
+#include "xrPhysics/PhysicsShell.h"
 #include "entity_alive.h"
 #include "PHMovementControl.h"
 
@@ -19,8 +19,8 @@ void CNoGravityZone::exit_Zone(SZoneObjectInfo& io)
 }
 void CNoGravityZone::UpdateWorkload(u32 dt)
 {
-    OBJECT_INFO_VEC_IT i = m_ObjectInfoMap.begin(), e = m_ObjectInfoMap.end();
-    for (; e != i; i++)
+    auto i = m_ObjectInfoMap.begin(), e = m_ObjectInfoMap.end();
+    for (; e != i; ++i)
         switchGravity(*i, false);
 }
 void CNoGravityZone::switchGravity(SZoneObjectInfo& io, bool val)

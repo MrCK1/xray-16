@@ -57,27 +57,53 @@ void CLensFlareDescriptor::AddFlare(float fRadius, float fOpacity, float fPositi
     m_Flares.push_back(F);
 }
 
-/*
-ref_shader CLensFlareDescriptor::CreateShader(LPCSTR tex_name, LPCSTR sh_name)
+struct FlareDescriptorFields
 {
-ref_shader R;
-if (tex_name&&tex_name[0]) R.create(sh_name,tex_name);
-return R;
-}
-*/
+    pcstr line;
+    pcstr shader;
+    pcstr texture;
+    pcstr radius;
+    pcstr ignore_color;
+};
 
-void CLensFlareDescriptor::load(CInifile* pIni, LPCSTR sect)
+FlareDescriptorFields SourceFields =
+{
+    "source", "source_shader", "source_texture", "source_radius", "source_ignore_color"
+};
+
+FlareDescriptorFields SunFields =
+{
+    "sun", "sun_shader", "sun_texture", "sun_radius", "sun_ignore_color"
+};
+
+void CLensFlareDescriptor::load(CInifile const* pIni, pcstr sect)
 {
     section = sect;
-    m_Flags.set(flSource, pIni->r_bool(sect, "sun"));
-    if (m_Flags.is(flSource))
+
+    const auto read = [&](FlareDescriptorFields f)
     {
-        LPCSTR S = pIni->r_string(sect, "sun_shader");
-        LPCSTR T = pIni->r_string(sect, "sun_texture");
-        float r = pIni->r_float(sect, "sun_radius");
-        BOOL i = pIni->r_bool(sect, "sun_ignore_color");
-        SetSource(r, i, T, S);
+        m_Flags.set(flSource, pIni->r_bool(sect, f.line));
+        if (m_Flags.is(flSource))
+        {
+            pcstr s = pIni->r_string(sect, f.shader);
+            pcstr t = pIni->r_string(sect, f.texture);
+            float r = pIni->r_float(sect, f.radius);
+            bool i = pIni->r_bool(sect, f.ignore_color);
+            SetSource(r, i, t, s);
+        }
+    };
+
+    if (pIni->line_exist(sect, SourceFields.line))
+    {
+        read(SourceFields);
+        // What if someone adapted SOC configs and didn't deleted "source" field?
+        // Try to read "sun" optional overriding values.
+        if (pIni->line_exist(sect, SunFields.line))
+            read(SunFields);
     }
+    else
+        read(SunFields);
+
     m_Flags.set(flFlare, pIni->r_bool(sect, "flares"));
     if (m_Flags.is(flFlare))
     {
@@ -100,7 +126,7 @@ void CLensFlareDescriptor::load(CInifile* pIni, LPCSTR sect)
             AddFlare(r, o, p, name, S);
         }
     }
-    m_Flags.set(flGradient, CInifile::IsBOOL(pIni->r_string(sect, "gradient")));
+    m_Flags.set(flGradient, CInifile::isBool(pIni->r_string(sect, "gradient")));
     if (m_Flags.is(flGradient))
     {
         LPCSTR S = pIni->r_string(sect, "gradient_shader");
@@ -120,13 +146,8 @@ void CLensFlareDescriptor::OnDeviceCreate()
     // shaders
     m_Gradient.m_pRender->CreateShader(*m_Gradient.shader, *m_Gradient.texture);
     m_Source.m_pRender->CreateShader(*m_Source.shader, *m_Source.texture);
-    for (FlareIt it = m_Flares.begin(); it != m_Flares.end(); it++)
-        it->m_pRender->CreateShader(*it->shader, *it->texture);
-    /*
-    m_Gradient.hShader = CreateShader (*m_Gradient.texture,*m_Gradient.shader);
-    m_Source.hShader = CreateShader (*m_Source.texture,*m_Source.shader);
-    for (FlareIt it=m_Flares.begin(); it!=m_Flares.end(); it++) it->hShader = CreateShader(*it->texture,*it->shader);
-    */
+    for (const auto& flare : m_Flares)
+        flare.m_pRender->CreateShader(*flare.shader, *flare.texture);
 }
 
 void CLensFlareDescriptor::OnDeviceDestroy()
@@ -134,13 +155,8 @@ void CLensFlareDescriptor::OnDeviceDestroy()
     // shaders
     m_Gradient.m_pRender->DestroyShader();
     m_Source.m_pRender->DestroyShader();
-    for (FlareIt it = m_Flares.begin(); it != m_Flares.end(); it++)
-        it->m_pRender->DestroyShader();
-    /*
-    m_Gradient.hShader.destroy ();
-    m_Source.hShader.destroy ();
-    for (FlareIt it=m_Flares.begin(); it!=m_Flares.end(); it++) it->hShader.destroy();
-    */
+    for (const auto& flare : m_Flares)
+        flare.m_pRender->DestroyShader();
 }
 
 //------------------------------------------------------------------------------
@@ -154,18 +170,16 @@ CLensFlare::CLensFlare()
     LightColor.set(0xFFFFFFFF);
     fGradientValue = 0.f;
 
-    // hGeom = 0;
     m_Current = 0;
 
     m_State = lfsNone;
     m_StateBlend = 0.f;
 
 #ifndef _EDITOR
-    for (int i = 0; i < MAX_RAYS; ++i)
+    for (auto& ray : m_ray_cache)
     {
-        m_ray_cache[i].verts[0].set(0, 0, 0);
-        m_ray_cache[i].verts[1].set(0, 0, 0);
-        m_ray_cache[i].verts[2].set(0, 0, 0);
+        for (auto& vert : ray.verts)
+            vert.set(0, 0, 0);
     }
 #endif
 
@@ -278,7 +292,11 @@ void CLensFlare::OnFrame(shared_str id)
     Fvector& c = g_pGamePersistent->Environment().CurrentEnv->sun_color;
     LightColor.set(c.x, c.y, c.z, 1.f);
 
-    CLensFlareDescriptor* desc = id.size() ? g_pGamePersistent->Environment().add_flare(m_Palette, id) : 0;
+    CInifile const* pIni = g_pGamePersistent->Environment().m_suns_config;
+    if (!pIni)
+        pIni = pSettings;
+
+    CLensFlareDescriptor* desc = id.size() ? g_pGamePersistent->Environment().add_flare(m_Palette, id, pIni) : nullptr;
 
     // LFState previous_state = m_State;
     switch (m_State)
@@ -516,124 +534,33 @@ void CLensFlare::Render(BOOL bSun, BOOL bFlares, BOOL bGradient)
     VERIFY(m_Current);
 
     m_pRender->Render(*this, bSun, bFlares, bGradient);
-
-    /*
-    Fcolor dwLight;
-    Fcolor color;
-    Fvector vec, vecSx, vecSy;
-    Fvector vecDx, vecDy;
-
-    dwLight.set ( LightColor );
-    svector<ref_shader,MAX_Flares> _2render;
-
-    u32 VS_Offset;
-    FVF::LIT *pv = (FVF::LIT*) RCache.Vertex.Lock(MAX_Flares*4,hGeom.stride(),VS_Offset);
-
-    float fDistance = FAR_DIST*0.75f;
-
-    if (bSun){
-    if (m_Current->m_Flags.is(CLensFlareDescriptor::flSource)){
-    vecSx.mul (vecX, m_Current->m_Source.fRadius*fDistance);
-    vecSy.mul (vecY, m_Current->m_Source.fRadius*fDistance);
-    if (m_Current->m_Source.ignore_color) color.set(1.f,1.f,1.f,1.f);
-    else color.set(dwLight);
-    color.a *= m_StateBlend;
-    u32 c = color.get();
-    pv->set (vecLight.x+vecSx.x-vecSy.x, vecLight.y+vecSx.y-vecSy.y, vecLight.z+vecSx.z-vecSy.z, c, 0, 0); pv++;
-    pv->set (vecLight.x+vecSx.x+vecSy.x, vecLight.y+vecSx.y+vecSy.y, vecLight.z+vecSx.z+vecSy.z, c, 0, 1); pv++;
-    pv->set (vecLight.x-vecSx.x-vecSy.x, vecLight.y-vecSx.y-vecSy.y, vecLight.z-vecSx.z-vecSy.z, c, 1, 0); pv++;
-    pv->set (vecLight.x-vecSx.x+vecSy.x, vecLight.y-vecSx.y+vecSy.y, vecLight.z-vecSx.z+vecSy.z, c, 1, 1); pv++;
-    _2render.push_back (m_Current->m_Source.hShader);
-    }
-    }
-    if (fBlend>=EPS_L)
-    {
-    if(bFlares){
-    vecDx.normalize (vecAxis);
-    vecDy.crossproduct (vecDx, vecDir);
-    if (m_Current->m_Flags.is(CLensFlareDescriptor::flFlare)){
-    for (CLensFlareDescriptor::FlareIt it=m_Current->m_Flares.begin(); it!=m_Current->m_Flares.end(); it++){
-    CLensFlareDescriptor::SFlare& F = *it;
-    vec.mul (vecAxis, F.fPosition);
-    vec.add (vecCenter);
-    vecSx.mul (vecDx, F.fRadius*fDistance);
-    vecSy.mul (vecDy, F.fRadius*fDistance);
-    float cl = F.fOpacity * fBlend * m_StateBlend;
-    color.set ( dwLight );
-    color.mul_rgba ( cl );
-    u32 c = color.get();
-    pv->set (vec.x+vecSx.x-vecSy.x, vec.y+vecSx.y-vecSy.y, vec.z+vecSx.z-vecSy.z, c, 0, 0); pv++;
-    pv->set (vec.x+vecSx.x+vecSy.x, vec.y+vecSx.y+vecSy.y, vec.z+vecSx.z+vecSy.z, c, 0, 1); pv++;
-    pv->set (vec.x-vecSx.x-vecSy.x, vec.y-vecSx.y-vecSy.y, vec.z-vecSx.z-vecSy.z, c, 1, 0); pv++;
-    pv->set (vec.x-vecSx.x+vecSy.x, vec.y-vecSx.y+vecSy.y, vec.z-vecSx.z+vecSy.z, c, 1, 1); pv++;
-    _2render.push_back (it->hShader);
-    }
-    }
-    }
-    // gradient
-    if (bGradient&&(fGradientValue>=EPS_L)){
-    if (m_Current->m_Flags.is(CLensFlareDescriptor::flGradient)){
-    vecSx.mul (vecX, m_Current->m_Gradient.fRadius*fGradientValue*fDistance);
-    vecSy.mul (vecY, m_Current->m_Gradient.fRadius*fGradientValue*fDistance);
-
-    color.set ( dwLight );
-    color.mul_rgba ( fGradientValue*m_StateBlend );
-
-    u32 c = color.get ();
-    pv->set (vecLight.x+vecSx.x-vecSy.x, vecLight.y+vecSx.y-vecSy.y, vecLight.z+vecSx.z-vecSy.z, c, 0, 0); pv++;
-    pv->set (vecLight.x+vecSx.x+vecSy.x, vecLight.y+vecSx.y+vecSy.y, vecLight.z+vecSx.z+vecSy.z, c, 0, 1); pv++;
-    pv->set (vecLight.x-vecSx.x-vecSy.x, vecLight.y-vecSx.y-vecSy.y, vecLight.z-vecSx.z-vecSy.z, c, 1, 0); pv++;
-    pv->set (vecLight.x-vecSx.x+vecSy.x, vecLight.y-vecSx.y+vecSy.y, vecLight.z-vecSx.z+vecSy.z, c, 1, 1); pv++;
-    _2render.push_back (m_Current->m_Gradient.hShader);
-    }
-    }
-    }
-    RCache.Vertex.Unlock (_2render.size()*4,hGeom.stride());
-
-    RCache.set_xform_world (Fidentity);
-    RCache.set_Geometry (hGeom);
-    for (u32 i=0; i<_2render.size(); i++)
-    {
-    if (_2render[i])
-    {
-    u32 vBase = i*4+VS_Offset;
-    RCache.set_Shader (_2render[i]);
-    RCache.Render (D3DPT_TRIANGLELIST,vBase, 0,4,0,2);
-    }
-    }
-    */
 }
 
-shared_str CLensFlare::AppendDef(CEnvironment& environment, CInifile* pIni, LPCSTR sect)
+shared_str CLensFlare::AppendDef(CEnvironment& environment, CInifile const* pIni, pcstr sect)
 {
     if (!sect || (0 == sect[0]))
         return "";
-    for (LensFlareDescIt it = m_Palette.begin(); it != m_Palette.end(); it++)
-        if (0 == xr_strcmp(*(*it)->section, sect))
-            return sect;
 
-    environment.add_flare(m_Palette, sect);
+    environment.add_flare(m_Palette, sect, pIni);
     return sect;
 }
 
 void CLensFlare::OnDeviceCreate()
 {
     // VS
-    // hGeom.create (FVF::F_LIT,RCache.Vertex.Buffer(),RCache.QuadIB);
     m_pRender->OnDeviceCreate();
 
     // palette
-    for (LensFlareDescIt it = m_Palette.begin(); it != m_Palette.end(); it++)
-        (*it)->OnDeviceCreate();
+    for (const auto& descr : m_Palette)
+        descr->OnDeviceCreate();
 }
 
 void CLensFlare::OnDeviceDestroy()
 {
     // palette
-    for (LensFlareDescIt it = m_Palette.begin(); it != m_Palette.end(); it++)
-        (*it)->OnDeviceDestroy();
+    for (const auto& descr : m_Palette)
+        descr->OnDeviceDestroy();
 
     // VS
-    // hGeom.destroy();
     m_pRender->OnDeviceDestroy();
 }

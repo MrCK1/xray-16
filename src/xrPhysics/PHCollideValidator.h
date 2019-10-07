@@ -1,7 +1,6 @@
-#ifndef PH_COLLIDE_VALIDATOR
-#define PH_COLLIDE_VALIDATOR
+#pragma once
 
-#include "icollidevalidator.h"
+#include "ICollideValidator.h"
 typedef u32 CLClassBits;
 typedef u32 CLBits;
 class CPHObject;
@@ -19,8 +18,8 @@ class CPHCollideValidator
         cbNCClassSmall = 1 << 7,
         cbClassRagDoll = 1 << 8,
         cbNCClassRagDoll = 1 << 9,
-        cbClassAnimated = 1 << 10, //класс анимированного физического объекта
-        cbNCClassAnimated = 1 << 11, //свойство игнорирования класса анимированного физического объекта
+        cbClassAnimated = 1 << 10, //animated physical object class
+        cbNCClassAnimated = 1 << 11, //ignore property of animated physical object class
         cbNone = 1 << 12
 
     };
@@ -86,5 +85,3 @@ private:
     static _flags<CLClassBits> ClassNCFlags;
     static _flags<CLClassBits> NonTypeFlags;
 };
-
-#endif

@@ -16,29 +16,26 @@
 #include "xrAICore/Navigation/game_graph_space.h"
 #include "game_location_selector.h"
 
-enum EPdaMsg;
-enum ESoundTypes;
-enum ETaskState;
-
+// fwd. decl.
 namespace ALife
 {
-enum ERelationType;
+enum ERelationType : u32;
 }
 namespace ScriptEntity
 {
-enum EActionType;
+enum EActionType : u32;
 }
 namespace MovementManager
 {
-enum EPathType;
+enum EPathType : u32;
 }
 namespace DetailPathManager
 {
-enum EDetailPathType;
+enum EDetailPathType : u32;
 }
 namespace SightManager
 {
-enum ESightType;
+enum ESightType : u32;
 }
 namespace smart_cover
 {
@@ -51,9 +48,13 @@ class door;
 
 class NET_Packet;
 class CGameTask;
+class IGameObject;
 
-enum EPatrolStartType;
-enum EPatrolRouteType;
+enum EPatrolStartType : u32;
+enum EPatrolRouteType : u32;
+enum EPdaMsg : u32;
+enum ESoundTypes : u32;
+enum ETaskState : u32;
 
 namespace MemorySpace
 {
@@ -62,31 +63,31 @@ struct CVisibleObject;
 struct CSoundObject;
 struct CHitObject;
 struct CNotYetVisibleObject;
-};
+}
 
 namespace MonsterSpace
 {
-enum EBodyState;
-enum EMovementType;
-enum EMovementDirection;
-enum EDirectionType;
-enum EPathState;
-enum EObjectAction;
-enum EMentalState;
-enum EScriptMonsterMoveAction;
-enum EScriptMonsterSpeedParam;
-enum EScriptMonsterAnimAction;
-enum EScriptMonsterGlobalAction;
-enum EScriptSoundAnim;
-enum EMonsterSounds;
-enum EMonsterHeadAnimType;
+enum EBodyState : u32;
+enum EMovementType : u32;
+enum EMovementDirection : u32;
+enum EDirectionType : u32;
+enum EPathState : u32;
+enum EObjectAction : u32;
+enum EMentalState : u32;
+enum EScriptMonsterMoveAction : u32;
+enum EScriptMonsterSpeedParam : u32;
+enum EScriptMonsterAnimAction : u32;
+enum EScriptMonsterGlobalAction : u32;
+enum EScriptSoundAnim : u32;
+enum EMonsterSounds : u32;
+enum EMonsterHeadAnimType : u32;
 struct SBoneRotation;
-};
+}
 
 namespace GameObject
 {
-enum ECallbackType;
-};
+enum ECallbackType : u32;
+}
 
 class CGameObject;
 class CScriptHit;
@@ -130,7 +131,7 @@ class CScriptGameObject;
 
 namespace SightManager
 {
-enum ESightType;
+enum ESightType : u32;
 }
 
 struct CSightParams
@@ -189,7 +190,11 @@ public:
     _DECLARE_FUNCTION10(Squad, int);
     _DECLARE_FUNCTION10(Group, int);
 
-    void Kill(CScriptGameObject* who);
+    // XXX: this is a workaround, since luabind can't determine default function arguments...
+    // There is more places, not only this one
+    // Look here: https://github.com/qweasdd136963/OXR_CoC/commit/c37d8f4e49c92fe226a5958954cc9a6a1ab18c93
+    void Kill(CScriptGameObject* who) { Kill(who, false); }
+    void Kill(CScriptGameObject* who, bool bypass_actor_check /*= false*/ /*AVO: added for actor before death callback*/);
 
     // CEntityAlive
     _DECLARE_FUNCTION10(GetFOV, float);
@@ -316,11 +321,15 @@ public:
     //передача порции информации InventoryOwner
     bool GiveInfoPortion(LPCSTR info_id);
     bool DisableInfoPortion(LPCSTR info_id);
+
     void GiveGameNews(LPCSTR caption, LPCSTR news, LPCSTR texture_name, int delay, int show_time);
     void GiveGameNews(LPCSTR caption, LPCSTR news, LPCSTR texture_name, int delay, int show_time, int type);
+    void ClearGameNews() const;
 
-    void AddIconedTalkMessage_old(LPCSTR text, LPCSTR texture_name, LPCSTR templ_name){};
+    void AddIconedTalkMessage_old(LPCSTR text, LPCSTR texture_name, LPCSTR templ_name){}
     void AddIconedTalkMessage(LPCSTR caption, LPCSTR text, LPCSTR texture_name, LPCSTR templ_name);
+    void AddIconedTalkMessage(cpcstr text, cpcstr texture_name, Frect tex_rect, cpcstr templ_name);
+
     //предикаты наличия/отсутствия порции информации у персонажа
     bool HasInfo(LPCSTR info_id);
     bool DontHasInfo(LPCSTR info_id);
@@ -476,6 +485,10 @@ public:
     void bind_object(CScriptBinderObject* object);
     CScriptGameObject* GetCurrentOutfit() const;
     float GetCurrentOutfitProtection(int hit_type);
+
+    bool IsOnBelt(CScriptGameObject* obj) const;
+    CScriptGameObject* ItemOnBelt(u32 item_id) const;  
+    u32 BeltSize() const;  
 
     void deadbody_closed(bool status);
     bool deadbody_closed_status();
@@ -680,7 +693,7 @@ public:
 
     bool invulnerable() const;
     void invulnerable(bool invulnerable);
-    LPCSTR get_smart_cover_description() const;
+    pcstr get_smart_cover_description() const;
     void set_visual_name(LPCSTR visual);
     LPCSTR get_visual_name() const;
 
@@ -778,7 +791,107 @@ public:
     void unlock_door_for_npc();
     bool is_door_blocked_by_npc() const;
     bool is_weapon_going_to_be_strapped(CScriptGameObject const* object) const;
+    
+#ifdef GAME_OBJECT_EXTENDED_EXPORTS
+    void SetHealthEx(float hp); //AVO
+    //Alundaio
+    float GetLuminocityHemi();
+    float GetLuminocity();
+    bool Use(CScriptGameObject* obj);
+    void StartTrade(CScriptGameObject* obj);
+    void StartUpgrade(CScriptGameObject* obj);
+    void SetWeight(float w);
+    void IterateFeelTouch(luabind::functor<void> functor);
+    u32 GetSpatialType();
+    void SetSpatialType(u32 sptype);
+    u8 GetRestrictionType();
+    void SetRestrictionType(u8 type);
 
+    //Weapon
+    void Weapon_AddonAttach(CScriptGameObject* item);
+    void Weapon_AddonDetach(pcstr item_section);
+    bool HasAmmoType(u8 type);
+    int GetAmmoCount(u8 type);
+    void SetAmmoType(u8 type);
+    void SetMainWeaponType(u32 type);
+    void SetWeaponType(u32 type);
+    u32 GetMainWeaponType();
+    u32 GetWeaponType();
+    u8 GetWeaponSubstate();
+    u8 GetAmmoType();
+
+    //Weapon & Outfit
+    bool InstallUpgrade(pcstr upgrade);
+    bool HasUpgrade(pcstr upgrade) const;
+    void IterateInstalledUpgrades(luabind::functor<void> functor);
+
+    //Car
+    CScriptGameObject* GetAttachedVehicle();
+    void AttachVehicle(CScriptGameObject* veh);
+    void DetachVehicle();
+
+    //Any class that is derived from CHudItem
+    u32 PlayHudMotion(pcstr M, bool mixIn, u32 state);
+    void SwitchState(u32 state);
+    u32 GetState();
+
+    //Works for anything with visual
+    bool IsBoneVisible(pcstr bone_name);
+    void SetBoneVisible(pcstr bone_name, bool bVisibility, bool bRecursive = true);
+
+    //Anything with PPhysicShell (ie. car, actor, stalker, monster, heli)
+    void ForceSetPosition(Fvector pos, bool bActivate = false);
+
+    float GetArtefactHealthRestoreSpeed();
+    float GetArtefactRadiationRestoreSpeed();
+    float GetArtefactSatietyRestoreSpeed();
+    float GetArtefactPowerRestoreSpeed();
+    float GetArtefactBleedingRestoreSpeed();
+
+    void SetArtefactHealthRestoreSpeed(float value);
+    void SetArtefactRadiationRestoreSpeed(float value);
+    void SetArtefactSatietyRestoreSpeed(float value);
+    void SetArtefactPowerRestoreSpeed(float value);
+    void SetArtefactBleedingRestoreSpeed(float value);
+
+    //Eatable items
+    void SetRemainingUses(u8 value);
+    u8 GetRemainingUses();
+    u8 GetMaxUses();
+
+    //Phantom
+    void PhantomSetEnemy(CScriptGameObject*);
+    //Actor
+    float GetActorMaxWeight() const;
+    void SetActorMaxWeight(float max_weight);
+
+    float GetActorMaxWalkWeight() const;
+    void SetActorMaxWalkWeight(float max_walk_weight);
+
+    float GetAdditionalMaxWeight() const;
+    void SetAdditionalMaxWeight(float add_max_weight);
+
+    float GetAdditionalMaxWalkWeight() const;
+    void SetAdditionalMaxWalkWeight(float add_max_walk_weight);
+
+    float GetTotalWeight() const;
+    float Weight() const;
+
+    float GetActorJumpSpeed() const;
+    void SetActorJumpSpeed(float jump_speed);
+
+    float GetActorSprintKoef() const;
+    void SetActorSprintKoef(float sprint_koef);
+
+    float GetActorRunCoef() const;
+    void SetActorRunCoef(float run_coef);
+
+    float GetActorRunBackCoef() const;
+    void SetActorRunBackCoef(float run_back_coef);
+
+    void SetCharacterIcon(pcstr iconName);
+    //-Alundaio
+#endif // GAME_OBJECT_EXTENDED_EXPORTS
     doors::door* m_door;
 };
 

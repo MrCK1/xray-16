@@ -17,8 +17,15 @@ using System::String;
 using System::Collections::ArrayList;
 
 #pragma unmanaged
+namespace XRay
+{
+namespace Editor
+{
 class ide_impl;
 extern ide_impl* g_ide;
+}
+}
+
 #pragma managed
 
 property_container::property_container(property_holder* holder, property_container_holder ^ container_holder)
@@ -35,7 +42,7 @@ property_container::!property_container()
     if (!m_holder)
         return;
 
-    if (!g_ide)
+    if (!XRay::Editor::g_ide)
         return;
 
     property_holder* holder = dynamic_cast<property_holder*>(m_holder);

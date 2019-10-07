@@ -1,9 +1,9 @@
-#include "stdafx.h"
-#include "entitycondition.h"
-#include "inventoryowner.h"
-#include "customoutfit.h"
-#include "inventory.h"
-#include "wound.h"
+#include "StdAfx.h"
+#include "EntityCondition.h"
+#include "InventoryOwner.h"
+#include "CustomOutfit.h"
+#include "Inventory.h"
+#include "Wound.h"
 #include "Level.h"
 #include "game_cl_base.h"
 #include "entity_alive.h"
@@ -89,7 +89,7 @@ CEntityCondition::CEntityCondition(CEntityAlive* object) : CEntityConditionSimpl
 CEntityCondition::~CEntityCondition(void) { ClearWounds(); }
 void CEntityCondition::ClearWounds()
 {
-    for (WOUND_VECTOR_IT it = m_WoundVector.begin(); m_WoundVector.end() != it; ++it)
+    for (auto it = m_WoundVector.begin(); m_WoundVector.end() != it; ++it)
         xr_delete(*it);
     m_WoundVector.clear();
 
@@ -148,7 +148,7 @@ void CEntityCondition::reinit()
 
     m_fHealthLost = 0.f;
     m_pWho = NULL;
-    m_iWhoID = NULL;
+    m_iWhoID = 0;
 
     ClearWounds();
 }
@@ -167,7 +167,7 @@ void CEntityCondition::ChangeEntityMorale(const float value) { m_fDeltaEntityMor
 void CEntityCondition::ChangeBleeding(const float percent)
 {
     //затянуть раны
-    for (WOUND_VECTOR_IT it = m_WoundVector.begin(); m_WoundVector.end() != it; ++it)
+    for (auto it = m_WoundVector.begin(); m_WoundVector.end() != it; ++it)
     {
         (*it)->Incarnation(percent, m_fMinWoundSize);
         if (0 == (*it)->TotalSize())
@@ -339,8 +339,8 @@ CWound* CEntityCondition::AddWound(float hit_power, ALife::EHitType hit_type, u1
     VERIFY(element < 64 || BI_NONE == element);
 
     //запомнить кость по которой ударили и силу удара
-    WOUND_VECTOR_IT it = m_WoundVector.begin();
-    for (; it != m_WoundVector.end(); it++)
+    auto it = m_WoundVector.begin();
+    for (; it != m_WoundVector.end(); ++it)
     {
         if ((*it)->GetBoneNum() == element)
             break;
@@ -435,7 +435,7 @@ CWound* CEntityCondition::ConditionHit(SHit* pHDS)
         m_fDeltaPower -= hit_power * m_fPowerHitPart;
         break;
     case ALife::eHitTypeStrike:
-        //	case ALife::eHitTypePhysicStrike:
+    case ALife::eHitTypePhysicStrike:
         hit_power *= GetHitImmunity(pHDS->hit_type) - m_fBoostStrikeImmunity;
         m_fHealthLost = hit_power * m_fHealthHitPart;
         m_fDeltaHealth -= CanBeHarmed() ? m_fHealthLost : 0;
@@ -476,11 +476,11 @@ CWound* CEntityCondition::ConditionHit(SHit* pHDS)
     }
 }
 
-float CEntityCondition::BleedingSpeed()
+float CEntityCondition::BleedingSpeed() const
 {
     float bleeding_speed = 0;
 
-    for (WOUND_VECTOR_IT it = m_WoundVector.begin(); m_WoundVector.end() != it; ++it)
+    for (auto it = m_WoundVector.begin(); m_WoundVector.end() != it; ++it)
         bleeding_speed += (*it)->TotalSize();
 
     return (m_WoundVector.empty() ? 0.f : bleeding_speed / m_WoundVector.size());
@@ -537,7 +537,7 @@ void CEntityCondition::save(NET_Packet& output_packet)
         save_data(m_fPsyHealth, output_packet);
 
         output_packet.w_u8((u8)m_WoundVector.size());
-        for (WOUND_VECTOR_IT it = m_WoundVector.begin(); m_WoundVector.end() != it; it++)
+        for (auto it = m_WoundVector.begin(); m_WoundVector.end() != it; ++it)
             (*it)->save(output_packet);
     }
 }

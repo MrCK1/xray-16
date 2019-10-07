@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIMpTradeWnd.h"
 #include "UIDragDropListEx.h"
 #include "UICellItem.h"
@@ -18,7 +18,7 @@ void CUIMpTradeWnd::OnBtnPistolAmmoClicked(CUIWindow* w, void* d)
     CWeapon* wpn = smart_cast<CWeapon*>(ii);
     R_ASSERT(wpn);
 
-    u32 ammo_idx = (pInput->iGetAsyncKeyState(DIK_LSHIFT)) ? 1 : 0;
+    u32 ammo_idx = (pInput->iGetAsyncKeyState(SDL_SCANCODE_LSHIFT)) ? 1 : 0;
 
     if (wpn->m_ammoTypes.size() < ammo_idx + 1)
         return;
@@ -72,7 +72,7 @@ void CUIMpTradeWnd::OnBtnRifleAmmoClicked(CUIWindow* w, void* d)
     CWeapon* wpn = smart_cast<CWeapon*>(ii);
     R_ASSERT(wpn);
 
-    u32 ammo_idx = (pInput->iGetAsyncKeyState(DIK_LSHIFT)) ? 1 : 0;
+    u32 ammo_idx = (pInput->iGetAsyncKeyState(SDL_SCANCODE_LSHIFT)) ? 1 : 0;
 
     if (wpn->m_ammoTypes.size() < ammo_idx + 1)
         return;

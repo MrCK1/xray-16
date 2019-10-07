@@ -8,12 +8,12 @@
 #ifndef UI_PDA_LOGS_WND_H_INCLUDED
 #define UI_PDA_LOGS_WND_H_INCLUDED
 
-#include "UIWindow.h"
-#include "UIWndCallback.h"
+#include "xrUICore/Windows/UIWindow.h"
+#include "xrUICore/Callbacks/UIWndCallback.h"
 
 #include "ai_space.h"
 #include "xrServerEntities/alife_space.h"
-#include "xrUIXmlParser.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 
 class CUIStatic;
 class CUITextWnd;
@@ -34,19 +34,21 @@ private:
     typedef CUIWindow inherited;
 
     CUIFrameWindow* m_background;
+    CUIFrameLineWnd* m_background2;
     CUIFrameWindow* m_center_background;
+    CUIStatic* m_center_background2;
 
     CUITextWnd* m_center_caption;
-    //	CUICharacterInfo*	m_actor_ch_info;
+    CUICharacterInfo* m_actor_ch_info;
 
     CUICheckButton* m_filter_news;
     CUICheckButton* m_filter_talk;
 
-    //	CUITextWnd*			m_date_caption;
-    //	CUITextWnd*			m_date;
+    CUITextWnd* m_date_caption;
+    CUITextWnd* m_date;
 
     CUITextWnd* m_period_caption;
-    CUITextWnd* m_period;
+    CUIStatic* m_period;
 
     ALife::_TIME_ID m_start_game_time;
     ALife::_TIME_ID m_selected_period;
@@ -71,7 +73,7 @@ public:
     CUILogsWnd();
     virtual ~CUILogsWnd();
 
-    void Init();
+    bool Init();
 
     virtual void Show(bool status);
     virtual void Update();

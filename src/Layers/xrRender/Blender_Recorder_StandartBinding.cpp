@@ -1,14 +1,16 @@
 #include "stdafx.h"
 #pragma hdrstop
 
+#if defined(WINDOWS)
 #pragma warning(push)
 #pragma warning(disable : 4995)
 #include <d3dx9.h>
 #pragma warning(pop)
+#endif
 
 #include "ResourceManager.h"
-#include "blenders\Blender_Recorder.h"
-#include "blenders\Blender.h"
+#include "blenders/Blender_Recorder.h"
+#include "blenders/Blender.h"
 
 #include "xrEngine/IGame_Persistent.h"
 #include "xrEngine/Environment.h"
@@ -17,7 +19,7 @@
 #define BIND_DECLARE(xf)\
     class cl_xform_##xf : public R_constant_setup\
     {\
-        virtual void setup(R_constant* C) {RCache.xforms.set_c_##xf(C); }\
+        virtual void setup(R_constant* C) { RCache.xforms.set_c_##xf(C); }\
     };\
     static cl_xform_##xf binder_##xf
 BIND_DECLARE(w);
@@ -71,16 +73,34 @@ class cl_texgen : public R_constant_setup
     {
         Fmatrix mTexgen;
 
-#if defined(USE_DX10) || defined(USE_DX11)
-        Fmatrix mTexelAdjust = {
-            0.5f, 0.0f, 0.0f, 0.0f, 0.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 0.5f, 0.0f, 1.0f};
+#ifdef USE_OGL
+        Fmatrix mTexelAdjust =
+        {
+            0.5f, 0.0f, 0.0f, 0.0f,
+            0.0f, 0.5f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.5f, 0.5f, 0.0f, 1.0f
+        };
+#elif defined(USE_DX10) || defined(USE_DX11)
+        Fmatrix mTexelAdjust =
+        {
+            0.5f, 0.0f, 0.0f, 0.0f,
+            0.0f, -0.5f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.5f, 0.5f, 0.0f, 1.0f
+        };
 #else // USE_DX10
         float _w = float(RDEVICE.dwWidth);
         float _h = float(RDEVICE.dwHeight);
         float o_w = (.5f / _w);
         float o_h = (.5f / _h);
-        Fmatrix mTexelAdjust = {0.5f, 0.0f, 0.0f, 0.0f, 0.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.5f + o_w,
-            0.5f + o_h, 0.0f, 1.0f};
+        Fmatrix mTexelAdjust =
+        {
+            0.5f, 0.0f, 0.0f, 0.0f,
+            0.0f, -0.5f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.5f + o_w, 0.5f + o_h, 0.0f, 1.0f
+        };
 #endif // USE_DX10
 
         mTexgen.mul(mTexelAdjust, RCache.xforms.m_wvp);
@@ -95,16 +115,34 @@ class cl_VPtexgen : public R_constant_setup
     {
         Fmatrix mTexgen;
 
-#if defined(USE_DX10) || defined(USE_DX11)
-        Fmatrix mTexelAdjust = {
-            0.5f, 0.0f, 0.0f, 0.0f, 0.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 0.5f, 0.0f, 1.0f};
+#ifdef USE_OGL
+        Fmatrix mTexelAdjust =
+        {
+            0.5f, 0.0f, 0.0f, 0.0f,
+            0.0f, 0.5f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.5f, 0.5f, 0.0f, 1.0f
+        };
+#elif defined(USE_DX10) || defined(USE_DX11)
+        Fmatrix mTexelAdjust =
+        {
+            0.5f, 0.0f, 0.0f, 0.0f,
+            0.0f, -0.5f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.5f, 0.5f, 0.0f, 1.0f
+        };
 #else // USE_DX10
         float _w = float(RDEVICE.dwWidth);
         float _h = float(RDEVICE.dwHeight);
         float o_w = (.5f / _w);
         float o_h = (.5f / _h);
-        Fmatrix mTexelAdjust = {0.5f, 0.0f, 0.0f, 0.0f, 0.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.5f + o_w,
-            0.5f + o_h, 0.0f, 1.0f};
+        Fmatrix mTexelAdjust =
+        {
+            0.5f, 0.0f, 0.0f, 0.0f,
+            0.0f, -0.5f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.5f + o_w, 0.5f + o_h, 0.0f, 1.0f
+        };
 #endif // USE_DX10
 
         mTexgen.mul(mTexelAdjust, RCache.xforms.m_vp);
@@ -198,7 +236,7 @@ class cl_eye_P : public R_constant_setup
     virtual void setup(R_constant* C)
     {
         Fvector& V = RDEVICE.vCameraPosition;
-        RCache.set_c(C, V.x, V.y, V.z, 1);
+        RCache.set_c(C, V.x, V.y, V.z, 1.f);
     }
 };
 static cl_eye_P binder_eye_P;
@@ -209,7 +247,7 @@ class cl_eye_D : public R_constant_setup
     virtual void setup(R_constant* C)
     {
         Fvector& V = RDEVICE.vCameraDirection;
-        RCache.set_c(C, V.x, V.y, V.z, 0);
+        RCache.set_c(C, V.x, V.y, V.z, 0.f);
     }
 };
 static cl_eye_D binder_eye_D;
@@ -220,7 +258,7 @@ class cl_eye_N : public R_constant_setup
     virtual void setup(R_constant* C)
     {
         Fvector& V = RDEVICE.vCameraTop;
-        RCache.set_c(C, V.x, V.y, V.z, 0);
+        RCache.set_c(C, V.x, V.y, V.z, 0.f);
     }
 };
 static cl_eye_N binder_eye_N;
@@ -318,9 +356,53 @@ static class cl_screen_res : public R_constant_setup
     }
 } binder_screen_res;
 
+// SM_TODO: RCache.hemi заменить на более "логичное" место
+static class cl_hud_params : public R_constant_setup //--#SM+#--
+{
+    virtual void setup(R_constant* C) { RCache.set_c(C, g_pGamePersistent->m_pGShaderConstants->hud_params); }
+} binder_hud_params;
+
+static class cl_script_params : public R_constant_setup //--#SM+#--
+{
+    virtual void setup(R_constant* C) { RCache.set_c(C, g_pGamePersistent->m_pGShaderConstants->m_script_params); }
+} binder_script_params;
+
+static class cl_blend_mode : public R_constant_setup //--#SM+#--
+{
+    virtual void setup(R_constant* C) { RCache.set_c(C, g_pGamePersistent->m_pGShaderConstants->m_blender_mode); }
+} binder_blend_mode;
+
+class cl_camo_data : public R_constant_setup //--#SM+#--
+{
+    virtual void setup(R_constant* C) { RCache.hemi.c_camo_data = C; }
+};
+static cl_camo_data binder_camo_data;
+
+class cl_custom_data : public R_constant_setup //--#SM+#--
+{
+    virtual void setup(R_constant* C) { RCache.hemi.c_custom_data = C; }
+};
+static cl_custom_data binder_custom_data;
+
+class cl_entity_data : public R_constant_setup //--#SM+#--
+{
+    virtual void setup(R_constant* C) { RCache.hemi.c_entity_data = C; }
+};
+static cl_entity_data binder_entity_data;
+
 // Standart constant-binding
 void CBlender_Compile::SetMapping()
 {
+    // misc
+    r_Constant("m_hud_params", &binder_hud_params); //--#SM+#--
+    r_Constant("m_script_params", &binder_script_params); //--#SM+#--
+    r_Constant("m_blender_mode", &binder_blend_mode); //--#SM+#--
+
+    // objects data
+    r_Constant("m_obj_camo_data", &binder_camo_data); //--#SM+#--
+    r_Constant("m_obj_custom_data", &binder_custom_data); //--#SM+#--
+    r_Constant("m_obj_entity_data", &binder_entity_data); //--#SM+#--
+
     // matrices
     r_Constant("m_W", &binder_w);
     r_Constant("m_invW", &binder_invw);
@@ -374,7 +456,7 @@ void CBlender_Compile::SetMapping()
     r_Constant("screen_res", &binder_screen_res);
 
     // detail
-    //if (bDetail  && detail_scaler)
+    // if (bDetail  && detail_scaler)
     // Igor: bDetail can be overridden by no_detail_texture option.
     // But shader can be deatiled implicitly, so try to set this parameter
     // anyway.

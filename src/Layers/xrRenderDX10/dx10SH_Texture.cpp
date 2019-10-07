@@ -80,8 +80,7 @@ void CTexture::surface_set(ID3DBaseTexture* surf)
                 else
                 {
                     ViewDesc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2DMS;
-                    ViewDesc.Texture2D.MostDetailedMip = 0;
-                    ViewDesc.Texture2D.MipLevels = desc.MipLevels;
+                    ViewDesc.Texture2DMS.UnusedField_NothingToDefine = 0;
                 }
             }
 
@@ -89,11 +88,24 @@ void CTexture::surface_set(ID3DBaseTexture* surf)
 
             switch (desc.Format)
             {
-            case DXGI_FORMAT_R24G8_TYPELESS: ViewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS; break;
-            case DXGI_FORMAT_R32_TYPELESS: ViewDesc.Format = DXGI_FORMAT_R32_FLOAT; break;
+            case DXGI_FORMAT_R32G8X24_TYPELESS:
+                ViewDesc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+                break;
+
+            case DXGI_FORMAT_R24G8_TYPELESS:
+                ViewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+                break;
+
+            case DXGI_FORMAT_R32_TYPELESS:
+                ViewDesc.Format = DXGI_FORMAT_R32_FLOAT;
+                break;
+
+            case DXGI_FORMAT_R16_TYPELESS:
+                ViewDesc.Format = DXGI_FORMAT_R16_FLOAT;
+                break;
             }
 
-            // this would be supported by DX10.1 but is not needed for stalker
+            // this would be supported by DX10.1 but is not needed for stalker // XXX: why?
             // if( ViewDesc.Format != DXGI_FORMAT_R24_UNORM_X8_TYPELESS )
             if ((desc.SampleDesc.Count <= 1) || (ViewDesc.Format != DXGI_FORMAT_R24_UNORM_X8_TYPELESS))
                 CHK_DX(HW.pDevice->CreateShaderResourceView(pSurface, &ViewDesc, &m_pSRView));
@@ -375,7 +387,7 @@ void CTexture::Load()
 
     flags.bUser = false;
     flags.MemoryUsage = 0;
-    if (0 == stricmp(*cName, "$null"))
+    if (0 == xr_stricmp(*cName, "$null"))
         return;
     if (0 != strstr(*cName, "$user$"))
     {
@@ -498,7 +510,7 @@ void CTexture::Load()
 
         flags.seqCycles = FALSE;
         _fs->r_string(buffer, sizeof(buffer));
-        if (0 == stricmp(buffer, "cycled"))
+        if (0 == xr_stricmp(buffer, "cycled"))
         {
             flags.seqCycles = TRUE;
             _fs->r_string(buffer, sizeof(buffer));
@@ -547,10 +559,11 @@ void CTexture::Load()
             // pSurface->SetPriority	(PRIORITY_NORMAL);
             flags.MemoryUsage = mem;
         }
+
+        if (pSurface && bCreateView)
+            CHK_DX(HW.pDevice->CreateShaderResourceView(pSurface, NULL, &m_pSRView));
     }
 
-    if (pSurface && bCreateView)
-        CHK_DX(HW.pDevice->CreateShaderResourceView(pSurface, NULL, &m_pSRView));
     PostLoad();
 }
 
@@ -601,6 +614,8 @@ void CTexture::desc_update()
         {
             ID3DTexture2D* T = (ID3DTexture2D*)pSurface;
             T->GetDesc(&desc);
+            m_width = desc.Width;
+            m_height = desc.Height;
         }
     }
 }

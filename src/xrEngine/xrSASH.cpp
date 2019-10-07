@@ -3,6 +3,7 @@
 
 #include "XR_IOConsole.h"
 #include "xr_ioc_cmd.h"
+#include "MonitorManager.hpp"
 
 xrSASH ENGINE_API g_SASH;
 
@@ -285,7 +286,7 @@ void xrSASH::GetAllOptions()
     // r1 only
     Option.Dependency.ParentName = TEXT("renderer");
     Option.Dependency.ComparisonOp = OA_COMP_OP_EQUAL;
-    Option.Dependency.ComparisonVal.Enum = TEXT("renderer_r1");
+    Option.Dependency.ComparisonVal.Enum = (oaString)"renderer_r1";
     Option.Dependency.ComparisonValType = GetOptionType("renderer");
     {
         DescribeOption("r__supersample", Option.Dependency);
@@ -464,7 +465,15 @@ void xrSASH::TryInitEngine(bool bNoRun)
         xr_strcpy(Console->ConfigFile, c_name);
     }
 
-    if (strstr(Core.Params, "-r2a"))
+    if (strstr(Core.Params, "-gl"))
+        Console->Execute("renderer renderer_gl");
+    else if (strstr(Core.Params, "-r4"))
+        Console->Execute("renderer renderer_r4");
+    else if (strstr(Core.Params, "-r3"))
+        Console->Execute("renderer renderer_r3");
+    else if (strstr(Core.Params, "-r2.5"))
+        Console->Execute("renderer renderer_r2.5");
+    else if (strstr(Core.Params, "-r2a"))
         Console->Execute("renderer renderer_r2a");
     else if (strstr(Core.Params, "-r2"))
         Console->Execute("renderer renderer_r2");
@@ -496,6 +505,7 @@ void xrSASH::TryInitEngine(bool bNoRun)
     {
         InitSound();
         Device.Create();
+        Device.WaitUntilCreated();
     }
 }
 
@@ -505,11 +515,12 @@ void xrSASH::ReleaseEngine()
 
     destroyInput();
     Console->Destroy();
+    g_monitors.Destroy();
     destroySound();
     destroyEngine();
 }
 
-oaOptionDataType xrSASH::GetOptionType(char* pszOptionName)
+oaOptionDataType xrSASH::GetOptionType(pcstr pszOptionName)
 {
     CConsole::vecCMD_IT I = Console->Commands.find(pszOptionName);
     if (I == Console->Commands.end())
@@ -540,7 +551,7 @@ oaOptionDataType xrSASH::GetOptionType(char* pszOptionName)
     }
 }
 
-void xrSASH::DescribeOption(char* pszOptionName, const oaOptionDependency& Dependency)
+void xrSASH::DescribeOption(pcstr pszOptionName, const oaOptionDependency& Dependency)
 {
     oaNamedOptionStruct Option;
     oaInitOption(&Option);
@@ -573,7 +584,7 @@ void xrSASH::DescribeOption(char* pszOptionName, const oaOptionDependency& Depen
     else if (pToken)
     {
         Option.DataType = OA_TYPE_ENUM;
-        xr_token* pXRToken = pToken->GetToken();
+        const xr_token* pXRToken = pToken->GetToken();
 
         while (pXRToken->name)
         {
@@ -608,7 +619,7 @@ void xrSASH::DescribeOption(char* pszOptionName, const oaOptionDependency& Depen
     }
 }
 
-void xrSASH::GetOption(char* pszOptionName)
+void xrSASH::GetOption(pcstr pszOptionName)
 {
     oaValue Val;
 
@@ -636,7 +647,7 @@ void xrSASH::GetOption(char* pszOptionName)
     else if (pToken)
     {
         IConsole_Command::TStatus stat;
-        pToken->Status(stat);
+        pToken->GetStatus(stat);
         Val.Enum = stat;
         oaAddOptionValue(pszOptionName, OA_TYPE_ENUM, &Val);
     }

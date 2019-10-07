@@ -41,23 +41,31 @@ cover::cover(smart_cover::object const& object, DescriptionPtr description, bool
 {
     m_is_smart_cover = 1;
 
-    m_loopholes.reserve(m_description->loopholes().size());
-    Loopholes::const_iterator I = m_description->loopholes().begin();
-    Loopholes::const_iterator E = m_description->loopholes().end();
-    for (; I != E; ++I)
+    if (loopholes_availability)
     {
-        for (luabind::iterator i(loopholes_availability), e; i != e; ++i)
+        m_loopholes.reserve(m_description->loopholes().size());
+        for (const auto& it : m_description->loopholes())
         {
-            LPCSTR const loophole_id = luabind::object_cast<LPCSTR>(i.key());
-            if (xr_strcmp(loophole_id, (*I)->id()))
-                continue;
+            for (luabind::iterator i(loopholes_availability), e; i != e; ++i)
+            {
+                pcstr const loophole_id = luabind::object_cast<pcstr>(i.key());
+                if (xr_strcmp(loophole_id, it->id()))
+                    continue;
 
-            if (!luabind::object_cast<bool>(*i))
+                if (!luabind::object_cast<bool>(*i))
+                    break;
+
+                m_loopholes.push_back(it);
                 break;
-
-            m_loopholes.push_back(*I);
-            break;
+            }
         }
+    }
+    else
+    {
+        m_loopholes.reserve(m_description->loopholes().size());
+
+        for (const auto& it : m_description->loopholes())
+            m_loopholes.push_back(it);
     }
 
     CLevelGraph const& graph = ai().level_graph();
@@ -107,26 +115,15 @@ void cover::vertex(smart_cover::loophole const& loophole, smart_cover::loophole_
         }
 }
 
-class id_predicate
-{
-    shared_str m_id;
-
-public:
-    IC id_predicate(shared_str const& id) : m_id(id) {}
-    IC bool operator()(cover::Vertex const& vertex) const { return (m_id._get() == vertex.first->id()._get()); }
-    IC bool operator()(smart_cover::loophole_data::Action const& action) const
-    {
-        return (m_id._get() == action.first._get());
-    }
-};
-
 u32 const& cover::action_level_vertex_id(smart_cover::loophole const& loophole, shared_str const& action_id) const
 {
-    Vertices::const_iterator found = std::find_if(m_vertices.begin(), m_vertices.end(), id_predicate(loophole.id()));
+    auto found = std::find_if(m_vertices.begin(), m_vertices.end(),
+        [&loophole] (cover::Vertex const& vertex) { return loophole.id()._get() == vertex.first->id()._get(); });
     VERIFY(found != m_vertices.end());
 
-    loophole_data::ActionVertices::const_iterator found2 = std::find_if(
-        found->second.m_action_vertices.begin(), found->second.m_action_vertices.end(), id_predicate(action_id));
+    auto found2 = std::find_if(
+        found->second.m_action_vertices.begin(), found->second.m_action_vertices.end(),
+        [action_id] (smart_cover::loophole_data::Action const& action) { return (action_id._get() == action.first._get()); });
     VERIFY(found2 != found->second.m_action_vertices.end());
     VERIFY(ai().level_graph().valid_vertex_id(found2->second));
 

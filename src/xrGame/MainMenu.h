@@ -12,9 +12,10 @@ class demo_info_loader;
 #include "xrEngine/IInputReceiver.h"
 #include "xrEngine/IGame_Persistent.h"
 #include "UIDialogHolder.h"
-#include "ui/UIWndCallback.h"
-#include "ui_base.h"
+#include "xrUICore/Callbacks/UIWndCallback.h"
+#include "xrUICore/ui_base.h"
 #include "DemoInfo.h"
+#include "ai_space.h"
 
 namespace gamespy_gp
 {
@@ -37,10 +38,10 @@ struct Patch_Dawnload_Progress
     shared_str Status;
     shared_str FileName;
 
-    bool GetInProgress() { return IsInProgress; };
-    float GetProgress() { return Progress; };
-    LPCSTR GetStatus() { return Status.c_str(); };
-    LPCSTR GetFlieName() { return FileName.c_str(); };
+    bool GetInProgress() { return IsInProgress; }
+    float GetProgress() { return Progress; }
+    LPCSTR GetStatus() { return Status.c_str(); }
+    LPCSTR GetFlieName() { return FileName.c_str(); }
 };
 
 class CMainMenu : public IMainMenu,
@@ -48,8 +49,8 @@ class CMainMenu : public IMainMenu,
                   public pureRender,
                   public CDialogHolder,
                   public CUIWndCallback,
-                  public CDeviceResetNotifier
-
+                  public CDeviceResetNotifier,
+                  public CUIResetNotifier
 {
     CUIDialogWnd* m_startDialog;
 
@@ -67,17 +68,21 @@ class CMainMenu : public IMainMenu,
     Flags16 m_Flags;
     string_path m_screenshot_name;
     u32 m_screenshotFrame;
-    void ReadTextureInfo();
 
     xr_vector<CUIWindow*> m_pp_draw_wnds;
+
+    bool languageChanged;
 
     CGameSpy_Full* m_pGameSpyFull;
     gamespy_gp::account_manager* m_account_mngr;
     gamespy_gp::login_manager* m_login_mngr;
     gamespy_profile::profile_store* m_profile_store;
+
+#ifdef WINDOWS
+
     gamespy_profile::stats_submitter* m_stats_submitter;
     atlas_submit_queue* m_atlas_submit_queue;
-
+#endif
     demo_info_loader* m_demo_info_loader;
 
 public:
@@ -108,13 +113,15 @@ public:
     Patch_Dawnload_Progress m_sPDProgress;
     Patch_Dawnload_Progress* GetPatchProgress() { return &m_sPDProgress; }
     void CancelDownload();
+    gamespy_gp::account_manager* GetAccountMngr() { return m_account_mngr; }
+    gamespy_gp::login_manager* GetLoginMngr() { return m_login_mngr; }
+    gamespy_profile::profile_store* GetProfileStore() { return m_profile_store; }
 
+#ifdef WINDOWS
     CGameSpy_Full* GetGS() { return m_pGameSpyFull; };
-    gamespy_gp::account_manager* GetAccountMngr() { return m_account_mngr; };
-    gamespy_gp::login_manager* GetLoginMngr() { return m_login_mngr; };
-    gamespy_profile::profile_store* GetProfileStore() { return m_profile_store; };
     gamespy_profile::stats_submitter* GetStatsSubmitter() { return m_stats_submitter; };
     atlas_submit_queue* GetSubmitQueue() { return m_atlas_submit_queue; };
+#endif
 protected:
     EErrorDlg m_NeedErrDialog;
     u32 m_start_time;
@@ -131,35 +138,44 @@ protected:
 public:
     u32 m_deactivated_frame;
     bool m_activatedScreenRatio;
-    virtual void DestroyInternal(bool bForce);
+    void DestroyInternal(bool bForce) override;
+
     CMainMenu();
     virtual ~CMainMenu();
 
-    virtual void Activate(bool bActive);
-    virtual bool IsActive();
-    virtual bool CanSkipSceneRendering();
+    void Activate(bool bActive) override;
+    bool IsActive() const override;
+    bool CanSkipSceneRendering() override;
 
-    virtual bool IgnorePause() { return true; }
-    virtual void IR_OnMousePress(int btn);
-    virtual void IR_OnMouseRelease(int btn);
-    virtual void IR_OnMouseHold(int btn);
-    virtual void IR_OnMouseMove(int x, int y);
-    virtual void IR_OnMouseStop(int x, int y);
+    virtual bool IsLanguageChanged();
+    virtual void SetLanguageChanged(bool status);
 
-    virtual void IR_OnKeyboardPress(int dik);
-    virtual void IR_OnKeyboardRelease(int dik);
-    virtual void IR_OnKeyboardHold(int dik);
+    bool IgnorePause() override { return true; }
 
-    virtual void IR_OnMouseWheel(int direction);
+    void IR_OnMousePress(int btn) override;
+    void IR_OnMouseRelease(int btn) override;
+    void IR_OnMouseHold(int btn) override;
+    void IR_OnMouseWheel(int x, int y) override;
+    void IR_OnMouseMove(int x, int y) override;
+    void IR_OnMouseStop(int x, int y) override;
+
+    void IR_OnKeyboardPress(int dik) override;
+    void IR_OnKeyboardRelease(int dik) override;
+    void IR_OnKeyboardHold(int dik) override;
+
+    void IR_OnTextInput(pcstr text) override;
+
+    void IR_OnControllerPress(int btn) override;
+    void IR_OnControllerRelease(int btn) override;
 
     bool OnRenderPPUI_query();
     void OnRenderPPUI_main();
     void OnRenderPPUI_PP();
 
-    virtual void OnRender();
-    virtual void OnFrame(void);
+    void OnRender() override;
+    void OnFrame(void) override;
 
-    virtual bool UseIndicators() { return false; }
+    bool UseIndicators() override { return false; }
     void OnDeviceCreate();
 
     void Screenshot(IRender::ScreenshotMode mode = IRender::SM_NORMAL, LPCSTR name = 0);
@@ -167,9 +183,11 @@ public:
     void UnregisterPPDraw(CUIWindow* w);
 
     void SetErrorDialog(EErrorDlg ErrDlg);
-    EErrorDlg GetErrorDialogType() const { return m_NeedErrDialog; };
+    EErrorDlg GetErrorDialogType() const { return m_NeedErrDialog; }
     void CheckForErrorDlg();
+
     void SwitchToMultiplayerMenu();
+
     void xr_stdcall OnPatchCheck(bool success, LPCSTR VersionName, LPCSTR URL);
     void xr_stdcall OnDownloadPatch(CUIWindow*, void*);
     void xr_stdcall OnConnectToMasterServerOkClicked(CUIWindow*, void*);
@@ -180,13 +198,18 @@ public:
 
     void OnSessionTerminate(LPCSTR reason);
     void OnLoadError(LPCSTR module);
+
     void xr_stdcall OnDownloadPatchResult(bool success);
     void xr_stdcall OnDownloadPatchProgress(u64 received, u64 total);
     void xr_stdcall OnRunDownloadedPatch(CUIWindow*, void*);
+
     void Show_CTMS_Dialog();
     void Hide_CTMS_Dialog();
+
     void SetNeedVidRestart();
-    virtual void OnDeviceReset();
+    void OnDeviceReset() override;
+    void OnUIReset() override;
+
     LPCSTR GetGSVer();
 
     bool IsCDKeyIsValid();
@@ -196,6 +219,8 @@ public:
     LPCSTR GetCDKeyFromRegistry();
 
     demo_info const* GetDemoInfo(LPCSTR file_name);
+
+    CEventNotifierCallback::CID m_script_reset_event_cid;
 };
 
 extern CMainMenu* MainMenu();

@@ -4,21 +4,16 @@
 #include "xrEngine/xr_object.h"
 #include "Layers/xrRender/FBasicVisual.h"
 #include "xrEngine/CustomHUD.h"
-#ifndef _EDITOR
-#include "xrCore/Threading/ttapi.h"
-#endif
 #include "xrCore/Math/MathUtil.hpp"
 using namespace XRay::Math;
 
-const float S_distance = 48;
+const float S_distance = 144;
 const float S_distance2 = S_distance * S_distance;
 const float S_ideal_size = 4.f; // ideal size for the object
 const float S_fade = 4.5;
 const float S_fade2 = S_fade * S_fade;
 
 const float S_level = .05f; // clip by energy level
-const int S_size = 85;
-const int S_rt_size = 512;
 const int batch_size = 256;
 const float S_tess = .5f;
 const int S_ambient = 32;
@@ -31,30 +26,40 @@ const u32 cache_old = 30 * 1000; // 30 secs
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
+constexpr cpcstr RTname = "$user$shadow";
+constexpr cpcstr RTtemp = "$user$temp";
+
+void CLightShadows::recreate_rt()
+{
+    RT.destroy();
+    RT_temp.destroy();
+
+    rt_size = ps_r2_smapsize / 2;
+    RT.create(RTname, rt_size, rt_size, S_rtf);
+    RT_temp.create(RTtemp, rt_size, rt_size, S_rtf);
+}
+
 // XXX: add to statistics
 CLightShadows::CLightShadows() : xrc("LightShadows")
 {
-    current = 0;
-    RT = 0;
+    current = nullptr;
+    rt_size = 0;
 
-    LPCSTR RTname = "$user$shadow";
-    LPCSTR RTtemp = "$user$temp";
     string128 RTname2;
     strconcat(sizeof(RTname2), RTname2, RTname, ",", RTname);
     string128 RTtemp2;
     strconcat(sizeof(RTtemp2), RTtemp2, RTtemp, ",", RTtemp);
 
     //
-    RT.create(RTname, S_rt_size, S_rt_size, S_rtf);
-    RT_temp.create(RTtemp, S_rt_size, S_rt_size, S_rtf);
-    sh_World.create("effects\\shadow_world", RTname);
-    geom_World.create(FVF::F_LIT, RCache.Vertex.Buffer(), NULL);
+    recreate_rt();
+    sh_World.create("effects" DELIMITER "shadow_world", RTname);
+    geom_World.create(FVF::F_LIT, RCache.Vertex.Buffer(), nullptr);
     sh_BlurTR.create("blur4", RTtemp2);
     sh_BlurRT.create("blur4", RTname2);
     geom_Blur.create(FVF::F_TL4uv, RCache.Vertex.Buffer(), RCache.QuadIB);
 
     // Debug
-    sh_Screen.create("effects\\screen_set", RTname);
+    sh_Screen.create("effects" DELIMITER "screen_set", RTname);
     geom_Screen.create(FVF::F_TL, RCache.Vertex.Buffer(), RCache.QuadIB);
 }
 
@@ -86,14 +91,17 @@ CLightShadows::~CLightShadows()
 
 void CLightShadows::set_object(IRenderable* O)
 {
-    if (0 == O)
-        current = 0;
+    if (current == O)
+        return;
+
+    if (nullptr == O)
+        current = nullptr;
     else
     {
-        if (!O->renderable_ShadowGenerate() || RImplementation.val_bHUD ||
+        if (!O->renderable_ShadowGenerate() || O->renderable_HUD() ||
             ((CROS_impl*)O->renderable_ROS())->shadow_gen_frame == Device.dwFrame)
         {
-            current = 0;
+            current = nullptr;
             return;
         }
 
@@ -108,14 +116,14 @@ void CLightShadows::set_object(IRenderable* O)
         if (_priority < 1.f)
             current = O;
         else
-            current = 0;
+            current = nullptr;
 
         if (current)
         {
             ((CROS_impl*)O->renderable_ROS())->shadow_gen_frame = Device.dwFrame;
 
             // alloc
-            caster* cs = NULL;
+            caster* cs = nullptr;
             if (casters_pool.empty())
                 cs = new caster();
             else
@@ -136,10 +144,10 @@ void CLightShadows::set_object(IRenderable* O)
 
 void CLightShadows::add_element(NODE& N)
 {
-    if (0 == current)
+    if (nullptr == current)
         return;
     VERIFY2(casters.back()->nodes.size() < 24, "Object exceeds limit of 24 renderable parts/materials");
-    if (0 == N.pVisual->shader->E[SE_R1_LMODELS]._get())
+    if (nullptr == N.pVisual->shader->E[SE_R1_LMODELS]._get())
         return;
     casters.back()->nodes.push_back(N);
 }
@@ -157,9 +165,13 @@ void CLightShadows::calculate()
     BOOL bRTS = FALSE;
     HW.pDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
 
+    if (rt_size != ps_r2_smapsize / 2)
+        recreate_rt();
+
     // iterate on objects
     int slot_id = 0;
-    int slot_line = S_rt_size / S_size;
+    int s_size = rt_size * ps_r2_ls_squality / (512 / 85);
+    int slot_line = rt_size / s_size;
     int slot_max = slot_line * slot_line;
     const float eps = 2 * EPS_L;
     for (u32 o_it = 0; o_it < casters.size(); o_it++)
@@ -187,7 +199,7 @@ void CLightShadows::calculate()
                 bRTS = TRUE;
                 RCache.set_RT(RT_temp->pRT);
                 RCache.set_ZB(RImplementation.Target->pTempZB);
-                HW.pDevice->Clear(0, 0, D3DCLEAR_TARGET, color_xrgb(255, 255, 255), 1, 0);
+                HW.pDevice->Clear(0, nullptr, D3DCLEAR_TARGET, color_xrgb(255, 255, 255), 1, 0);
             }
 
             // calculate light center
@@ -236,7 +248,7 @@ void CLightShadows::calculate()
             float p_near = p_dist - p_R - eps;
             // float		p_nearR	=	C.C.distance_to(L.source->position) + p_R*0.85f + eps;
             //			p_nearR =	p_near;
-            float p_far = _min(Lrange, _max(p_dist + S_fade, p_dist + p_R));
+            float p_far = std::min(Lrange, std::max(p_dist + S_fade, p_dist + p_R));
             if (p_near < eps)
                 continue;
             if (p_far < (p_near + eps))
@@ -281,7 +293,7 @@ void CLightShadows::calculate()
             // Select slot and set viewport
             int s_x = slot_id % slot_line;
             int s_y = slot_id / slot_line;
-            D3DVIEWPORT9 VP = {s_x * S_size, s_y * S_size, S_size, S_size, 0, 1};
+            D3DVIEWPORT9 VP = {s_x * s_size, s_y * s_size, s_size, s_size, 0, 1};
             CHK_DX(HW.pDevice->SetViewport(&VP));
 
             // Render object-parts
@@ -320,7 +332,7 @@ void CLightShadows::calculate()
         // Fill VB
         u32 Offset;
         FVF::TL4uv* pv = (FVF::TL4uv*)RCache.Vertex.Lock(4, geom_Blur.stride(), Offset);
-        RImplementation.ApplyBlur4(pv, S_rt_size, S_rt_size, S_blur_kernel);
+        RImplementation.ApplyBlur4(pv, rt_size, rt_size, S_blur_kernel);
         RCache.Vertex.Unlock(4, geom_Blur.stride());
 
         // Actual rendering (pass0, temp2real)
@@ -353,6 +365,7 @@ IC bool cache_search(const CLightShadows::cache_item& A, const CLightShadows::ca
     return false; // eq
 }
 
+// XXX: use PLC_energy from xrCore
 IC float PLC_energy(Fvector& P, Fvector& N, light* L, float E)
 {
     Fvector Ldir;
@@ -386,6 +399,7 @@ IC float PLC_energy(Fvector& P, Fvector& N, light* L, float E)
     }
 }
 
+// XXX: use PLC_calc from xrCore (maybe)
 IC int PLC_calc(Fvector& P, Fvector& N, light* L, float energy, Fvector& O)
 {
     float E = PLC_energy(P, N, L, energy);
@@ -402,7 +416,8 @@ void CLightShadows::render()
     CDB::TRI* TRIS = DB->get_tris();
     Fvector* VERTS = DB->get_verts();
 
-    int slot_line = S_rt_size / S_size;
+    int s_size = rt_size * ps_r2_ls_squality / (512 / 85);
+    int slot_line = rt_size / s_size;
 
     // Projection and xform
     float _43 = Device.mProject._43;
@@ -436,19 +451,19 @@ void CLightShadows::render()
         int s_x = S.slot % slot_line;
         int s_y = S.slot / slot_line;
         Fvector2 t_scale, t_offset;
-        t_scale.set(float(S_size) / float(S_rt_size), float(S_size) / float(S_rt_size));
+        t_scale.set(float(s_size) / float(rt_size), float(s_size) / float(rt_size));
         t_scale.mul(.5f);
         t_offset.set(float(s_x) / float(slot_line), float(s_y) / float(slot_line));
-        t_offset.x += .5f / S_rt_size;
-        t_offset.y += .5f / S_rt_size;
+        t_offset.x += .5f / rt_size;
+        t_offset.y += .5f / rt_size;
 
         // Search the cache
-        cache_item* CI = 0;
+        cache_item* CI = nullptr;
         BOOL bValid = FALSE;
         cache_item CI_what;
         CI_what.O = S.O;
         CI_what.L = S.L;
-        CI_what.tris = 0;
+        CI_what.tris = nullptr;
         xr_vector<cache_item>::iterator CI_ptr = std::lower_bound(cache.begin(), cache.end(), CI_what, cache_search);
         if (CI_ptr == cache.end())
         { // empty ?
@@ -491,11 +506,11 @@ void CLightShadows::render()
 
             // Clip polys by frustum
             tess.clear();
-            for (CDB::RESULT* p = xrc.r_begin(); p != xrc.r_end(); p++)
+            for (auto &p : *xrc.r_get())
             {
-                VERIFY((p->id >= 0) && (p->id < DB->get_tris_count()));
+                VERIFY((p.id >= 0) && (p.id < DB->get_tris_count()));
                 //
-                CDB::TRI& t = TRIS[p->id];
+                CDB::TRI& t = TRIS[p.id];
                 if (t.suppress_shadows)
                     continue;
                 sPoly A, B;
@@ -521,7 +536,7 @@ void CLightShadows::render()
 
                 // Clip polygon
                 sPoly* clip = F.ClipPoly(A, B);
-                if (0 == clip)
+                if (nullptr == clip)
                     continue;
 
                 // Triangulate poly
@@ -544,7 +559,7 @@ void CLightShadows::render()
             CI->tcnt = tess.size();
             // Msg						("---free--- %x",u32(CI->tris));
             xr_free(CI->tris);
-            VERIFY(0 == CI->tris);
+            VERIFY(nullptr == CI->tris);
             if (tess.size())
             {
                 CI->tris = xr_alloc<tess_tri>(CI->tcnt);
@@ -619,7 +634,7 @@ void CLightShadows::render()
         {
             // Msg			("---free--- %x",u32(ci.tris));
             xr_free(ci.tris);
-            VERIFY(0 == ci.tris);
+            VERIFY(nullptr == ci.tris);
             cache.erase(cache.begin() + cit);
             cit--;
         }

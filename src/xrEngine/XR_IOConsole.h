@@ -50,10 +50,11 @@ struct TipString
     IC bool operator==(shared_str const& tips_text) { return (text == tips_text); }
 };
 
-class ENGINE_API CConsole : public pureRender, public pureFrame, public pureScreenResolutionChanged
+class ENGINE_API CConsole : public pureRender, public pureFrame,
+                            public CUIResetAndResolutionNotifier
 {
 public:
-    struct str_pred : public std::binary_function<char*, char*, bool>
+    struct str_pred
     {
         IC bool operator()(const char* x, const char* y) const { return (xr_strcmp(x, y) < 0); }
     };
@@ -87,6 +88,8 @@ protected:
     bool m_disable_tips;
 
 private:
+    int lastBindedKeys[2];
+
     vecHistory m_cmd_history;
     u32 m_cmd_history_max;
     int m_cmd_history_idx;
@@ -107,9 +110,13 @@ public:
     virtual void Initialize();
     virtual void Destroy();
 
+    virtual void OnDeviceInitialize() {}
+
     virtual void OnRender();
     virtual void OnFrame();
-    virtual void OnScreenResolutionChanged();
+    
+    void OnUIReset() override;
+    
     string64 ConfigFile;
     bool bVisible;
     vecCMD Commands;
@@ -130,7 +137,7 @@ public:
     int GetInteger(LPCSTR cmd, int& min, int& max) const;
     LPCSTR GetString(LPCSTR cmd) const;
     LPCSTR GetToken(LPCSTR cmd) const;
-    xr_token* GetXRToken(LPCSTR cmd) const;
+    const xr_token* GetXRToken(LPCSTR cmd) const;
     Fvector GetFVector(LPCSTR cmd) const;
     Fvector* GetFVectorPtr(LPCSTR cmd) const;
     IConsole_Command* GetCommand(LPCSTR cmd) const;

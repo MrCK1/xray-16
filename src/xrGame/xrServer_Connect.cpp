@@ -1,5 +1,5 @@
-#include "stdafx.h"
-#include "xrserver.h"
+#include "StdAfx.h"
+#include "xrServer.h"
 #include "game_sv_single.h"
 #include "game_sv_deathmatch.h"
 #include "game_sv_teamdeathmatch.h"
@@ -12,6 +12,7 @@
 #include "file_transfer.h"
 #include "screenshot_server.h"
 #include "xrNetServer/NET_AuthCheck.h"
+#include "xrNetServer/NET_Messages.h"
 
 LPCSTR xrServer::get_map_download_url(LPCSTR level_name, LPCSTR level_version)
 {
@@ -49,7 +50,7 @@ xrServer::EConnect xrServer::Connect(shared_str& session_name, GameDescriptionDa
 
     // Parse game type
     string1024 type;
-    R_ASSERT2(xr_strlen(options) <= sizeof(type), "session_name too BIIIGGG!!!");
+    R_ASSERT2(xr_strlen(options) <= sizeof(type), "options too BIIIGGG!!!");
     xr_strcpy(type, options);
     if (strchr(type, '/'))
         *strchr(type, '/') = 0;
@@ -172,7 +173,7 @@ void xrServer::ProcessClientDigest(xrClientData* xrCL, NET_Packet* P)
         }
         else
         {
-            message_to_user = "";
+            STRCONCAT(message_to_user, "");
         }
         SendConnectResult(tmp_client, 0, ecr_have_been_banned, message_to_user);
         return;

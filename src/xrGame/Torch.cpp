@@ -1,24 +1,25 @@
-#include "stdafx.h"
-#include "torch.h"
-#include "entity.h"
-#include "actor.h"
+#include "StdAfx.h"
+#include "Torch.h"
+#include "Entity.h"
+#include "Actor.h"
 #include "xrEngine/LightAnimLibrary.h"
 #include "xrPhysics/PhysicsShell.h"
-#include "xrserver_objects_alife_items.h"
+#include "xrServer_Objects_ALife_Items.h"
 #include "ai_sounds.h"
 
 #include "Level.h"
 #include "Include/xrRender/Kinematics.h"
-#include "xrEngine/camerabase.h"
+#include "xrEngine/CameraBase.h"
 #include "xrEngine/xr_collide_form.h"
-#include "inventory.h"
+#include "Inventory.h"
 #include "game_base_space.h"
 
 #include "UIGameCustom.h"
-#include "actorEffector.h"
+#include "ActorEffector.h"
 #include "CustomOutfit.h"
 #include "ActorHelmet.h"
 
+constexpr pcstr TORCH_DEFINITION = "torch_definition";
 static const float TORCH_INERTION_CLAMP = PI_DIV_6;
 static const float TORCH_INERTION_SPEED_MAX = 7.5f;
 static const float TORCH_INERTION_SPEED_MIN = 0.5f;
@@ -28,19 +29,17 @@ static const float OPTIMIZATION_DISTANCE = 100.f;
 
 static bool stalker_use_dynamic_lights = false;
 
-ENGINE_API int g_current_renderer;
-
 CTorch::CTorch(void)
 {
-    light_render = GlobalEnv.Render->light_create();
+    light_render = GEnv.Render->light_create();
     light_render->set_type(IRender_Light::SPOT);
     light_render->set_shadow(true);
-    light_omni = GlobalEnv.Render->light_create();
+    light_omni = GEnv.Render->light_create();
     light_omni->set_type(IRender_Light::POINT);
     light_omni->set_shadow(false);
 
     m_switched_on = false;
-    glow_render = GlobalEnv.Render->glow_create();
+    glow_render = GEnv.Render->glow_create();
     lanim = 0;
     fBrightness = 1.f;
 
@@ -50,7 +49,7 @@ CTorch::CTorch(void)
 
     // Disabling shift by x and z axes for 1st render,
     // because we don't have dynamic lighting in it.
-    if (g_current_renderer == 1)
+    if (GEnv.CurrentRenderer == 1)
     {
         TORCH_OFFSET.x = 0;
         TORCH_OFFSET.z = 0;
@@ -115,7 +114,7 @@ void CTorch::SwitchNightVision(bool vision_on, bool use_sounds)
     for (u32 i = 0; i < cnt; ++i)
     {
         _GetItem(disabled_names, i, tmp);
-        if (0 == stricmp(tmp, curr_map))
+        if (0 == xr_stricmp(tmp, curr_map))
         {
             b_allow = false;
             break;
@@ -210,34 +209,52 @@ BOOL CTorch::net_Spawn(CSE_Abstract* DC)
     if (!inherited::net_Spawn(DC))
         return (FALSE);
 
-    bool b_r2 = !!psDeviceFlags.test(rsR2);
-    b_r2 |= !!psDeviceFlags.test(rsR3);
-    b_r2 |= !!psDeviceFlags.test(rsR4);
+    bool b_r2 = !psDeviceFlags.test(rsR1);
 
     IKinematics* K = smart_cast<IKinematics*>(Visual());
     CInifile* pUserData = K->LL_UserData();
     R_ASSERT3(pUserData, "Empty Torch user data!", torch->get_visual());
-    lanim = LALib.FindItem(pUserData->r_string("torch_definition", "color_animator"));
-    guid_bone = K->LL_BoneID(pUserData->r_string("torch_definition", "guide_bone"));
+    lanim = LALib.FindItem(pUserData->r_string(TORCH_DEFINITION, "color_animator"));
+    guid_bone = K->LL_BoneID(pUserData->r_string(TORCH_DEFINITION, "guide_bone"));
     VERIFY(guid_bone != BI_NONE);
 
-    Fcolor clr = pUserData->r_fcolor("torch_definition", (b_r2) ? "color_r2" : "color");
+    Fcolor clr = pUserData->r_fcolor(TORCH_DEFINITION, (b_r2) ? "color_r2" : "color");
     fBrightness = clr.intensity();
-    float range = pUserData->r_float("torch_definition", (b_r2) ? "range_r2" : "range");
+    float range = pUserData->r_float(TORCH_DEFINITION, (b_r2) ? "range_r2" : "range");
     light_render->set_color(clr);
     light_render->set_range(range);
 
-    Fcolor clr_o = pUserData->r_fcolor("torch_definition", (b_r2) ? "omni_color_r2" : "omni_color");
-    float range_o = pUserData->r_float("torch_definition", (b_r2) ? "omni_range_r2" : "omni_range");
+    if (b_r2)
+    {
+        bool useVolumetric = pUserData->read_if_exists<bool>(TORCH_DEFINITION, "volumetric_enabled", false);
+        light_render->set_volumetric(useVolumetric);
+        if (useVolumetric)
+        {
+            float volQuality = pUserData->read_if_exists<float>(TORCH_DEFINITION, "volumetric_quality", 1.f);
+            clamp(volQuality, 0.f, 1.f);
+            light_render->set_volumetric_quality(volQuality);
+
+            float volIntensity = pUserData->read_if_exists<float>(TORCH_DEFINITION, "volumetric_intensity", 1.f);
+            clamp(volIntensity, 0.f, 10.f);
+            light_render->set_volumetric_intensity(volIntensity);
+
+            float volDistance = pUserData->read_if_exists<float>(TORCH_DEFINITION, "volumetric_distance", 1.f);
+            clamp(volDistance, 0.f, 1.f);
+            light_render->set_volumetric_distance(volDistance);
+        }
+    }
+
+    Fcolor clr_o = pUserData->r_fcolor(TORCH_DEFINITION, (b_r2) ? "omni_color_r2" : "omni_color");
+    float range_o = pUserData->r_float(TORCH_DEFINITION, (b_r2) ? "omni_range_r2" : "omni_range");
     light_omni->set_color(clr_o);
     light_omni->set_range(range_o);
 
-    light_render->set_cone(deg2rad(pUserData->r_float("torch_definition", "spot_angle")));
-    light_render->set_texture(pUserData->r_string("torch_definition", "spot_texture"));
+    light_render->set_cone(deg2rad(pUserData->r_float(TORCH_DEFINITION, "spot_angle")));
+    light_render->set_texture(pUserData->r_string(TORCH_DEFINITION, "spot_texture"));
 
-    glow_render->set_texture(pUserData->r_string("torch_definition", "glow_texture"));
+    glow_render->set_texture(pUserData->r_string(TORCH_DEFINITION, "glow_texture"));
     glow_render->set_color(clr);
-    glow_render->set_radius(pUserData->r_float("torch_definition", "glow_radius"));
+    glow_render->set_radius(pUserData->r_float(TORCH_DEFINITION, "glow_radius"));
 
     //включить/выключить фонарик
     Switch(torch->m_active);
@@ -460,7 +477,7 @@ void CTorch::afterDetach()
     inherited::afterDetach();
     Switch(false);
 }
-void CTorch::renderable_Render() { inherited::renderable_Render(); }
+
 void CTorch::enable(bool value)
 {
     inherited::enable(value);

@@ -23,7 +23,7 @@ void CRenderTarget::DoAsyncScreenshot()
         //	pTex = rt_Color->pSurface;
 
         // HW.pDevice->CopyResource( t_ss_async, pTex );
-        ID3D10Texture2D* pBuffer;
+        ID3DTexture2D* pBuffer;
         hr = HW.m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), (LPVOID*)&pBuffer);
         HW.pDevice->CopyResource(t_ss_async, pBuffer);
 
@@ -44,6 +44,18 @@ void CRenderTarget::phase_combine()
 
     //*** exposure-pipeline
     u32 gpu_id = Device.dwFrame % HW.Caps.iGPUNum;
+
+    if (Device.m_SecondViewport.IsSVPActive()) //--#SM+#-- +SecondVP+ Fix for screen flickering
+    {
+        // clang-format off
+        gpu_id = (Device.dwFrame - 1) % HW.Caps.iGPUNum;	// Фикс "мерцания" tonemapping (HDR) после выключения двойного рендера. 
+                                                            // Побочный эффект - при работе двойного рендера скорость изменения tonemapping (HDR) падает в два раза
+                                                            // Мерцание связано с тем, что HDR для своей работы хранит уменьшенние копии "прошлых кадров"
+                                                            // Эти кадры относительно похожи друг на друга, однако при включЄнном двойном рендере
+                                                            // в половине кадров оказывается картинка из второго рендера, и поскольку она часто может отличатся по цвету\яркости
+                                                            // то при попытке создания "плавного" перехода между ними получается эффект мерцания
+        // clang-format on
+    }
     {
         t_LUM_src->surface_set(rt_LUM_pool[gpu_id * 2 + 0]->pSurface);
         t_LUM_dest->surface_set(rt_LUM_pool[gpu_id * 2 + 1]->pSurface);
@@ -70,7 +82,7 @@ void CRenderTarget::phase_combine()
         u_setrt(rt_Generic_0, rt_Generic_1, 0, HW.pBaseZB);
     else
     {
-        FLOAT ColorRGBA[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        FLOAT ColorRGBA[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
         HW.pDevice->ClearRenderTargetView(rt_Generic_0_r->pRT, ColorRGBA);
         HW.pDevice->ClearRenderTargetView(rt_Generic_1_r->pRT, ColorRGBA);
         u_setrt(rt_Generic_0_r, rt_Generic_1_r, 0, RImplementation.Target->rt_MSAADepth->pZRT);
@@ -134,14 +146,32 @@ void CRenderTarget::phase_combine()
         m_v2w.invert(Device.mView);
         CEnvDescriptorMixer& envdesc = *g_pGamePersistent->Environment().CurrentEnv;
         const float minamb = 0.001f;
-        Fvector4 ambclr = {_max(envdesc.ambient.x * 2, minamb), _max(envdesc.ambient.y * 2, minamb),
-            _max(envdesc.ambient.z * 2, minamb), 0};
+        Fvector4 ambclr =
+        {
+            std::max(envdesc.ambient.x * 2.f, minamb),
+            std::max(envdesc.ambient.y * 2.f, minamb),
+            std::max(envdesc.ambient.z * 2.f, minamb),
+            0
+        };
         ambclr.mul(ps_r2_sun_lumscale_amb);
 
-        //.		Fvector4	envclr			= { envdesc.sky_color.x*2+EPS,	envdesc.sky_color.y*2+EPS,
-        // envdesc.sky_color.z*2+EPS,	envdesc.weight					};
-        Fvector4 envclr = {envdesc.hemi_color.x * 2 + EPS, envdesc.hemi_color.y * 2 + EPS,
-            envdesc.hemi_color.z * 2 + EPS, envdesc.weight};
+        Fvector4 envclr;
+        if (envdesc.old_style)
+        {
+            envclr =
+            {
+                envdesc.sky_color.x * 2 + EPS, envdesc.sky_color.y * 2 + EPS,
+                envdesc.sky_color.z * 2 + EPS, envdesc.weight
+            };
+        }
+        else
+        {
+            envclr =
+            {
+                envdesc.hemi_color.x * 2 + EPS, envdesc.hemi_color.y * 2 + EPS,
+                envdesc.hemi_color.z * 2 + EPS, envdesc.weight
+            };
+        }
 
         Fvector4 fogclr = {envdesc.fog_color.x, envdesc.fog_color.y, envdesc.fog_color.z, 0};
         envclr.x *= 2 * ps_r2_sun_lumscale_hemi;
@@ -159,7 +189,7 @@ void CRenderTarget::phase_combine()
 
         // sun-params
         {
-            light* fuckingsun = (light*)RImplementation.Lights.sun_adapted._get();
+            light* fuckingsun = (light*)RImplementation.Lights.sun._get();
             Fvector L_dir, L_clr;
             float L_spec;
             L_clr.set(fuckingsun->color.r, fuckingsun->color.g, fuckingsun->color.b);
@@ -343,6 +373,14 @@ void CRenderTarget::phase_combine()
        }
        */
 
+    //FXAA
+    if (ps_r2_fxaa)
+    {
+        PIX_EVENT(FXAA);
+        phase_fxaa();
+        RCache.set_Stencil(FALSE);
+    }
+
     // PP enabled ?
     //	Render to RT texture to be able to copy RT even in windowed mode.
     BOOL PP_Complex = u_need_PP() | (BOOL)RImplementation.m_bMakeAsyncSS;
@@ -454,17 +492,17 @@ void CRenderTarget::phase_combine()
             else
                 RCache.set_Element(s_combine_msaa[0]->E[bDistort ? 4 : 2]); // look at blender_combine.cpp
         }
-        RCache.set_c("e_barrier", ps_r2_aa_barier.x, ps_r2_aa_barier.y, ps_r2_aa_barier.z, 0);
-        RCache.set_c("e_weights", ps_r2_aa_weight.x, ps_r2_aa_weight.y, ps_r2_aa_weight.z, 0);
-        RCache.set_c("e_kernel", ps_r2_aa_kernel, ps_r2_aa_kernel, ps_r2_aa_kernel, 0);
+        RCache.set_c("e_barrier", ps_r2_aa_barier.x, ps_r2_aa_barier.y, ps_r2_aa_barier.z, 0.f);
+        RCache.set_c("e_weights", ps_r2_aa_weight.x, ps_r2_aa_weight.y, ps_r2_aa_weight.z, 0.f);
+        RCache.set_c("e_kernel", ps_r2_aa_kernel, ps_r2_aa_kernel, ps_r2_aa_kernel, 0.f);
         RCache.set_c("m_current", m_current);
         RCache.set_c("m_previous", m_previous);
-        RCache.set_c("m_blur", m_blur_scale.x, m_blur_scale.y, 0, 0);
+        RCache.set_c("m_blur", m_blur_scale.x, m_blur_scale.y, 0.f, 0.f);
         Fvector3 dof;
         g_pGamePersistent->GetCurrentDof(dof);
         RCache.set_c("dof_params", dof.x, dof.y, dof.z, ps_r2_dof_sky);
         //.		RCache.set_c				("dof_params",	ps_r2_dof.x, ps_r2_dof.y, ps_r2_dof.z, ps_r2_dof_sky);
-        RCache.set_c("dof_kernel", vDofKernel.x, vDofKernel.y, ps_r2_dof_kernel_size, 0);
+        RCache.set_c("dof_kernel", vDofKernel.x, vDofKernel.y, ps_r2_dof_kernel_size, 0.f);
 
         RCache.set_Geometry(g_aa_AA);
         RCache.Render(D3DPT_TRIANGLELIST, Offset, 0, 4, 0, 2);
@@ -472,7 +510,9 @@ void CRenderTarget::phase_combine()
     RCache.set_Stencil(FALSE);
 
     //	if FP16-BLEND !not! supported - draw flares here, overwise they are already in the bloom target
-    /* if (!RImplementation.o.fp16_blend)*/ g_pGamePersistent->Environment().RenderFlares(); // lens-flares
+    /* if (!RImplementation.o.fp16_blend)*/
+    PIX_EVENT(LENS_FLARES);
+    g_pGamePersistent->Environment().RenderFlares(); // lens-flares
 
     //	PP-if required
     if (PP_Complex)

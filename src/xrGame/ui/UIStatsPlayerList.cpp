@@ -6,7 +6,7 @@
 #include "UIStatsIcon.h"
 #include "string_table.h"
 #include "Level.h"
-#include "UIStatic.h"
+#include "xrUICore/Static/UIStatic.h"
 #include "UIXmlInit.h"
 
 IC bool DM_Compare_Players(game_PlayerState* p1, game_PlayerState* p2);
@@ -49,7 +49,7 @@ void CUIStatsPlayerList::Init(CUIXml& xml_doc, LPCSTR path)
 
     // init item structure
     int tabsCount = xml_doc.GetNodesNum(path, 0, "field");
-    XML_NODE* tab_node = xml_doc.NavigateToNode(path, 0);
+    XML_NODE tab_node = xml_doc.NavigateToNode(path, 0);
     xml_doc.SetLocalRoot(tab_node);
 
     for (int i = 0; i < tabsCount; ++i)
@@ -205,7 +205,7 @@ void CUIStatsPlayerList::Update()
     if (m_prev_upd_time > Device.dwTimeContinual - 100)
         return;
 
-    DEFINE_VECTOR(game_PlayerState*, ItemVec, ItemIt);
+    using ItemVec = xr_vector<game_PlayerState*>;
     ItemVec items;
 
     m_prev_upd_time = Device.dwTimeContinual;
@@ -231,21 +231,20 @@ void CUIStatsPlayerList::Update()
     };
     pl_count = items.size();
 
-    CStringTable st;
     if (GameID() == eGameIDArtefactHunt && !m_bSpectator)
     {
         game_cl_ArtefactHunt* game = static_cast<game_cl_ArtefactHunt*>(&Game());
         pl_artefacts = game->teams[m_CurTeam - 1].score;
-        xr_sprintf(teaminfo, "%s: %u, %s: %u, %s: %d", *st.translate("mp_artefacts_upcase"), pl_artefacts,
-            *st.translate("mp_players"), pl_count, *st.translate("mp_frags_upcase"), pl_frags);
+        xr_sprintf(teaminfo, "%s: %u, %s: %u, %s: %d", *StringTable().translate("mp_artefacts_upcase"), pl_artefacts,
+            *StringTable().translate("mp_players"), pl_count, *StringTable().translate("mp_frags_upcase"), pl_frags);
         m_header_text->SetText(teaminfo);
     }
     else if (GameID() == eGameIDTeamDeathmatch && !m_bSpectator)
     {
         game_cl_TeamDeathmatch* game = static_cast<game_cl_TeamDeathmatch*>(&Game());
         pl_frags = game->teams[m_CurTeam - 1].score;
-        xr_sprintf(teaminfo, "%s: %d, %s: %u", *st.translate("mp_frags_upcase"), pl_frags, *st.translate("mp_players"),
-            pl_count);
+        xr_sprintf(teaminfo, "%s: %d, %s: %u", *StringTable().translate("mp_frags_upcase"), pl_frags,
+            *StringTable().translate("mp_players"), pl_count);
         m_header_text->SetText(teaminfo);
     }
 
@@ -286,10 +285,10 @@ void CUIStatsPlayerList::Update()
 
     R_ASSERT(items.size() == m_pad->GetChildWndList().size());
 
-    WINDOW_LIST_it it = m_pad->GetChildWndList().begin();
-    ItemIt itit = items.begin();
+    auto it = m_pad->GetChildWndList().begin();
+    auto itit = items.begin();
 
-    for (; it != m_pad->GetChildWndList().end(); it++, itit++)
+    for (; it != m_pad->GetChildWndList().end(); ++it, ++itit)
     {
         CUIStatsPlayerInfo* pi = smart_cast<CUIStatsPlayerInfo*>(*it);
         R_ASSERT(pi);

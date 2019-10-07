@@ -5,6 +5,7 @@
 //	Description : Smart cover description class
 ////////////////////////////////////////////////////////////////////////////
 
+#pragma once
 #ifndef SMART_COVER_DESCRIPTION_H_INCLUDED
 #define SMART_COVER_DESCRIPTION_H_INCLUDED
 
@@ -41,7 +42,7 @@ public:
     IC shared_str const& table_id() const;
     IC Loopholes const& loopholes() const;
     IC TransitionGraph const& transitions() const;
-    loophole const* loophole(shared_str const& loophole_id) const;
+    loophole const* get_loophole(shared_str const& loophole_id) const;
 
 private:
     void load_loopholes(shared_str const& table_id);

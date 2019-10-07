@@ -25,7 +25,7 @@ static u32 g_batch_5000;
 u16 RegisterShader(LPCSTR T)
 {
     for (u32 it = 0; it < pBuild->g_Shaders.size(); it++)
-        if (0 == stricmp(T, pBuild->g_Shaders[it]))
+        if (0 == xr_stricmp(T, pBuild->g_Shaders[it]))
             return it;
     pBuild->g_Shaders.push_back(xr_strdup(T));
     return pBuild->g_Shaders.size() - 1;
@@ -108,7 +108,7 @@ void CBuild::SaveTREE(IWriter& fs)
 
     Logger.Status("Visuals...");
     fs.open_chunk(fsL_VISUALS);
-    for (xr_vector<OGF_Base*>::iterator it = g_tree.begin(); it != g_tree.end(); it++)
+    for (xr_vector<OGF_Base*>::iterator it = g_tree.begin(); it != g_tree.end(); ++it)
     {
         u32 idx = u32(it - g_tree.begin());
         MFS.open_chunk(idx);
@@ -130,7 +130,7 @@ void CBuild::SaveTREE(IWriter& fs)
     Logger.Status("Shader table...");
     fs.open_chunk(fsL_SHADERS);
     fs.w_u32(g_Shaders.size());
-    for (xr_vector<LPCSTR>::iterator T = g_Shaders.begin(); T != g_Shaders.end(); T++)
+    for (xr_vector<LPCSTR>::iterator T = g_Shaders.begin(); T != g_Shaders.end(); ++T)
         fs.w_stringZ(*T);
     fs.close_chunk();
     // mem_Compact			();

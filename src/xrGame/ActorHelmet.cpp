@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "ActorHelmet.h"
 #include "Actor.h"
 #include "Inventory.h"
@@ -30,7 +30,8 @@ void CHelmet::Load(LPCSTR section)
     m_HitTypeProtection[ALife::eHitTypeChemicalBurn] = pSettings->r_float(section, "chemical_burn_protection");
     m_HitTypeProtection[ALife::eHitTypeExplosion] = pSettings->r_float(section, "explosion_protection");
     m_HitTypeProtection[ALife::eHitTypeFireWound] = 0.0f; // pSettings->r_float(section,"fire_wound_protection");
-    //	m_HitTypeProtection[ALife::eHitTypePhysicStrike]= pSettings->r_float(section,"physic_strike_protection");
+    m_HitTypeProtection[ALife::eHitTypePhysicStrike] = pSettings->read_if_exists<float>(
+        section, "physic_strike_protection", m_HitTypeProtection[ALife::eHitTypeStrike]);
     m_HitTypeProtection[ALife::eHitTypeLightBurn] = m_HitTypeProtection[ALife::eHitTypeBurn];
     m_boneProtection->m_fHitFracActor = pSettings->r_float(section, "hit_fraction_actor");
 
@@ -49,6 +50,9 @@ void CHelmet::Load(LPCSTR section)
 
     m_BonesProtectionSect = READ_IF_EXISTS(pSettings, r_string, section, "bones_koeff_protection", "");
     m_fShowNearestEnemiesDistance = READ_IF_EXISTS(pSettings, r_float, section, "nearest_enemies_show_dist", 0.0f);
+
+    // Added by Axel, to enable optional condition use on any item
+    m_flags.set(FUsingCondition, READ_IF_EXISTS(pSettings, r_bool, section, "use_condition", true));
 }
 
 void CHelmet::ReloadBonesProtection()
@@ -156,7 +160,7 @@ bool CHelmet::install_upgrade_impl(LPCSTR section, bool test)
     result |= process_if_exists(
         section, "telepatic_protection", &CInifile::r_float, m_HitTypeProtection[ALife::eHitTypeTelepatic], test);
     result |= process_if_exists(section, "chemical_burn_protection", &CInifile::r_float,
-        m_HitTypeProtection[ALife::eHitTypeChemicalBurn], test);
+                                m_HitTypeProtection[ALife::eHitTypeChemicalBurn], test);
     result |= process_if_exists(
         section, "explosion_protection", &CInifile::r_float, m_HitTypeProtection[ALife::eHitTypeExplosion], test);
     result |= process_if_exists(

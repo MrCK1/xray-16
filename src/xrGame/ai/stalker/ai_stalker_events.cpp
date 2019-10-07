@@ -6,11 +6,11 @@
 //	Description : Events handling for monster "Stalker"
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "ai_stalker.h"
 #include "PDA.h"
 #include "Inventory.h"
-#include "xrServerEntities/xrmessages.h"
+#include "xrServerEntities/xrMessages.h"
 #include "ShootingObject.h"
 #include "Level.h"
 #include "ai_monster_space.h"
@@ -56,10 +56,10 @@ void CAI_Stalker::OnEvent(NET_Packet& P, u16 type)
         else
         {
             //				DropItemSendMessage(O);
-            NET_Packet P;
-            u_EventGen(P, GE_OWNERSHIP_REJECT, ID());
-            P.w_u16(u16(O->ID()));
-            u_EventSend(P);
+            NET_Packet P2;
+            u_EventGen(P2, GE_OWNERSHIP_REJECT, ID());
+            P2.w_u16(u16(O->ID()));
+            u_EventSend(P2);
 
 #ifndef SILENCE
             Msg("TAKE - can't take! - Dropping for valid server information %s (%d)", *O->cName(), O->ID());

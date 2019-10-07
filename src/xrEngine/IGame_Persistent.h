@@ -1,12 +1,18 @@
+#pragma once
 #ifndef IGame_PersistentH
 #define IGame_PersistentH
-#pragma once
 
 #include "xrServerEntities/gametype_chooser.h"
+#include "xrCommon/xr_set.h"
+#include "xrCommon/xr_vector.h"
+#include "xrCore/xr_trims.h"
+#include "pure.h"
 #ifndef _EDITOR
 #include "Environment.h"
+#include "EngineAPI.h"
 #include "IGame_ObjectPool.h"
 #endif
+#include "ShadersExternalData.h" //--#SM+#--
 
 class IRenderVisual;
 class IMainMenu;
@@ -88,8 +94,12 @@ public:
     void Prefetch();
 #endif
     IMainMenu* m_pMainMenu;
+    static bool IsMainMenuActive();
+    static bool MainMenuActiveOrLevelNotExist();
 
     ParticleStatistics stats;
+
+    ShadersExternalData* m_pGShaderConstants; //--#SM+#--
 
     const ParticleStatistics& GetStats() { return stats; }
     virtual bool OnRenderPPUI_query() { return FALSE; }; // should return true if we want to have second function called
@@ -108,8 +118,8 @@ public:
 
     virtual void UpdateGameType(){};
     virtual void GetCurrentDof(Fvector3& dof) { dof.set(-1.4f, 0.0f, 250.f); };
-    virtual void SetBaseDof(const Fvector3& dof){};
-    virtual void OnSectorChanged(int sector){};
+    virtual void SetBaseDof(const Fvector3& /*dof*/) {};
+    virtual void OnSectorChanged(int /*sector*/) {};
     virtual void OnAssetsChanged();
 
     virtual void RegisterModel(IRenderVisual* V)
@@ -133,7 +143,8 @@ public:
 
     ICF u32 GameType() { return m_game_params.m_e_game_type; };
     virtual void DumpStatistics(class IGameFont& font, class IPerformanceAlert* alert);
-    virtual void LoadTitle(bool change_tip = false, shared_str map_name = "") {}
+    virtual void LoadTitle(bool /*change_tip*/ = false, shared_str /*map_name*/ = "") {}
+    virtual void SetLoadStageTitle(pcstr /*ls_title*/) {}
     virtual bool CanBePaused() { return true; }
 };
 
@@ -142,7 +153,7 @@ class IMainMenu
 public:
     virtual ~IMainMenu(){};
     virtual void Activate(bool bActive) = 0;
-    virtual bool IsActive() = 0;
+    virtual bool IsActive() const = 0;
     virtual bool CanSkipSceneRendering() = 0;
     virtual void DestroyInternal(bool bForce) = 0;
 };

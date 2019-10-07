@@ -1,11 +1,11 @@
 #include "pch_script.h"
 #include "Level.h"
 #include "Level_Bullet_Manager.h"
-#include "xrserver.h"
-#include "xrmessages.h"
+#include "xrServer.h"
+#include "xrMessages.h"
 #include "game_cl_base.h"
 #include "PHCommander.h"
-#include "net_queue.h"
+#include "NET_Queue.h"
 #include "MainMenu.h"
 #include "space_restriction_manager.h"
 #include "ai_space.h"
@@ -16,12 +16,12 @@
 #include "UIGameCustom.h"
 #include "string_table.h"
 #include "file_transfer.h"
-#include "UI/UIGameTutorial.h"
+#include "ui/UIGameTutorial.h"
 #include "ui/UIPdaWnd.h"
 #include "xrNetServer/NET_AuthCheck.h"
+#include "xrNetServer/NET_Messages.h"
 
-#include "xrPhysics/physicscommon.h"
-ENGINE_API bool g_dedicated_server;
+#include "xrPhysics/PhysicsCommon.h"
 
 const int max_objects_size = 2 * 1024;
 const int max_objects_size_in_save = 8 * 1024;
@@ -76,28 +76,28 @@ void CLevel::remove_objects()
     ph_commander().clear();
     ph_commander_scripts().clear();
 
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         space_restriction_manager().clear();
 
     psDeviceFlags.set(rsDisableObjectsAsCrows, b_stored);
     g_b_ClearGameCaptions = true;
 
-    if (!g_dedicated_server)
-        ai().script_engine().collect_all_garbage();
+    if (!GEnv.isDedicatedServer)
+        GEnv.ScriptEngine->collect_all_garbage();
 
     stalker_animation_data_storage().clear();
 
-    VERIFY(GlobalEnv.Render);
-    GlobalEnv.Render->models_Clear(FALSE);
+    VERIFY(GEnv.Render);
+    GEnv.Render->models_Clear(FALSE);
 
-    GlobalEnv.Render->clear_static_wallmarks();
+    GEnv.Render->clear_static_wallmarks();
 
 #ifdef DEBUG
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
         if (!client_spawn_manager().registry().empty())
             client_spawn_manager().dump();
 #endif // DEBUG
-    if (!g_dedicated_server)
+    if (!GEnv.isDedicatedServer)
     {
         VERIFY(client_spawn_manager().registry().empty());
         client_spawn_manager().clear();
@@ -163,8 +163,8 @@ void CLevel::net_Stop()
         xr_delete(Server);
     }
 
-    if (!g_dedicated_server)
-        ai().script_engine().collect_all_garbage();
+    if (!GEnv.isDedicatedServer)
+        GEnv.ScriptEngine->collect_all_garbage();
 
 #ifdef DEBUG
     show_animation_stats();
@@ -362,7 +362,8 @@ bool CLevel::Connect2Server(const char* options)
     //---------------------------------------------------------------------------
     if (psNET_direct_connect)
         m_bConnectResultReceived = true;
-    u32 EndTime = GetTickCount() + ConnectionTimeOut;
+
+    u32 EndTime = SDL_GetTicks() + ConnectionTimeOut;
     while (!m_bConnectResultReceived)
     {
         ClientReceive();
@@ -370,7 +371,7 @@ bool CLevel::Connect2Server(const char* options)
         if (Server)
             Server->Update();
         //-----------------------------------------
-        u32 CurTime = GetTickCount();
+        u32 CurTime = SDL_GetTicks();
         if (CurTime > EndTime)
         {
             NET_Packet P;
@@ -483,11 +484,11 @@ void CLevel::OnConnectResult(NET_Packet* P)
         {
             if (!xr_strlen(ResultStr))
             {
-                MainMenu()->OnSessionTerminate(CStringTable().translate("st_you_have_been_banned").c_str());
+                MainMenu()->OnSessionTerminate(StringTable().translate("st_you_have_been_banned").c_str());
             }
             else
             {
-                MainMenu()->OnSessionTerminate(CStringTable().translate(ResultStr).c_str());
+                MainMenu()->OnSessionTerminate(StringTable().translate(ResultStr).c_str());
             }
         }
         break;
@@ -495,11 +496,11 @@ void CLevel::OnConnectResult(NET_Packet* P)
         {
             if (!xr_strlen(ResultStr))
             {
-                MainMenu()->OnSessionTerminate(CStringTable().translate("st_profile_error").c_str());
+                MainMenu()->OnSessionTerminate(StringTable().translate("st_profile_error").c_str());
             }
             else
             {
-                MainMenu()->OnSessionTerminate(CStringTable().translate(ResultStr).c_str());
+                MainMenu()->OnSessionTerminate(StringTable().translate(ResultStr).c_str());
             }
         }
         }
@@ -635,7 +636,7 @@ void CLevel::net_OnChangeSelfName(NET_Packet* P)
         xr_strcpy(tmpstr, *m_caClientOptions);
         *(strstr(tmpstr, "name=") + 5) = 0;
         xr_strcat(tmpstr, NewName);
-        const char* ptmp = strstr(strstr(*m_caClientOptions, "name="), "/");
+        pcstr ptmp = strchr(strstr(*m_caClientOptions, "name="), '/');
         if (ptmp)
             xr_strcat(tmpstr, ptmp);
         m_caClientOptions = tmpstr;

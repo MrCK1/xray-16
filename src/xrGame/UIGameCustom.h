@@ -5,7 +5,10 @@
 #include "gametype_chooser.h"
 #include "UIDialogHolder.h"
 #include "xrEngine/CustomHUD.h"
-// refs
+#include "script_game_object.h"
+#include "xrCommon/xr_string.h"
+
+// fwd. decl.
 class CUI;
 class CTeamBaseZone;
 class game_cl_GameState;
@@ -74,7 +77,7 @@ private:
 
 extern CMapListHelper gMapListHelper;
 
-class CUIGameCustom : public FactoryObjectBase, public CDialogHolder
+class CUIGameCustom : public FactoryObjectBase, public CDialogHolder, public CUIResetNotifier
 {
 protected:
     CUIWindow* Window;
@@ -100,6 +103,8 @@ public:
     IC CUIPdaWnd& GetPdaMenu() const { return *PdaMenu; }
     bool ShowActorMenu();
     void HideActorMenu();
+    void UpdateActorMenu(); //Alundaio
+    CScriptGameObject* CurrentItemAtCell(); //Alundaio
     bool ShowPdaMenu();
     void HidePdaMenu();
     void ShowMessagesWindow();
@@ -109,7 +114,8 @@ public:
     void ShowCrosshair(bool show) { psHUD_Flags.set(HUD_CROSSHAIR_RT, show); }
     bool CrosshairShown() { return !!psHUD_Flags.test(HUD_CROSSHAIR_RT); }
     virtual void HideShownDialogs() {}
-    StaticDrawableWrapper* AddCustomStatic(const char* id, bool singleInstance);
+    virtual void ReinitDialogs() {}
+    StaticDrawableWrapper* AddCustomStatic(const char* id, bool singleInstance, float ttlDefault = -1.0f);
     StaticDrawableWrapper* GetCustomStatic(const char* id);
     void RemoveCustomStatic(const char* id);
     void CommonMessageOut(const char* text);

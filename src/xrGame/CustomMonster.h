@@ -6,9 +6,9 @@
 
 #include "entity_alive.h"
 #include "script_entity.h"
-#include "xrEngine/feel_vision.h"
-#include "xrEngine/feel_sound.h"
-#include "xrEngine/feel_touch.h"
+#include "xrEngine/Feel_Vision.h"
+#include "xrEngine/Feel_Sound.h"
+#include "xrEngine/Feel_Touch.h"
 #include "Include/xrRender/Kinematics.h"
 #include "xrCore/Containers/AssociativeVector.hpp"
 #include "trajectories.h"
@@ -36,7 +36,7 @@ class CCustomMonster : public CEntityAlive,
                        public Feel::Sound,
                        public Feel::Touch
 {
-private:
+protected:
     typedef CEntityAlive inherited;
 
 private:
@@ -158,7 +158,7 @@ public:
 // debug
 #ifdef DEBUG
     virtual void OnRender();
-    virtual void OnHUDDraw(CCustomHUD* hud);
+    void OnHUDDraw(CCustomHUD* hud, IRenderable* root) override;
 #endif
 
     virtual bool bfExecMovement() { return (false); };
@@ -209,8 +209,8 @@ public:
 
     IC CMemoryManager& memory() const;
     virtual float feel_vision_mtl_transp(IGameObject* O, u32 element);
-    virtual void feel_sound_new(
-        IGameObject* who, int type, CSound_UserDataPtr user_data, const Fvector& Position, float power);
+    void feel_sound_new(IGameObject* who, int type, const CSound_UserDataPtr& user_data,
+        const Fvector& position, float power) override;
 
     virtual bool useful(const CItemManager* manager, const CGameObject* object) const;
     virtual float evaluate(const CItemManager* manager, const CGameObject* object) const;
@@ -333,4 +333,4 @@ public:
 #endif // #ifdef DEBUG
 };
 
-#include "custommonster_inline.h"
+#include "CustomMonster_inline.h"

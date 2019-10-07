@@ -26,20 +26,20 @@ void Property::construct(shared_str const& property_id, Manager& manager_r)
     VERIFY2(
         pSettings->section_exist(m_id), make_string("Section of upgrade property [%s] does not exist!", m_id.c_str()));
 
-    m_name = CStringTable().translate(pSettings->r_string(id(), "name"));
+    m_name = StringTable().translate(pSettings->r_string(id(), "name"));
     m_icon._set(pSettings->r_string(id(), "icon"));
 
     // functor
     LPCSTR functor_str = pSettings->r_string(id(), "functor");
     m_desc.parameter = "";
     m_desc.parameter2 = id_str();
-    R_ASSERT2(ai().script_engine().functor(functor_str, m_desc.functr),
+    R_ASSERT2(GEnv.ScriptEngine->functor(functor_str, m_desc.functr),
         make_string("Failed to get upgrade property functor in section[%s], functor[%s]", id_str(), functor_str));
     m_desc(); // test
 
     LPCSTR funct_params_str = pSettings->r_string(id(), "params");
     u32 const buffer_size = (xr_strlen(funct_params_str) + 1) * sizeof(char);
-    PSTR temp = (PSTR)_alloca(buffer_size);
+    PSTR temp = (PSTR)xr_alloca(buffer_size);
     for (int n = _GetItemCount(funct_params_str), i = 0; i < n; ++i)
     {
         LPCSTR i_param = (_GetItem(funct_params_str, i, temp, buffer_size));

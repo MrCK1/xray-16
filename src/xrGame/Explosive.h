@@ -5,15 +5,17 @@
 #pragma once
 
 #include "xrEngine/Render.h"
-#include "xrEngine/feel_touch.h"
+#include "xrEngine/Feel_Touch.h"
 #include "inventory_item.h"
 #include "ai_sounds.h"
 #include "xrPhysics/DamageSource.h"
 #include "wallmark_manager.h"
 #include "ParticlesObject.h"
+#include "xrCDB/xr_collide_defs.h"
 
 class IRender_Light;
-DEFINE_VECTOR(CPhysicsShellHolder*, BLASTED_OBJECTS_V, BLASTED_OBJECTS_I);
+using BLASTED_OBJECTS_V = xr_vector<CPhysicsShellHolder*>;
+
 class CExplosive : public IDamageSource
 {
 private:
@@ -75,6 +77,11 @@ private:
     void LightDestroy();
 
 protected:
+
+    //Alundaio: LAYERED_SND_SHOOT
+    HUD_SOUND_COLLECTION_LAYERED m_layered_sounds;
+    //-Alundaio
+
     CWalmarkManager m_wallmark_manager;
     // ID персонажа который иницировал действие
     u16 m_iCurrentParentID;
@@ -162,12 +169,4 @@ protected:
     } effector;
 };
 
-IC void random_point_in_object_box(Fvector& out_pos, IGameObject* obj)
-{
-    const Fbox& l_b1 = obj->BoundingBox();
-    Fvector l_c, l_d;
-    l_b1.get_CD(l_c, l_d);
-    out_pos.random_point(l_d);
-    obj->XFORM().transform_tiny(out_pos);
-    out_pos.add(l_c);
-}
+void random_point_in_object_box(Fvector& out_pos, IGameObject* obj);

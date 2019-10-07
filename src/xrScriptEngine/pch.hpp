@@ -1,4 +1,6 @@
 #pragma once
-
+#include "Common/Common.hpp"
 #include "xrScriptEngine.hpp"
-#include "Include/xrAPI/xrAPI.h"
+#ifndef LINUX
+#include "xrCore/_std_extensions.h"
+#endif

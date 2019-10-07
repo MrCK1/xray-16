@@ -3,13 +3,13 @@
 // BastArtefact - артефакт мочалка
 ///////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "BastArtifact.h"
 #include "xrPhysics/PhysicsShell.h"
-#include "xrPhysics/extendedgeom.h"
+#include "xrPhysics/ExtendedGeom.h"
 #include "ParticlesObject.h"
 
-CBastArtefact::CBastArtefact(void)
+CBastArtefact::CBastArtefact(void) : m_pHitedEntity(nullptr)
 {
     m_fImpulseThreshold = 10.f;
 
@@ -17,7 +17,7 @@ CBastArtefact::CBastArtefact(void)
     m_fStrikeImpulse = 15.f;
 
     m_bStrike = false;
-    m_AttakingEntity = NULL;
+    m_AttakingEntity = nullptr;
 
     m_fEnergy = 0.f;
     m_fEnergyMax = m_fStrikeImpulse * 100.f;

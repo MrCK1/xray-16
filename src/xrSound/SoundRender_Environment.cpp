@@ -1,22 +1,24 @@
 #include "stdafx.h"
-#pragma hdrstop
 
 #include "SoundRender.h"
 #include "SoundRender_Environment.h"
+#if defined(WINDOWS)
 #pragma warning(push)
 #pragma warning(disable : 4995)
 #include <eax/eax.h>
 #pragma warning(pop)
+#endif
 
-CSoundRender_Environment::CSoundRender_Environment(void)
+CSoundRender_Environment::CSoundRender_Environment()
 {
     version = sdef_env_version;
     set_default();
 }
 
-CSoundRender_Environment::~CSoundRender_Environment(void) {}
+CSoundRender_Environment::~CSoundRender_Environment() {}
 void CSoundRender_Environment::set_default()
 {
+#if defined(WINDOWS)
     Environment = EAX_ENVIRONMENT_GENERIC;
     Room = EAXLISTENER_DEFAULTROOM;
     RoomHF = EAXLISTENER_DEFAULTROOMHF;
@@ -30,12 +32,15 @@ void CSoundRender_Environment::set_default()
     EnvironmentSize = EAXLISTENER_DEFAULTENVIRONMENTSIZE;
     EnvironmentDiffusion = EAXLISTENER_DEFAULTENVIRONMENTDIFFUSION;
     AirAbsorptionHF = EAXLISTENER_DEFAULTAIRABSORPTIONHF;
+#endif
 }
 
 void CSoundRender_Environment::set_identity()
 {
     set_default();
+#if defined(WINDOWS)
     Room = EAXLISTENER_MINROOM;
+#endif
     clamp();
 }
 
@@ -82,6 +87,7 @@ initial reflection
 */
 void CSoundRender_Environment::clamp()
 {
+#if defined(WINDOWS)
     ::clamp(Room, (float)EAXLISTENER_MINROOM, (float)EAXLISTENER_MAXROOM);
     ::clamp(RoomHF, (float)EAXLISTENER_MINROOMHF, (float)EAXLISTENER_MAXROOMHF);
     ::clamp(RoomRolloffFactor, EAXLISTENER_MINROOMROLLOFFFACTOR, EAXLISTENER_MAXROOMROLLOFFFACTOR);
@@ -94,6 +100,7 @@ void CSoundRender_Environment::clamp()
     ::clamp(EnvironmentSize, EAXLISTENER_MINENVIRONMENTSIZE, EAXLISTENER_MAXENVIRONMENTSIZE);
     ::clamp(EnvironmentDiffusion, EAXLISTENER_MINENVIRONMENTDIFFUSION, EAXLISTENER_MAXENVIRONMENTDIFFUSION);
     ::clamp(AirAbsorptionHF, EAXLISTENER_MINAIRABSORPTIONHF, EAXLISTENER_MAXAIRABSORPTIONHF);
+#endif
 }
 
 bool CSoundRender_Environment::load(IReader* fs)
@@ -145,13 +152,13 @@ void CSoundRender_Environment::save(IWriter* fs)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void SoundEnvironment_LIB::Load(LPCSTR name)
+void SoundEnvironment_LIB::Load(pcstr name)
 {
     R_ASSERT(library.empty());
     IReader* F = FS.r_open(name);
     IReader* C;
     library.reserve(256);
-    for (u32 chunk = 0; 0 != (C = F->open_chunk(chunk)); chunk++)
+    for (u32 chunk = 0; nullptr != (C = F->open_chunk(chunk)); chunk++)
     {
         CSoundRender_Environment* E = new CSoundRender_Environment();
         if (E->load(C))
@@ -160,7 +167,7 @@ void SoundEnvironment_LIB::Load(LPCSTR name)
     }
     FS.r_close(F);
 }
-bool SoundEnvironment_LIB::Save(LPCSTR name)
+bool SoundEnvironment_LIB::Save(pcstr name)
 {
     IWriter* F = FS.w_open(name);
     if (F)
@@ -182,19 +189,19 @@ void SoundEnvironment_LIB::Unload()
         xr_delete(library[chunk]);
     library.clear();
 }
-int SoundEnvironment_LIB::GetID(LPCSTR name)
+int SoundEnvironment_LIB::GetID(pcstr name)
 {
-    for (SE_IT it = library.begin(); it != library.end(); it++)
-        if (0 == stricmp(name, *(*it)->name))
+    for (auto it = library.begin(); it != library.end(); ++it)
+        if (0 == xr_stricmp(name, *(*it)->name))
             return int(it - library.begin());
     return -1;
 }
-CSoundRender_Environment* SoundEnvironment_LIB::Get(LPCSTR name)
+CSoundRender_Environment* SoundEnvironment_LIB::Get(pcstr name)
 {
-    for (SE_IT it = library.begin(); it != library.end(); it++)
-        if (0 == stricmp(name, *(*it)->name))
-            return *it;
-    return NULL;
+    for (const auto& it : library)
+        if (0 == xr_stricmp(name, *it->name))
+            return it;
+    return nullptr;
 }
 CSoundRender_Environment* SoundEnvironment_LIB::Get(int id) { return library[id]; }
 CSoundRender_Environment* SoundEnvironment_LIB::Append(CSoundRender_Environment* parent)
@@ -202,10 +209,10 @@ CSoundRender_Environment* SoundEnvironment_LIB::Append(CSoundRender_Environment*
     library.push_back(parent ? new CSoundRender_Environment(*parent) : new CSoundRender_Environment());
     return library.back();
 }
-void SoundEnvironment_LIB::Remove(LPCSTR name)
+void SoundEnvironment_LIB::Remove(pcstr name)
 {
-    for (SE_IT it = library.begin(); it != library.end(); it++)
-        if (0 == stricmp(name, *(*it)->name))
+    for (auto it = library.begin(); it != library.end(); ++it)
+        if (0 == xr_stricmp(name, *(*it)->name))
         {
             xr_delete(*it);
             library.erase(it);

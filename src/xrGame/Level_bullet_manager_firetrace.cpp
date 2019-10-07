@@ -3,28 +3,29 @@
 //								(для просчета столкновений и их визуализации)
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "Level_Bullet_Manager.h"
-#include "entity.h"
+#include "Entity.h"
 #include "xrEngine/GameMtlLib.h"
 #include "Level.h"
-#include "gamepersistent.h"
+#include "GamePersistent.h"
 #include "game_cl_base.h"
-#include "xrmessages.h"
+#include "xrMessages.h"
 #include "Include/xrRender/Kinematics.h"
 #include "Actor.h"
-#include "AI/Stalker/ai_stalker.h"
+#include "ai/stalker/ai_stalker.h"
 #include "character_info.h"
 #include "game_cl_base_weapon_usage_statistic.h"
 #include "xrCDB/xr_collide_defs.h"
 #include "xrEngine/xr_collide_form.h"
-#include "weapon.h"
+#include "Weapon.h"
 #include "ik/math3d.h"
-#include "actor.h"
+#include "Actor.h"
 #include "ai/monsters/basemonster/base_monster.h"
 
 //константы ShootFactor, определяющие
 //поведение пули при столкновении с объектом
+// XXX: review
 #define RICOCHET_THRESHOLD 0.1
 #define STUCK_THRESHOLD 0.4
 
@@ -75,15 +76,15 @@ BOOL CBulletManager::test_callback(const collide::ray_defs& rd, IGameObject* obj
                         float ahp = actor->HitProbability();
 #if 1
 #if 0
-						IGameObject					*weapon_object = Level().Objects.net_Find	(bullet->weapon_id);
-						if (weapon_object) {
-							CWeapon				*weapon = smart_cast<CWeapon*>(weapon_object);
-							if (weapon) {
-								float fly_dist		= bullet->fly_dist+dist;
-								float dist_factor	= _min(1.f,fly_dist/Level().BulletManager().m_fHPMaxDist);
-								ahp					= dist_factor*weapon->hit_probability() + (1.f-dist_factor)*1.f;
-							}
-						}
+                        IGameObject					*weapon_object = Level().Objects.net_Find	(bullet->weapon_id);
+                        if (weapon_object) {
+                            CWeapon				*weapon = smart_cast<CWeapon*>(weapon_object);
+                            if (weapon) {
+                                float fly_dist		= bullet->fly_dist+dist;
+                                float dist_factor	= _min(1.f,fly_dist/Level().BulletManager().m_fHPMaxDist);
+                                ahp					= dist_factor*weapon->hit_probability() + (1.f-dist_factor)*1.f;
+                            }
+                        }
 #else
                         float game_difficulty_hit_probability = actor->HitProbability();
                         CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(initiator);
@@ -174,27 +175,30 @@ void CBulletManager::FireShotmark(SBullet* bullet, const Fvector& vDir, const Fv
 
     if (R.O)
     {
-        /*  add_SkeletonWallmark not implemented now...
-                particle_dir		 = vDir;
-                particle_dir.invert	();
+        particle_dir = vDir;
+        particle_dir.invert();
 
-                //на текущем актере отметок не ставим
-                if(Level().CurrentEntity() && Level().CurrentEntity()->ID() == R.O->ID()) return;
+        // XXX: review
+        // на текущем актере отметок не ставим
+        if (Level().CurrentEntity() && Level().CurrentEntity()->ID() == R.O->ID())
+            return;
 
-                if (mtl_pair && !mtl_pair->CollideMarks->empty() && ShowMark)
-                {
-                    //добавить отметку на материале
-                    Fvector p;
-                    p.mad(bullet->bullet_pos,bullet->dir,R.range-0.01f);
-                    if(!g_dedicated_server)
-                        GlobalEnv.Render->add_SkeletonWallmark	(	&R.O->renderable.xform,
-                                                            PKinematics(R.O->Visual()),
-                                                            &*mtl_pair->CollideMarks,
-                                                            p,
-                                                            bullet->dir,
-                                                            bullet->wallmark_size);
-                }
-        */
+        if (R.O->renderable_HUD())
+            return;
+
+        if (mtl_pair && !mtl_pair->CollideMarks->empty() && ShowMark)
+        {
+            //добавить отметку на материале
+            Fvector p;
+            p.mad(bullet->bullet_pos, bullet->dir, R.range - 0.01f);
+            if (!GEnv.isDedicatedServer)
+                GEnv.Render->add_SkeletonWallmark(&R.O->XFORM(),
+                                                  PKinematics(R.O->Visual()),
+                                                  &*mtl_pair->CollideMarks,
+                                                  p,
+                                                  bullet->dir,
+                                                  bullet->wallmark_size);
+        }
     }
     else
     {
@@ -205,7 +209,7 @@ void CBulletManager::FireShotmark(SBullet* bullet, const Fvector& vDir, const Fv
         if (mtl_pair && !mtl_pair->CollideMarks->empty() && ShowMark)
         {
             //добавить отметку на материале
-            GlobalEnv.Render->add_StaticWallmark(&*mtl_pair->CollideMarks, vEnd, bullet->wallmark_size, pTri, pVerts);
+            GEnv.Render->add_StaticWallmark(&*mtl_pair->CollideMarks, vEnd, bullet->wallmark_size, pTri, pVerts);
         }
     }
 

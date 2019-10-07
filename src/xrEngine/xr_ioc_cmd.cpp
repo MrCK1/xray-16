@@ -4,8 +4,13 @@
 #include "x_ray.h"
 #include "XR_IOConsole.h"
 #include "xr_ioc_cmd.h"
+#if !defined(LINUX)
+#include "xrSASH.h"
+#endif
 
-#include "cameramanager.h"
+#include "MonitorManager.hpp"
+
+#include "CameraManager.h"
 #include "Environment.h"
 #include "xr_input.h"
 #include "CustomHUD.h"
@@ -13,9 +18,27 @@
 #include "xr_object.h"
 #include "xr_object_list.h"
 
-xr_token* vid_quality_token = NULL;
+extern u32 Vid_SelectedMonitor;
+extern u32 Vid_SelectedRefreshRate;
+xr_vector<xr_token> VidQualityToken;
 
-xr_token vid_bpp_token[] = {{"16", 16}, {"32", 32}, {0, 0}};
+const xr_token vid_bpp_token[] = {{"16", 16}, {"32", 32}, {0, 0}};
+
+const xr_token snd_precache_all_token[] = {{"off", 0}, {"on", 1}, {nullptr, 0}};
+
+void IConsole_Command::InvalidSyntax()
+{
+    TInfo I;
+    Info(I);
+    Msg("~ Invalid syntax in call to '%s'", cName);
+    Msg("~ Valid arguments: %s", I);
+
+#if !defined(LINUX)
+    g_SASH.OnConsoleInvalidSyntax(false, "~ Invalid syntax in call to '%s'", cName);
+    g_SASH.OnConsoleInvalidSyntax(true, "~ Valid arguments: %s", I);
+#endif
+}
+
 //-----------------------------------------------------------------------
 
 void IConsole_Command::add_to_LRU(shared_str const& arg)
@@ -61,44 +84,6 @@ public:
     }
 };
 //-----------------------------------------------------------------------
-#ifdef DEBUG_MEMORY_MANAGER
-class CCC_MemStat : public IConsole_Command
-{
-public:
-    CCC_MemStat(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = TRUE; };
-    virtual void Execute(LPCSTR args)
-    {
-        string_path fn;
-        if (args && args[0])
-            xr_sprintf(fn, sizeof(fn), "%s.dump", args);
-        else
-            strcpy_s_s(fn, sizeof(fn), "x:\\$memory$.dump");
-        Memory.mem_statistic(fn);
-        // g_pStringContainer->dump ();
-        // g_pSharedMemoryContainer->dump ();
-    }
-};
-#endif // DEBUG_MEMORY_MANAGER
-
-#ifdef DEBUG_MEMORY_MANAGER
-class CCC_DbgMemCheck : public IConsole_Command
-{
-public:
-    CCC_DbgMemCheck(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = TRUE; };
-    virtual void Execute(LPCSTR args)
-    {
-        if (Memory.debug_mode)
-        {
-            Memory.dbg_check();
-        }
-        else
-        {
-            Msg("~ Run with -mem_debug options.");
-        }
-    }
-};
-#endif // DEBUG_MEMORY_MANAGER
-
 class CCC_DbgStrCheck : public IConsole_Command
 {
 public:
@@ -112,7 +97,6 @@ public:
     CCC_DbgStrDump(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = TRUE; };
     virtual void Execute(LPCSTR args) { g_pStringContainer->dump(); }
 };
-
 //-----------------------------------------------------------------------
 class CCC_MotionsStat : public IConsole_Command
 {
@@ -167,11 +151,11 @@ public:
     {
         Log("- --- Command listing: start ---");
         CConsole::vecCMD_IT it;
-        for (it = Console->Commands.begin(); it != Console->Commands.end(); it++)
+        for (it = Console->Commands.begin(); it != Console->Commands.end(); ++it)
         {
             IConsole_Command& C = *(it->second);
             TStatus _S;
-            C.Status(_S);
+            C.GetStatus(_S);
             TInfo _I;
             C.Info(_I);
 
@@ -231,14 +215,15 @@ public:
         xr_strcat(cfg_full_name, ".ltx");
 
         BOOL b_allow = TRUE;
+#if defined(WINDOWS)
         if (FS.exist(cfg_full_name))
             b_allow = SetFileAttributes(cfg_full_name, FILE_ATTRIBUTE_NORMAL);
-
+#endif
         if (b_allow)
         {
             IWriter* F = FS.w_open(cfg_full_name);
             CConsole::vecCMD_IT it;
-            for (it = Console->Commands.begin(); it != Console->Commands.end(); it++)
+            for (it = Console->Commands.begin(); it != Console->Commands.end(); ++it)
                 it->second->Save(F);
             FS.w_close(F);
             Msg("Config-file [%s] saved successfully", cfg_full_name);
@@ -263,16 +248,16 @@ void CCC_LoadCFG::Execute(LPCSTR args)
 
     FS.update_path(cfg_full_name, "$app_data_root$", cfg_name);
 
-    if (NULL == FS.exist(cfg_full_name))
+    if (!FS.exist(cfg_full_name))
         FS.update_path(cfg_full_name, "$fs_root$", cfg_name);
 
-    if (NULL == FS.exist(cfg_full_name))
+    if (!FS.exist(cfg_full_name))
         xr_strcpy(cfg_full_name, cfg_name);
 
     IReader* F = FS.r_open(cfg_full_name);
 
     string1024 str;
-    if (F != NULL)
+    if (F != nullptr)
     {
         while (!F->eof())
         {
@@ -305,7 +290,7 @@ class CCC_Start : public IConsole_Command
     {
         string4096 out;
         xr_strcpy(out, sizeof(out), str);
-        strlwr(str);
+        xr_strlwr(str);
 
         LPCSTR name_str = "name=";
         LPCSTR name1 = strstr(str, name_str);
@@ -348,7 +333,7 @@ public:
         parse(op_client, args, "client"); // 2. client
         parse(op_demo, args, "demo"); // 3. demo
 
-        strlwr(op_server);
+        xr_strlwr(op_server);
         protect_Name_strlwr(op_client);
 
         if (!op_client[0] && strstr(op_server, "single"))
@@ -393,57 +378,138 @@ public:
         }
     }
 };
+//-----------------------------------------------------------------------
 class CCC_VidMode : public CCC_Token
 {
-    u32 _dummy;
+    u32 _dummy = 0;
 
 public:
-    CCC_VidMode(LPCSTR N) : CCC_Token(N, &_dummy, NULL) { bEmptyArgsHandled = FALSE; };
-    virtual void Execute(LPCSTR args)
+    CCC_VidMode(pcstr name) : CCC_Token(name, &_dummy, nullptr)
     {
-        u32 _w, _h;
-        int cnt = sscanf(args, "%dx%d", &_w, &_h);
+        bEmptyArgsHandled = false;
+    }
+
+    void Execute(pcstr args) override
+    {
+        u32 w, h;
+        const int cnt = sscanf(args, "%dx%d", &w, &h);
         if (cnt == 2)
         {
-            psCurrentVidMode[0] = _w;
-            psCurrentVidMode[1] = _h;
+            psCurrentVidMode[0] = w;
+            psCurrentVidMode[1] = h;
         }
         else
         {
             Msg("! Wrong video mode [%s]", args);
-            return;
         }
     }
-    virtual void Status(TStatus& S) { xr_sprintf(S, sizeof(S), "%dx%d", psCurrentVidMode[0], psCurrentVidMode[1]); }
-    virtual xr_token* GetToken() { return GlobalEnv.vid_mode_token; }
-    virtual void Info(TInfo& I) { xr_strcpy(I, sizeof(I), "change screen resolution WxH"); }
-    virtual void fill_tips(vecTips& tips, u32 mode)
-    {
-        TStatus str, cur;
-        Status(cur);
 
-        bool res = false;
-        xr_token* tok = GetToken();
-        while (tok->name && !res)
+    const xr_token* GetToken() noexcept override
+    {
+        return g_monitors.GetTokensForCurrentMonitor().data();
+    }
+
+    void GetStatus(TStatus& S) override
+    {
+        xr_sprintf(S, sizeof(S), "%dx%d", psCurrentVidMode[0], psCurrentVidMode[1]);
+    }
+
+    void Info(TInfo& I) override
+    {
+        xr_strcpy(I, sizeof(I), "change screen resolution WxH");
+    }
+
+    void fill_tips(vecTips& tips, u32 /*mode*/) override
+    {
+        g_monitors.FillResolutionsTips(tips);
+    }
+};
+//-----------------------------------------------------------------------
+class CCC_VidMonitor : public IConsole_Command
+{
+public:
+    CCC_VidMonitor(pcstr name) : IConsole_Command(name)
+    {
+        bEmptyArgsHandled = false;
+    }
+
+    void Execute(pcstr args) override
+    {
+        u32 id = 0;
+
+        const auto result = sscanf(args, "%u*", &id);
+        const auto count = g_monitors.GetMonitorsCount();
+
+        if (result != 1 || id < 1 || id > count)
+            InvalidSyntax();
+        else
+            Vid_SelectedMonitor = id - 1;
+    }
+
+    void GetStatus(TStatus& S) override
+    {
+        const u32 id = Vid_SelectedMonitor; // readability
+        xr_sprintf(S, sizeof(S), "%d. %s", id + 1, SDL_GetDisplayName(id));
+    }
+
+    void Info(TInfo& I) override
+    {
+        xr_strcpy(I, sizeof(I), "change monitor");
+    }
+
+    void fill_tips(vecTips& tips, u32 /*mode*/) override
+    {
+        g_monitors.FillMonitorsTips(tips);
+    }
+};
+//-----------------------------------------------------------------------
+class CCC_VidRefresh : public IConsole_Command
+{
+public:
+    CCC_VidRefresh(pcstr name) : IConsole_Command(name)
+    {
+        bEmptyArgsHandled = false;
+    }
+
+    void Execute(pcstr args) override
+    {
+        if (!g_monitors.SelectedResolutionIsSafe())
         {
-            if (!xr_strcmp(tok->name, cur))
-            {
-                xr_sprintf(str, sizeof(str), "%s (current)", tok->name);
-                tips.push_back(str);
-                res = true;
-            }
-            tok++;
+            Log("~ It's unsafe to set refresh rate for your resolution");
+            return;
         }
-        if (!res)
+
+        auto rates = g_monitors.GetRefreshRates();
+
+        if (!rates)
         {
-            tips.push_back("--- (current)");
+            Log("! No refresh rates for current resolution?!");
+            return;
         }
-        tok = GetToken();
-        while (tok->name)
-        {
-            tips.push_back(tok->name);
-            tok++;
-        }
+
+        u32 value = static_cast<u32>(std::atoi(args));
+
+        const auto it = std::find(rates->begin(), rates->end(), value);
+
+        if (it == rates->end())
+            InvalidSyntax();
+        else
+            Vid_SelectedRefreshRate = value;
+    }
+
+    void GetStatus(TStatus& S) override
+    {
+        xr_sprintf(S, sizeof(S), "%d", Vid_SelectedRefreshRate);
+    }
+
+    void Info(TInfo& I) override
+    {
+        xr_strcpy(I, sizeof(I), "change screen refresh rate");
+    }
+
+    void fill_tips(vecTips& tips, u32 /*mode*/) override
+    {
+        g_monitors.FillRatesTips(tips);
     }
 };
 //-----------------------------------------------------------------------
@@ -453,8 +519,8 @@ public:
     CCC_SND_Restart(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = TRUE; };
     virtual void Execute(LPCSTR args)
     {
-        if (Sound)
-            Sound->_restart();
+        if (GEnv.Sound)
+            GEnv.Sound->_restart();
     }
 };
 
@@ -467,10 +533,10 @@ public:
     virtual void Execute(LPCSTR args)
     {
         CCC_Float::Execute(args);
-        GlobalEnv.Render->setGamma(ps_gamma);
-        GlobalEnv.Render->setBrightness(ps_brightness);
-        GlobalEnv.Render->setContrast(ps_contrast);
-        GlobalEnv.Render->updateGamma();
+        GEnv.Render->setGamma(ps_gamma);
+        GEnv.Render->setBrightness(ps_brightness);
+        GEnv.Render->setContrast(ps_contrast);
+        GEnv.Render->updateGamma();
     }
 };
 
@@ -525,50 +591,102 @@ virtual void Save (IWriter *F) {};
 
 ENGINE_API BOOL r2_sun_static = TRUE;
 ENGINE_API BOOL r2_advanced_pp = FALSE; // advanced post process and effects
+ENGINE_API bool renderer_allow_override = false;
 
-u32 renderer_value = 3;
-
-class CCC_r2 : public CCC_Token
+class CCC_renderer : public CCC_Token
 {
     typedef CCC_Token inherited;
 
+    u32 renderer_value = 3;
+    static bool cmd_lock;
+
 public:
-    CCC_r2(LPCSTR N) : inherited(N, &renderer_value, NULL) { renderer_value = 3; };
-    virtual ~CCC_r2() {}
-    virtual void Execute(LPCSTR args)
+    CCC_renderer(LPCSTR N) : inherited(N, &renderer_value, NULL) {};
+    ~CCC_renderer() override {}
+    void Execute(LPCSTR args) override
     {
-        // vid_quality_token must be already created!
-        tokens = vid_quality_token;
+        if ((renderer_allow_override == false) && (cmd_lock == true))
+        {
+            /*
+             * It is a case when the renderer type was specified as
+             * an application command line argument. This setting should
+             * have the highest priority over other command invocations
+             * (e.g. user config loading).
+             * Since the Engine doesn't support switches between renderers
+             * in runtime, it's safe to disable this command until restart.
+             */
+            Msg("Renderer is overrided by command line argument");
+            return;
+        }
+
+        tokens = VidQualityToken.data();
 
         inherited::Execute(args);
         // 0 - r1
         // 1..3 - r2
         // 4 - r3
+        // 5 - r4
+        // 6 - rgl
+        psDeviceFlags.set(rsR1, renderer_value == 0);
         psDeviceFlags.set(rsR2, ((renderer_value > 0) && renderer_value < 4));
         psDeviceFlags.set(rsR3, (renderer_value == 4));
-        psDeviceFlags.set(rsR4, (renderer_value >= 5));
+        psDeviceFlags.set(rsR4, (renderer_value == 5));
+        psDeviceFlags.set(rsRGL, (renderer_value == 6));
 
         r2_sun_static = (renderer_value < 2);
 
         r2_advanced_pp = (renderer_value >= 3);
+    
+        cmd_lock = true;
     }
 
-    virtual void Save(IWriter* F)
+    void Save(IWriter* F) override
     {
-        // fill_render_mode_list ();
-        tokens = vid_quality_token;
-        if (!strstr(Core.Params, "-r2"))
-        {
-            inherited::Save(F);
+        if (renderer_allow_override == false)
+        {   // Do not save forced value
+            return;
         }
+
+        tokens = VidQualityToken.data();
+        inherited::Save(F);
     }
-    virtual xr_token* GetToken()
+
+    const xr_token* GetToken() noexcept override
     {
-        tokens = vid_quality_token;
+        tokens = VidQualityToken.data();
         return inherited::GetToken();
     }
 };
-#ifndef DEDICATED_SERVER
+bool CCC_renderer::cmd_lock = false;
+
+class CCC_VSync : public CCC_Mask
+{
+    using inherited = CCC_Mask;
+
+public:
+    CCC_VSync(pcstr name) : CCC_Mask(name, &psDeviceFlags, rsVSync) {}
+
+    void Execute(pcstr args) override
+    {
+        // `apply` means that renderer asks to apply vsync settings
+        // and we don't need to change it
+        if (0 != xr_strcmp(args, "apply"))
+            inherited::Execute(args);
+
+        if (!psDeviceFlags.test(rsRGL))
+            return;
+
+        if (psDeviceFlags.test(rsVSync))
+        {
+            // Try adaptive vsync first
+            if (SDL_GL_SetSwapInterval(-1) == -1)
+                SDL_GL_SetSwapInterval(1);
+        }
+        else
+            SDL_GL_SetSwapInterval(0);
+    }
+};
+
 class CCC_soundDevice : public CCC_Token
 {
     typedef CCC_Token inherited;
@@ -584,15 +702,15 @@ public:
         inherited::Execute(args);
     }
 
-    virtual void Status(TStatus& S)
+    void GetStatus(TStatus& S) override
     {
         GetToken();
         if (!tokens)
             return;
-        inherited::Status(S);
+        inherited::GetStatus(S);
     }
 
-    virtual xr_token* GetToken()
+    const xr_token* GetToken() noexcept override
     {
         tokens = snd_devices_token;
         return inherited::GetToken();
@@ -606,8 +724,9 @@ public:
         inherited::Save(F);
     }
 };
-#endif
+
 //-----------------------------------------------------------------------
+
 class CCC_ExclusiveMode : public IConsole_Command
 {
 private:
@@ -633,7 +752,7 @@ public:
         else
             InvalidSyntax();
 
-        pInput->exclusive_mode(value);
+        pInput->ExclusiveMode(value);
     }
 
     virtual void Save(IWriter* F) {}
@@ -644,10 +763,21 @@ class ENGINE_API CCC_HideConsole : public IConsole_Command
 public:
     CCC_HideConsole(LPCSTR N) : IConsole_Command(N) { bEmptyArgsHandled = true; }
     virtual void Execute(LPCSTR args) { Console->Hide(); }
-    virtual void Status(TStatus& S) { S[0] = 0; }
+    void GetStatus(TStatus& S) override { S[0] = 0; }
     virtual void Info(TInfo& I) { xr_sprintf(I, sizeof(I), "hide console"); }
 };
 
+class CCC_CenterScreen : public IConsole_Command
+{
+public:
+    CCC_CenterScreen(pcstr name) : IConsole_Command(name) { bEmptyArgsHandled = true; }
+    void Execute(pcstr args) override
+    {
+        SDL_SetWindowPosition(Device.m_sdlWnd, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    }
+};
+
+ENGINE_API float g_fov = 67.5f;
 ENGINE_API float psHUD_FOV = 0.45f;
 
 // extern int psSkeletonUpdate;
@@ -663,10 +793,20 @@ extern Flags32 psEnvFlags;
 // extern float r__dtex_range;
 
 extern int g_ErrorLineCount;
+extern int ps_rs_loading_stages;
+
+ENGINE_API int ps_always_active = 0;
 
 ENGINE_API int ps_r__Supersample = 1;
+
 void CCC_Register()
 {
+#ifdef DEBUG
+    const bool isDebugMode = true;
+#else // DEBUG
+    const bool isDebugMode = !!strstr(Core.Params, "-debug");
+#endif // DEBUG
+
     // General
     CMD1(CCC_Help, "help");
     CMD1(CCC_Quit, "quit");
@@ -679,11 +819,6 @@ void CCC_Register()
     CMD1(CCC_MotionsStat, "stat_motions");
     CMD1(CCC_TexturesStat, "stat_textures");
 #endif // DEBUG
-
-#ifdef DEBUG_MEMORY_MANAGER
-    CMD1(CCC_MemStat, "dbg_mem_dump");
-    CMD1(CCC_DbgMemCheck, "dbg_mem_check");
-#endif // DEBUG_MEMORY_MANAGER
 
 #ifdef DEBUG
     CMD3(CCC_Mask, "mt_particles", &psDeviceFlags, mtParticles);
@@ -703,22 +838,29 @@ void CCC_Register()
     CMD3(CCC_Mask, "rs_clear_bb", &psDeviceFlags, rsClearBB);
     CMD3(CCC_Mask, "rs_occlusion", &psDeviceFlags, rsOcclusion);
 
-    CMD3(CCC_Mask, "rs_detail", &psDeviceFlags, rsDetails);
     // CMD4(CCC_Float, "r__dtex_range", &r__dtex_range, 5, 175 );
-
     // CMD3(CCC_Mask, "rs_constant_fps", &psDeviceFlags, rsConstantFPS );
-    CMD3(CCC_Mask, "rs_render_statics", &psDeviceFlags, rsDrawStatic);
-    CMD3(CCC_Mask, "rs_render_dynamics", &psDeviceFlags, rsDrawDynamic);
-#endif
+#endif // DEBUG
+
+    // Console commands that are available with -debug key on release configuration and always available on mixed configuration
+    if (isDebugMode)
+    {
+        CMD3(CCC_Mask, "rs_detail", &psDeviceFlags, rsDetails);
+        CMD3(CCC_Mask, "rs_render_statics", &psDeviceFlags, rsDrawStatic);
+        CMD3(CCC_Mask, "rs_render_dynamics", &psDeviceFlags, rsDrawDynamic);
+        CMD3(CCC_Mask, "rs_render_particles", &psDeviceFlags, rsDrawParticles);
+    }
 
     // Render device states
     CMD4(CCC_Integer, "r__supersample", &ps_r__Supersample, 1, 4);
 
-    CMD3(CCC_Mask, "rs_v_sync", &psDeviceFlags, rsVSync);
+    CMD4(CCC_Integer, "rs_loadingstages", &ps_rs_loading_stages, 0, 1);
+    CMD1(CCC_VSync, "rs_v_sync"); // If you change the name, you also should change it in glHW.cpp in the OpenGL renderer
     // CMD3(CCC_Mask, "rs_disable_objects_as_crows",&psDeviceFlags, rsDisableObjectsAsCrows );
     CMD3(CCC_Mask, "rs_fullscreen", &psDeviceFlags, rsFullscreen);
     CMD3(CCC_Mask, "rs_refresh_60hz", &psDeviceFlags, rsRefresh60hz);
     CMD3(CCC_Mask, "rs_stats", &psDeviceFlags, rsStatistic);
+    CMD3(CCC_Mask, "rs_fps", &psDeviceFlags, rsShowFPS);
     CMD4(CCC_Float, "rs_vis_distance", &psVisDistance, 0.4f, 1.5f);
 
     CMD3(CCC_Mask, "rs_cam_pos", &psDeviceFlags, rsCameraPos);
@@ -740,6 +882,8 @@ void CCC_Register()
 
     // General video control
     CMD1(CCC_VidMode, "vid_mode");
+    CMD1(CCC_VidMonitor, "vid_monitor");
+    CMD1(CCC_VidRefresh, "vid_refresh")
 
 #ifdef DEBUG
     CMD3(CCC_Token, "vid_bpp", &psCurrentBPP, vid_bpp_token);
@@ -754,7 +898,8 @@ void CCC_Register()
     CMD3(CCC_Mask, "snd_acceleration", &psSoundFlags, ss_Hardware);
     CMD3(CCC_Mask, "snd_efx", &psSoundFlags, ss_EAX);
     CMD4(CCC_Integer, "snd_targets", &psSoundTargets, 4, 32);
-    CMD4(CCC_Integer, "snd_cache_size", &psSoundCacheSizeMB, 4, 32);
+    CMD4(CCC_Integer, "snd_cache_size", &psSoundCacheSizeMB, 4, 64);
+    CMD3(CCC_Token, "snd_precache_all", &psSoundPrecacheAll, snd_precache_all_token);
 
 #ifdef DEBUG
     CMD3(CCC_Mask, "snd_stats", &g_stats_flags, st_sound);
@@ -776,11 +921,14 @@ void CCC_Register()
     CMD2(CCC_Float, "cam_inert", &psCamInert);
     CMD2(CCC_Float, "cam_slide_inert", &psCamSlideInert);
 
-    CMD1(CCC_r2, "renderer");
+    CMD1(CCC_CenterScreen, "center_screen");
+    CMD4(CCC_Integer, "always_active", &ps_always_active, 0, 1);
 
-#ifndef DEDICATED_SERVER
-    CMD1(CCC_soundDevice, "snd_device");
-#endif
+    CMD1(CCC_renderer, "renderer");
+
+    if (!GEnv.isDedicatedServer)
+        CMD1(CCC_soundDevice, "snd_device");
+
     // psSoundRolloff = pSettings->r_float ("sound","rolloff"); clamp(psSoundRolloff, EPS_S, 2.f);
     psSoundOcclusionScale = pSettings->r_float("sound", "occlusion_scale");
     clamp(psSoundOcclusionScale, 0.1f, .5f);
@@ -795,10 +943,10 @@ void CCC_Register()
 #endif
 
     CMD1(CCC_ExclusiveMode, "input_exclusive_mode");
-
+#if !defined(LINUX)
     extern int g_svTextConsoleUpdateRate;
     CMD4(CCC_Integer, "sv_console_update_rate", &g_svTextConsoleUpdateRate, 1, 100);
-
+#endif
     extern int g_svDedicateServerUpdateReate;
     CMD4(CCC_Integer, "sv_dedicated_server_update_rate", &g_svDedicateServerUpdateReate, 1, 1000);
 

@@ -6,9 +6,6 @@
 #ifdef BREAK_AT_STRCMP
 int xr_strcmp(const char* S1, const char* S2)
 {
-#ifdef DEBUG_MEMORY_MANAGER
-    Memory.stat_strcmp++;
-#endif // DEBUG_MEMORY_MANAGER
     int res = (int)strcmp(S1, S2);
     return res;
 }
@@ -16,27 +13,16 @@ int xr_strcmp(const char* S1, const char* S2)
 
 char* timestamp(string64& dest)
 {
-    string64 temp;
+    time_t     now = time(nullptr);
+    struct tm  tstruct;
 
-    /* Set time zone from TZ environment variable. If TZ is not set,
-    * the operating system is queried to obtain the default value
-    * for the variable.
-    */
-    _tzset();
-    u32 it;
+#if defined(WINDOWS)
+    localtime_s(&tstruct, &now);// thread-safe for windows
+#else
+    localtime_r(&now, &tstruct);// thread-safe for posix systems
+#endif
 
-    // date
-    _strdate(temp);
-    for (it = 0; it < xr_strlen(temp); it++)
-        if ('/' == temp[it])
-            temp[it] = '-';
-    strconcat(sizeof(dest), dest, temp, "_");
+    strftime(dest, sizeof(dest), "%m-%d-%y_%H-%M-%S", &tstruct);
 
-    // time
-    _strtime(temp);
-    for (it = 0; it < xr_strlen(temp); it++)
-        if (':' == temp[it])
-            temp[it] = '-';
-    xr_strcat(dest, sizeof(dest), temp);
     return dest;
 }

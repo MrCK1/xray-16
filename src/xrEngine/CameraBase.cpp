@@ -26,6 +26,7 @@ CCameraBase::CCameraBase(IGameObject* p, u32 flags)
     f_fov = 90;
     f_aspect = 1.f;
     tag = 0;
+    m_bInputDisabled = false; //--#SM+#--
 }
 
 CCameraBase::~CCameraBase() {}
@@ -82,8 +83,11 @@ SCamEffectorInfo::SCamEffectorInfo()
     n.set(0, 1, 0);
 
     fFov = 90.0f;
+    fNear = VIEWPORT_NEAR;
     fFar = 100.0f;
     fAspect = 1.f;
+    offsetX = 0.f;
+    offsetY = 0.f;
     dont_apply = false;
     affected_on_hud = true;
 }

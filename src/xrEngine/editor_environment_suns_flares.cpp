@@ -8,9 +8,8 @@
 
 #include "stdafx.h"
 
-#ifdef INGAME_EDITOR
 #include "editor_environment_suns_flares.hpp"
-#include "Include/editor/property_holder.hpp"
+#include "Include/editor/property_holder_base.hpp"
 #include "property_collection.hpp"
 #include "editor_environment_suns_flare.hpp"
 #include "editor_environment_suns_manager.hpp"
@@ -22,14 +21,14 @@ using editor::environment::suns::flare;
 
 template <>
 void property_collection<flares::flares_type, flares>::display_name(
-    u32 const& item_index, LPSTR const& buffer, u32 const& buffer_size)
+    u32 const& item_index, pstr const& buffer, u32 const& buffer_size)
 {
     float position = m_container[item_index]->m_position;
     xr_sprintf(buffer, buffer_size, "flare [%f]", position);
 }
 
 template <>
-editor::property_holder* property_collection<flares::flares_type, flares>::create()
+XRay::Editor::property_holder_base* property_collection<flares::flares_type, flares>::create()
 {
     flare* object = new flare();
     object->fill(this);
@@ -45,8 +44,8 @@ flares::~flares()
 
 void flares::load(CInifile& config, shared_str const& section)
 {
-    m_use = !!READ_IF_EXISTS(&config, r_bool, section, "flares", true);
-    m_shader = READ_IF_EXISTS(&config, r_string, section, "flare_shader", "effects\\flare");
+    m_use = config.read_if_exists<bool>(section, "flares", true);
+    m_shader = READ_IF_EXISTS(&config, r_string, section, "flare_shader", "effects" DELIMITER "flare");
 
     if (!m_use)
         return;
@@ -58,8 +57,8 @@ void flares::load(CInifile& config, shared_str const& section)
     shared_str flare_radius =
         READ_IF_EXISTS(&config, r_string, section, "flare_radius", "0.080, 0.120, 0.040, 0.080, 0.120, 0.300");
     shared_str flare_textures = READ_IF_EXISTS(&config, r_string, section, "flare_textures",
-        "fx\\fx_flare1.tga, fx\\fx_flare2.tga, fx\\fx_flare2.tga, fx\\fx_flare2.tga, fx\\fx_flare3.tga, "
-        "fx\\fx_flare1.tga");
+        "fx" DELIMITER "fx_flare1.tga, fx" DELIMITER "fx_flare2.tga, fx" DELIMITER "fx_flare2.tga, fx" DELIMITER "fx_flare2.tga, fx" DELIMITER "fx_flare3.tga, "
+        "fx" DELIMITER "fx_flare1.tga");
 
     u32 opacity_count = _GetItemCount(flare_opacity.c_str());
     u32 position_count = _GetItemCount(flare_position.c_str());
@@ -77,7 +76,7 @@ void flares::load(CInifile& config, shared_str const& section)
             min_flare_count);
 
     u32 const buffer_size = max_string_count * sizeof(char);
-    LPSTR result = (LPSTR)_alloca(buffer_size);
+    pstr result = (pstr)xr_alloca(buffer_size);
     for (u32 i = 0; i < min_flare_count; ++i)
     {
         flare* object = new flare();
@@ -91,16 +90,17 @@ void flares::load(CInifile& config, shared_str const& section)
 }
 
 void flares::fill(
-    manager const& manager, editor::property_holder* holder, editor::property_holder_collection* collection)
+    manager const& manager, XRay::Editor::property_holder_base* holder, XRay::Editor::property_holder_collection* collection)
 {
-    editor::property_holder* properties = holder;
+    XRay::Editor::property_holder_base* properties = holder;
     VERIFY(properties);
 
-    properties->add_property("use", "flares", "this option is resposible for the flares usage", m_use, m_use);
-    properties->add_property("shader", "flares", "this option is resposible for flares shader", m_shader.c_str(),
+    properties->add_property("use", "flares", "this option is responsible for the flares usage", m_use, m_use);
+
+    properties->add_property("shader", "flares", "this option is responsible for flares shader", m_shader.c_str(),
         m_shader, &*manager.m_environment.shader_ids().begin(), manager.m_environment.shader_ids().size(),
-        editor::property_holder::value_editor_tree_view, editor::property_holder::cannot_enter_text);
-    properties->add_property("flares", "flares", "this option is resposible for flares", m_collection);
+        XRay::Editor::property_holder_base::value_editor_tree_view, XRay::Editor::property_holder_base::cannot_enter_text);
+
+    properties->add_property("flares", "flares", "this option is responsible for flares", m_collection);
 }
 
-#endif // #ifdef INGAME_EDITOR

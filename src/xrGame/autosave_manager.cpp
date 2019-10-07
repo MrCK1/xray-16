@@ -6,7 +6,7 @@
 //	Description : Autosave manager
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "autosave_manager.h"
 #include "date_time.h"
 #include "ai_space.h"
@@ -15,6 +15,7 @@
 #include "UIGameCustom.h"
 #include "Actor.h"
 #include "MainMenu.h"
+#include "xrNetServer/NET_Messages.h"
 
 extern LPCSTR alife_section;
 
@@ -72,10 +73,11 @@ void CAutosaveManager::shedule_Update(u32 dt)
     FS.update_path(S1, "$game_saves$", temp);
 
     MainMenu()->Screenshot(IRender::SM_FOR_GAMESAVE, S1);
-
+#ifdef WINDOWS
     SetFileAttributes(S1, FILE_ATTRIBUTE_HIDDEN);
-
-    CurrentGameUI()->AddCustomStatic("autosave", true);
+#endif
+    const bool compat = ClearSkyMode || ShadowOfChernobylMode;
+    StaticDrawableWrapper* s = CurrentGameUI()->AddCustomStatic("autosave", true, compat ? 3.0f : -1.0f);
 }
 
 void CAutosaveManager::on_game_loaded() { m_last_autosave_time = Device.dwTimeGlobal; }

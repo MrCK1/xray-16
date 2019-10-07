@@ -1,9 +1,9 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIGameMP.h"
 #include "UIAchivementsIndicator.h"
 #include "ui/UIDemoPlayControl.h"
 #include "ui/UIServerInfo.h"
-#include "UICursor.h"
+#include "xrUICore/Cursor/UICursor.h"
 #include "Level.h"
 #include "game_cl_mp.h"
 
@@ -25,17 +25,15 @@ void UIGameMP::ShowDemoPlayControl()
     GetUICursor().SetUICursorPosition(m_pDemoPlayControl->GetLastCursorPos());
 }
 
-#include <dinput.h>
-
 bool UIGameMP::IR_UIOnKeyboardPress(int dik)
 {
-    if (is_binded(kCROUCH, dik) && Level().IsDemoPlay())
+    if (IsBinded(kCROUCH, dik) && Level().IsDemoPlay())
     {
         ShowDemoPlayControl();
         return true;
     }
 #ifdef DEBUG
-    if (dik == DIK_T)
+    if (dik == SDL_SCANCODE_T)
     {
         m_game->AddRewardTask(0); // mp_award_massacre
     }

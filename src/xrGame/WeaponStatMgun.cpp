@@ -1,13 +1,13 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "WeaponStatMgun.h"
 #include "Include/xrRender/Kinematics.h"
 #include "xrPhysics/PhysicsShell.h"
-#include "weaponAmmo.h"
+#include "WeaponAmmo.h"
 #include "Common/object_broker.h"
 #include "ai_sounds.h"
-#include "actor.h"
-#include "actorEffector.h"
-#include "camerafirsteye.h"
+#include "Actor.h"
+#include "ActorEffector.h"
+#include "CameraFirstEye.h"
 #include "xr_level_controller.h"
 #include "game_object_space.h"
 #include "Level.h"
@@ -161,7 +161,7 @@ void CWeaponStatMgun::UpdateCL()
     {
         cam_Update(Device.fTimeDelta, g_fov);
         OwnerActor()->Cameras().UpdateFromCamera(Camera());
-        OwnerActor()->Cameras().ApplyDevice(VIEWPORT_NEAR);
+        OwnerActor()->Cameras().ApplyDevice();
     }
 }
 
@@ -247,9 +247,9 @@ void CWeaponStatMgun::cam_Update(float dt, float fov)
     Level().Cameras().UpdateFromCamera(Camera());
 }
 
-void CWeaponStatMgun::renderable_Render()
+void CWeaponStatMgun::renderable_Render(IRenderable* root)
 {
-    inheritedPH::renderable_Render();
+    inheritedPH::renderable_Render(root);
 
     RenderLight();
 }

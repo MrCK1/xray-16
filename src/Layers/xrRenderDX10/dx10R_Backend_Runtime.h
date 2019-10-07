@@ -180,7 +180,7 @@ ICF void CBackend::set_Vertices(ID3DVertexBuffer* _vb, u32 _vb_stride)
         vb_stride = _vb_stride;
         // CHK_DX           (HW.pDevice->SetStreamSource(0,vb,0,vb_stride));
         // UINT StreamNumber,
-        // IDirect3DVertexBuffer9 * pStreamData,
+        // ID3DVertexBuffer * pStreamData,
         // UINT OffsetInBytes,
         // UINT Stride
 
@@ -484,13 +484,13 @@ IC void CBackend::ApplyVertexLayout()
 ICF void CBackend::set_VS(ref_vs& _vs)
 {
     m_pInputSignature = _vs->signature->signature;
-    set_VS(_vs->vs, _vs->cName.c_str());
+    set_VS(_vs->sh, _vs->cName.c_str());
 }
 
 ICF void CBackend::set_VS(SVS* _vs)
 {
     m_pInputSignature = _vs->signature->signature;
-    set_VS(_vs->vs, _vs->cName.c_str());
+    set_VS(_vs->sh, _vs->cName.c_str());
 }
 
 IC bool CBackend::CBuffersNeedUpdate(
@@ -733,7 +733,7 @@ IC void CBackend::set_Constants(R_constant_table* C)
     // process constant-loaders
     R_constant_table::c_table::iterator it = C->table.begin();
     R_constant_table::c_table::iterator end = C->table.end();
-    for (; it != end; it++)
+    for (; it != end; ++it)
     {
         R_constant* Cs = &**it;
         VERIFY(Cs);
@@ -751,7 +751,7 @@ ICF void CBackend::ApplyRTandZB()
     }
 }
 
-IC void CBackend::get_ConstantDirect(shared_str& n, u32 DataSize, void** pVData, void** pGData, void** pPData)
+IC void CBackend::get_ConstantDirect(const shared_str& n, size_t DataSize, void** pVData, void** pGData, void** pPData)
 {
     ref_constant C = get_c(n);
 

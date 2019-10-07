@@ -6,12 +6,12 @@
 //	Description : Attachment owner
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "attachment_owner.h"
 #include "attachable_item.h"
 #include "Include/xrRender/Kinematics.h"
 #include "inventory_item.h"
-#include "physicsshellholder.h"
+#include "PhysicsShellHolder.h"
 
 CAttachmentOwner::~CAttachmentOwner() {}
 void CAttachmentOwner::reload(LPCSTR section)
@@ -46,12 +46,12 @@ void CAttachmentOwner::net_Destroy()
     R_ASSERT(attached_objects().empty());
 }
 
-void CAttachmentOwner::renderable_Render()
+void CAttachmentOwner::renderable_Render(IRenderable* root)
 {
     xr_vector<CAttachableItem*>::iterator I = m_attached_objects.begin();
     xr_vector<CAttachableItem*>::iterator E = m_attached_objects.end();
     for (; I != E; ++I)
-        (*I)->renderable_Render();
+        (*I)->renderable_Render(root);
 }
 
 void __stdcall AttachmentCallback(IKinematics* tpKinematics)

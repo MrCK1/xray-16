@@ -2,7 +2,7 @@
 #define AFX_LIGHTSHADOWS_H__CFA216D9_CACB_4515_9FBE_7C531649168F__INCLUDED_
 #pragma once
 
-#include "Layers/xrRender/Light.h"
+#include "Layers/xrRender/light.h"
 #include "Layers/xrRender/r__dsgraph_types.h"
 
 class CLightShadows
@@ -48,9 +48,9 @@ public:
 
         cache_item()
         {
-            O = 0;
-            L = 0;
-            tris = 0;
+            O = nullptr;
+            L = nullptr;
+            tris = nullptr;
         }
     };
 
@@ -73,7 +73,11 @@ private:
     ref_shader sh_Screen;
     ref_geom geom_Screen;
 
+    u32 rt_size;
+
 private:
+    void recreate_rt();
+
 public:
     void set_object(IRenderable* O);
     void add_element(NODE& N);

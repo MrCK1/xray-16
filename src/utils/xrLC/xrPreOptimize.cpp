@@ -36,8 +36,8 @@ void CBuild::PreOptimize()
 
     // Calculate offset,scale,epsilon
     Fbox bb = scene_bb;
-    VMscale.set(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z);
-    VMmin.set(bb.min);
+    VMscale.set(bb.vMax.x - bb.vMin.x, bb.vMax.y - bb.vMin.y, bb.vMax.z - bb.vMin.z);
+    VMmin.set(bb.vMin);
     VMeps.set(VMscale.x / HDIM_X / 2, VMscale.y / HDIM_Y / 2, VMscale.z / HDIM_Z / 2);
     VMeps.x = (VMeps.x < EPS_L) ? VMeps.x : EPS_L;
     VMeps.y = (VMeps.y < EPS_L) ? VMeps.y : EPS_L;
@@ -89,7 +89,7 @@ void CBuild::PreOptimize()
         vecVertex& H = *(HASH[ix][iy][iz]);
 
         // Search similar vertices in hash table
-        for (vecVertexIt T = H.begin(); T != H.end(); T++)
+        for (vecVertexIt T = H.begin(); T != H.end(); ++T)
         {
             Vertex* pBase = *T;
             if (pBase->similar(*pTest, g_params().m_weld_distance))
@@ -153,7 +153,10 @@ void CBuild::PreOptimize()
     if (InvalideFaces())
     {
         err_save();
-        xrDebug::Fatal(DEBUG_INFO, "* FATAL: %d invalid faces. Compilation aborted", InvalideFaces());
+        if (!g_build_options.b_skipinvalid)
+            xrDebug::Fatal(DEBUG_INFO, "* FATAL: %d invalid faces. Compilation aborted", InvalideFaces());
+        else
+            Logger.clMsg("* WARNING! Total %d invalid faces found.", InvalideFaces());
     }
 
     Logger.Status("Adjacency check...");

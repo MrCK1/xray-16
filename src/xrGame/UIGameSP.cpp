@@ -1,25 +1,26 @@
 #include "pch_script.h"
-#include "uigamesp.h"
-#include "actor.h"
+#include "UIGameSP.h"
+#include "Actor.h"
 #include "Level.h"
 #include "xrEngine/xr_input.h"
+#include "xrNetServer/NET_Messages.h"
 
 #ifdef DEBUG
 #include "attachable_item.h"
 #endif
 
-#include "game_cl_Single.h"
+#include "game_cl_single.h"
 #include "xr_level_controller.h"
-#include "actorcondition.h"
-#include "xrEngine/xr_ioconsole.h"
+#include "ActorCondition.h"
+#include "xrEngine/XR_IOConsole.h"
 #include "Common/object_broker.h"
-#include "GameTaskManager.h"
+#include "GametaskManager.h"
 #include "GameTask.h"
 
 #include "ui/UIActorMenu.h"
 #include "ui/UIPdaWnd.h"
 #include "ui/UITalkWnd.h"
-#include "ui/UIMessageBox.h"
+#include "xrUICore/MessageBox/UIMessageBox.h"
 
 CUIGameSP::CUIGameSP() : m_game(NULL), m_game_objective(NULL)
 {
@@ -42,6 +43,14 @@ void CUIGameSP::HideShownDialogs()
     {
         mir->HideDialog();
     }
+}
+
+void CUIGameSP::ReinitDialogs()
+{
+    delete_data(TalkMenu);
+    TalkMenu = new CUITalkWnd();
+    delete_data(UIChangeLevelWnd);
+    UIChangeLevelWnd = new CChangeLevelWnd();
 }
 
 void CUIGameSP::SetClGame(game_cl_GameState* g)
@@ -67,13 +76,12 @@ void CUIGameSP::OnFrame()
     if (m_game_objective)
     {
         bool b_remove = false;
-        int dik = get_action_dik(kSCORES, 0);
-        if (dik && !pInput->iGetAsyncKeyState(dik))
-            b_remove = true;
-
-        dik = get_action_dik(kSCORES, 1);
-        if (!b_remove && dik && !pInput->iGetAsyncKeyState(dik))
-            b_remove = true;
+        for (u8 i = 0; i < bindtypes_count && !b_remove; ++i)
+        {
+            const int dik = GetActionDik(kSCORES, i);
+            if (dik && !pInput->iGetAsyncKeyState(dik))
+                b_remove = true;
+        }
 
         if (b_remove)
         {
@@ -82,6 +90,11 @@ void CUIGameSP::OnFrame()
             m_game_objective = NULL;
         }
     }
+}
+
+void CUIGameSP::OnUIReset()
+{
+    ReinitDialogs();
 }
 
 bool CUIGameSP::IR_UIOnKeyboardPress(int dik)
@@ -110,7 +123,7 @@ bool CUIGameSP::IR_UIOnKeyboardPress(int dik)
     if (!pActor->g_Alive())
         return false;
 
-    switch (get_binded_action(dik))
+    switch (GetBindedAction(dik))
     {
     case kACTIVE_JOBS:
     {
@@ -131,13 +144,28 @@ bool CUIGameSP::IR_UIOnKeyboardPress(int dik)
         if (!pActor->inventory_disabled())
         {
             m_game_objective = AddCustomStatic("main_task", true);
-            CGameTask* t1 = Level().GameTaskManager().ActiveTask();
-            m_game_objective->m_static->TextItemControl()->SetTextST((t1) ? t1->m_Title.c_str() : "st_no_active_task");
+            CGameTask* t1 = Level().GameTaskManager().ActiveTask(eTaskTypeStoryline);
+            CGameTask* t2 = Level().GameTaskManager().ActiveTask(eTaskTypeAdditional);
 
-            if (t1 && t1->m_Description.c_str())
+            if (t1 && t2)
             {
+                m_game_objective->m_static->SetTextST(t1->m_Title.c_str());
                 StaticDrawableWrapper* sm2 = AddCustomStatic("secondary_task", true);
-                sm2->m_static->TextItemControl()->SetTextST(t1->m_Description.c_str());
+                sm2->m_static->SetTextST(t2->m_Title.c_str());
+            }
+            else
+            {
+                if (t1 || t2)
+                {
+                    CGameTask* t = (t1) ? t1 : t2;
+                    m_game_objective->m_static->SetTextST(t->m_Title.c_str());
+                    StaticDrawableWrapper* sm2 = AddCustomStatic("secondary_task", true);
+                    sm2->m_static->TextItemControl()->SetTextST(t->m_Description.c_str());
+                }
+                else
+                {
+                    m_game_objective->m_static->TextItemControl()->SetTextST("st_no_active_task");
+                }
             }
         }
         break;
@@ -278,7 +306,7 @@ bool CChangeLevelWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
     if (keyboard_action == WINDOW_KEY_PRESSED)
     {
-        if (is_binded(kQUIT, dik))
+        if (IsBinded(kQUIT, dik))
             OnCancel();
         return true;
     }
@@ -286,10 +314,38 @@ bool CChangeLevelWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 }
 
 bool g_block_pause = false;
-void CChangeLevelWnd::Show()
+
+// Morrey: Не инициализировалась форма, поскольку виртуальная функция отличалась набором аргуметов 
+void CChangeLevelWnd::Show(bool status)
 {
-    m_messageBox->InitMessageBox(
-        m_b_allow_change_level ? "message_box_change_level" : "message_box_change_level_disabled");
+    inherited::Show(status);
+    if (status)
+    {
+        m_messageBox->InitMessageBox(
+            m_b_allow_change_level ? "message_box_change_level" : "message_box_change_level_disabled");
+        SetWndPos(m_messageBox->GetWndPos());
+        m_messageBox->SetWndPos(Fvector2().set(0.0f, 0.0f));
+        SetWndSize(m_messageBox->GetWndSize());
+
+        m_messageBox->SetText(m_message_str.c_str());
+
+        g_block_pause = true;
+        Device.Pause(TRUE, TRUE, TRUE, "CChangeLevelWnd_show");
+        bShowPauseString = FALSE;
+    }
+    else
+    {
+        g_block_pause = false;
+        Device.Pause(FALSE, TRUE, TRUE, "CChangeLevelWnd_hide");
+    }
+}
+
+void CChangeLevelWnd::ShowDialog(bool bDoHideIndicators)
+{
+    m_messageBox->InitMessageBox(m_b_allow_change_level
+        ? "message_box_change_level"
+        : "message_box_change_level_disabled");
+
     SetWndPos(m_messageBox->GetWndPos());
     m_messageBox->SetWndPos(Fvector2().set(0.0f, 0.0f));
     SetWndSize(m_messageBox->GetWndSize());
@@ -299,10 +355,12 @@ void CChangeLevelWnd::Show()
     g_block_pause = true;
     Device.Pause(TRUE, TRUE, TRUE, "CChangeLevelWnd_show");
     bShowPauseString = FALSE;
+    inherited::ShowDialog(bDoHideIndicators);
 }
 
-void CChangeLevelWnd::Hide()
+void CChangeLevelWnd::HideDialog()
 {
     g_block_pause = false;
     Device.Pause(FALSE, TRUE, TRUE, "CChangeLevelWnd_hide");
+    inherited::HideDialog();
 }

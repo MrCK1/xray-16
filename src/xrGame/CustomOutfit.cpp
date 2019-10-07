@@ -1,6 +1,6 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 
-#include "customoutfit.h"
+#include "CustomOutfit.h"
 #include "xrPhysics/PhysicsShell.h"
 #include "inventory_space.h"
 #include "Inventory.h"
@@ -69,9 +69,10 @@ void CCustomOutfit::Load(LPCSTR section)
     m_HitTypeProtection[ALife::eHitTypeChemicalBurn] = pSettings->r_float(section, "chemical_burn_protection");
     m_HitTypeProtection[ALife::eHitTypeExplosion] = pSettings->r_float(section, "explosion_protection");
     m_HitTypeProtection[ALife::eHitTypeFireWound] = 0.f; // pSettings->r_float(section,"fire_wound_protection");
-    //	m_HitTypeProtection[ALife::eHitTypePhysicStrike]= pSettings->r_float(section,"physic_strike_protection");
+    m_HitTypeProtection[ALife::eHitTypePhysicStrike] = pSettings->read_if_exists<float>(
+        section, "physic_strike_protection", m_HitTypeProtection[ALife::eHitTypeStrike]);
     m_HitTypeProtection[ALife::eHitTypeLightBurn] = m_HitTypeProtection[ALife::eHitTypeBurn];
-    m_boneProtection->m_fHitFracActor = pSettings->r_float(section, "hit_fraction_actor");
+    m_boneProtection->m_fHitFracActor = pSettings->read_if_exists<float>(section, "hit_fraction_actor", 0.1f);
 
     if (pSettings->line_exist(section, "nightvision_sect"))
         m_NightVisionSect = pSettings->r_string(section, "nightvision_sect");
@@ -102,6 +103,9 @@ void CCustomOutfit::Load(LPCSTR section)
 
     m_BonesProtectionSect = READ_IF_EXISTS(pSettings, r_string, section, "bones_koeff_protection", "");
     bIsHelmetAvaliable = !!READ_IF_EXISTS(pSettings, r_bool, section, "helmet_avaliable", true);
+
+    // Added by Axel, to enable optional condition use on any item
+    m_flags.set(FUsingCondition, READ_IF_EXISTS(pSettings, r_bool, section, "use_condition", true));
 }
 
 void CCustomOutfit::ReloadBonesProtection()
@@ -186,7 +190,7 @@ float CCustomOutfit::HitThroughArmor(float hit_power, s16 element, float ap, boo
 }
 
 BOOL CCustomOutfit::BonePassBullet(int boneID) { return m_boneProtection->getBonePassBullet(s16(boneID)); }
-#include "torch.h"
+#include "Torch.h"
 void CCustomOutfit::OnMoveToSlot(const SInvItemPlace& prev)
 {
     if (m_pInventory)
@@ -215,7 +219,7 @@ void CCustomOutfit::ApplySkinModel(CActor* pActor, bool bDress, bool bHUDOnly)
         if (!bHUDOnly && m_ActorVisual.size())
         {
             shared_str NewVisual = NULL;
-            char* TeamSection = Game().getTeamSection(pActor->g_Team());
+            const auto TeamSection = Game().getTeamSection(pActor->g_Team());
             if (TeamSection)
             {
                 if (pSettings->line_exist(TeamSection, *cNameSect()))
@@ -287,13 +291,13 @@ bool CCustomOutfit::install_upgrade_impl(LPCSTR section, bool test)
     result |= process_if_exists(
         section, "telepatic_protection", &CInifile::r_float, m_HitTypeProtection[ALife::eHitTypeTelepatic], test);
     result |= process_if_exists(section, "chemical_burn_protection", &CInifile::r_float,
-        m_HitTypeProtection[ALife::eHitTypeChemicalBurn], test);
+                                m_HitTypeProtection[ALife::eHitTypeChemicalBurn], test);
     result |= process_if_exists(
         section, "explosion_protection", &CInifile::r_float, m_HitTypeProtection[ALife::eHitTypeExplosion], test);
     result |= process_if_exists(
         section, "fire_wound_protection", &CInifile::r_float, m_HitTypeProtection[ALife::eHitTypeFireWound], test);
-    //	result |= process_if_exists( section, "physic_strike_protection", &CInifile::r_float,
-    // m_HitTypeProtection[ALife::eHitTypePhysicStrike], test );
+    result |= process_if_exists(
+        section, "physic_strike_protection", &CInifile::r_float, m_HitTypeProtection[ALife::eHitTypePhysicStrike], test);
     LPCSTR str;
     bool result2 = process_if_exists_set(section, "nightvision_sect", &CInifile::r_string, str, test);
     if (result2 && !test)

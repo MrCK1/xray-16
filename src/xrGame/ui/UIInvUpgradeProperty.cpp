@@ -10,8 +10,8 @@
 #include "UIInvUpgradeProperty.h"
 #include "UIInvUpgradeInfo.h"
 
-#include "UIStatic.h"
-#include "xrUIXmlParser.h"
+#include "xrUICore/Static/UIStatic.h"
+#include "xrUICore/XML/xrUIXmlParser.h"
 #include "UIXmlInit.h"
 
 #include "ai_space.h"
@@ -19,6 +19,7 @@
 #include "inventory_upgrade_manager.h"
 #include "inventory_upgrade.h"
 #include "inventory_upgrade_property.h"
+#include "UIHelper.h"
 
 UIProperty::UIProperty()
 {
@@ -138,24 +139,22 @@ UIInvUpgPropertiesWnd::UIInvUpgPropertiesWnd()
 {
     m_properties_ui.reserve(15);
     m_temp_upgrade_vector.reserve(1);
+    m_Upgr_line = nullptr;
 }
 
 UIInvUpgPropertiesWnd::~UIInvUpgPropertiesWnd() { delete_data(m_properties_ui); }
 void UIInvUpgPropertiesWnd::init_from_xml(LPCSTR xml_name)
 {
     CUIXml ui_xml;
-    ui_xml.Load(CONFIG_PATH, UI_PATH, xml_name);
+    ui_xml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, xml_name);
 
-    XML_NODE* stored_root = ui_xml.GetLocalRoot();
-    XML_NODE* node = ui_xml.NavigateToNode("upgrade_info", 0);
+    XML_NODE stored_root = ui_xml.GetLocalRoot();
+    XML_NODE node = ui_xml.NavigateToNode("upgrade_info", 0);
     ui_xml.SetLocalRoot(node);
 
     CUIXmlInit::InitWindow(ui_xml, "properties", 0, this);
 
-    m_Upgr_line = new CUIStatic();
-    AttachChild(m_Upgr_line);
-    m_Upgr_line->SetAutoDelete(true);
-    CUIXmlInit::InitStatic(ui_xml, "properties:upgr_line", 0, m_Upgr_line);
+    m_Upgr_line = UIHelper::CreateStatic(ui_xml, "properties:upgr_line", this, false);
 
     LPCSTR properties_section = "upgrades_properties";
 
@@ -165,8 +164,8 @@ void UIInvUpgPropertiesWnd::init_from_xml(LPCSTR xml_name)
     shared_str property_id;
 
     CInifile::Sect& inv_section = pSettings->r_section(properties_section);
-    CInifile::SectIt_ ib = inv_section.Data.begin();
-    CInifile::SectIt_ ie = inv_section.Data.end();
+    auto ib = inv_section.Data.begin();
+    auto ie = inv_section.Data.end();
     for (; ib != ie; ++ib)
     {
         UIProperty* ui_property = new UIProperty(); // load one time !!
@@ -175,7 +174,8 @@ void UIInvUpgPropertiesWnd::init_from_xml(LPCSTR xml_name)
         property_id._set((*ib).first);
         if (!ui_property->init_property(property_id))
         {
-            Msg("! Invalid property <%s> in inventory upgrade manager!", property_id);
+            Msg("! Invalid property <%s> in inventory upgrade manager!", property_id.c_str());
+            xr_delete(ui_property);
             continue;
         }
 
@@ -189,7 +189,9 @@ void UIInvUpgPropertiesWnd::set_info(ItemUpgrades_type const& item_upgrades)
 {
     Fvector2 new_size;
     new_size.x = GetWndSize().x;
-    new_size.y = m_Upgr_line->GetWndSize().y + 3.0f;
+    new_size.y = 0.0f;
+    if (m_Upgr_line)
+        new_size.y = m_Upgr_line->GetWndSize().y + 3.0f;
 
     Properties_type::iterator ib = m_properties_ui.begin();
     Properties_type::iterator ie = m_properties_ui.end();
@@ -217,7 +219,7 @@ void UIInvUpgPropertiesWnd::set_upgrade_info(Upgrade_type& upgrade)
         return;
     }
 
-    m_temp_upgrade_vector.clear_not_free();
+    m_temp_upgrade_vector.clear();
     m_temp_upgrade_vector.push_back(upgrade.id());
     set_info(m_temp_upgrade_vector);
 }

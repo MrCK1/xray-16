@@ -1,9 +1,9 @@
 #pragma once
-#include "ai/Monsters/BaseMonster/base_monster.h"
-#include "ai/Monsters/ai_monster_bones.h"
-#include "ai/Monsters/controlled_entity.h"
-#include "ai/Monsters/controlled_actor.h"
-#include "ai/Monsters/anim_triple.h"
+#include "ai/monsters/basemonster/base_monster.h"
+#include "ai/monsters/ai_monster_bones.h"
+#include "ai/monsters/controlled_entity.h"
+#include "ai/monsters/controlled_actor.h"
+#include "ai/monsters/anim_triple.h"
 
 #include "bloodsucker_alien.h"
 
@@ -164,8 +164,8 @@ public:
     void manual_deactivate();
 
     float get_vampire_distance() const { return m_vampire_distance; }
-    virtual char* get_monster_class_name() { return "bloodsucker"; }
-    virtual void renderable_Render();
+    pcstr get_monster_class_name() override { return "bloodsucker"; }
+    void renderable_Render(IRenderable* root) override;
 
 #ifdef DEBUG
     virtual CBaseMonster::SDebugInfo show_debug_info();

@@ -4,12 +4,13 @@
 #include "ui/TeamInfo.h"
 #include "game_cl_capture_the_artefact.h"
 #include "game_cl_capture_the_artefact_captions_manager.h"
-#include "actor.h"
+#include "Actor.h"
 
 CTAGameClCaptionsManager::CTAGameClCaptionsManager()
+    : m_can_spawn(false), dwLastTimeRemains(0)
 {
-    parent_game_ui = NULL;
-    parent_game_object = NULL;
+    parent_game_ui = nullptr;
+    parent_game_object = nullptr;
     m_press_fire2spect_showed = false;
     m_press_jump2payspaw_showed = false;
     m_can_show_payspawn = false;
@@ -48,7 +49,6 @@ void CTAGameClCaptionsManager::ShowInProgressCaptions()
     if (!control_entity)
         return;
 
-    CStringTable st;
     if (ps->team == static_cast<u8>(etSpectatorsTeam))
     {
         VERIFY(smart_cast<CSpectator*>(control_entity));
@@ -97,11 +97,10 @@ void CTAGameClCaptionsManager::ShowPendingCaptions() {}
 void CTAGameClCaptionsManager::ShowScoreCaptions()
 {
     VERIFY(m_winner_team != etSpectatorsTeam);
-    CStringTable st;
     LPCSTR team_name = CTeamInfo::GetTeam_name(m_winner_team + 1);
-    u32 win_str_size = st.translate("mp_team_wins").size() + xr_strlen(team_name) + 1;
-    char* win_str = static_cast<char*>(_alloca(win_str_size));
-    xr_sprintf(win_str, win_str_size, st.translate("mp_team_wins").c_str(), team_name);
+    u32 win_str_size = StringTable().translate("mp_team_wins").size() + xr_strlen(team_name) + 1;
+    char* win_str = static_cast<char*>(xr_alloca(win_str_size));
+    xr_sprintf(win_str, win_str_size, StringTable().translate("mp_team_wins").c_str(), team_name);
     parent_game_ui->SetRoundResultCaption(win_str);
 }
 
@@ -175,7 +174,7 @@ u32 CTAGameClCaptionsManager::SetWarmupTime(u32 current_warmup_time, u32 current
     u32 time_remains = current_warmup_time - current_time;
 
     string64 time_str;
-    CStringTable st;
+    CStringTable& st = StringTable();
     ConvertTime2String(time_str, time_remains);
 
     warmup_message[0] = 0; // bad style
@@ -198,7 +197,7 @@ u32 CTAGameClCaptionsManager::SetWarmupTime(u32 current_warmup_time, u32 current
                 }
             }
             dwLastTimeRemains = dwCurTimeRemains;
-            _itoa(dwCurTimeRemains, time_str, 10);
+            xr_itoa(dwCurTimeRemains, time_str, 10);
             strconcat(sizeof(warmup_message), warmup_message, *st.translate("mp_ready"), "...", time_str);
         }
     };

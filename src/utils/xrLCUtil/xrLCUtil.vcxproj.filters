@@ -24,9 +24,6 @@
     <ClCompile Include="LevelCompilerLoggerWindow.cpp">
       <Filter>Log</Filter>
     </ClCompile>
-    <ClCompile Include="LevelCompilerLoggerConsole.cpp">
-      <Filter>Log</Filter>
-    </ClCompile>
     <ClCompile Include="xrLCUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -45,14 +42,14 @@
     <ClInclude Include="LevelCompilerLoggerWindow.hpp">
       <Filter>Log</Filter>
     </ClInclude>
-    <ClInclude Include="LevelCompilerLoggerConsole.hpp">
-      <Filter>Log</Filter>
-    </ClInclude>
     <ClInclude Include="xrLCUtil.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc">
       <Filter>Resources</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\..\OpenXRay.natvis" />
   </ItemGroup>
 </Project>

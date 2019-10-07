@@ -16,7 +16,14 @@ class CWeapon;
 namespace award_system
 {
 #ifdef DEBUG
-extern char* player_values_strtable[];
+constexpr pcstr player_values_strtable[] = {
+    "command_switch_count", "kill_in_raw_count", "death_count", "spots", "my_team_win_score", "my_team_win_score_now",
+    "enemy_top_player_div", "blitzkrieg_time", "enemy_team_score", "enemy_team_score_now", "artdeliver_counter",
+    "multi_champion", "mad", "achilles_heel_ready", "faster_than_bullets_time", "harvest_count", "skewer_count",
+    "double_shot_double_kill_time", "ammo_elapsed", "climber", "opener_ready", "invincible_fury", "move_state",
+    "move_velocity", "move_angular_velocity", "sprinter_victim_velocity", "marksman_count", "ambassador", "remembrance",
+    "avenger", "cherub_ready", "stalker_flair", "black_list", "thunder_count", "killer_victim_angle_cos",
+};
 #endif //#ifdef DEBUG
 
 class game_state_accumulator : public game_events_handler
@@ -73,9 +80,8 @@ public:
 
     bool check_accumulative_value(enum_accumulative_player_values param_id, u32_binary_function* func, u32 right_arg);
 
+    using accumulative_values_collection_t = AssociativeVector<enum_accumulative_player_values, player_state_param*>;
 private:
-    typedef AssociativeVector<enum_accumulative_player_values, player_state_param*> accumulative_values_collection_t;
-
     // average_values_collection_t			m_average_values;
     accumulative_values_collection_t m_accumulative_values;
     CItemMgr const* m_item_mngr;
@@ -86,11 +92,6 @@ private:
     void init_accumulative_values();
     void init_player_accum_values(game_PlayerState* new_local_player);
 
-    template <typename TypeListElement>
-    void init_acpv_list();
-    template <>
-    void init_acpv_list<Loki::NullType>(){};
-
     void update_average_values();
     void update_accumulative_values();
 
@@ -100,9 +101,6 @@ private:
     ammunition_group m_amm_groups;
     bone_group m_bone_groups;
 }; // class game_state_accumulator
-
-#include "game_state_accumulator_inline.h"
-
 } // namespace award_system
 
 #endif //#ifndef GAME_STATE_ACCUMULATOR_INCLUDED

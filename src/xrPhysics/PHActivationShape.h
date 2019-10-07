@@ -1,8 +1,6 @@
-#ifndef PH_ACTIVATION_SHAPE
-#define PH_ACTIVATION_SHAPE
-#endif
+#pragma once
 
-#include "phvalidevalues.h"
+#include "PHValideValues.h"
 #include "PHObject.h"
 class IPhysicsShellHolder;
 class CPHActivationShape : public CPHObject

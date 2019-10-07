@@ -5,7 +5,7 @@
 #include "stdafx.h"
 #include "occRasterizer.h"
 
-#if DEBUG
+#ifdef DEBUG 
 #include "xrRender_console.h"
 #endif
 
@@ -54,19 +54,25 @@ IC void propagade_depth(LPVOID p_dest, LPVOID p_src, int dim)
 //////////////////////////////////////////////////////////////////////
 
 occRasterizer::occRasterizer()
-#if DEBUG
+#ifdef DEBUG
     : dbg_HOM_draw_initialized(false)
 #endif
 {
+    ZeroMemory(bufFrame, sizeof(bufFrame));
+    ZeroMemory(bufDepth, sizeof(bufDepth));
+    ZeroMemory(bufDepth_0, sizeof(bufDepth_0));
+    ZeroMemory(bufDepth_1, sizeof(bufDepth_1));
+    ZeroMemory(bufDepth_2, sizeof(bufDepth_2));
+    ZeroMemory(bufDepth_3, sizeof(bufDepth_3));
 }
 
 occRasterizer::~occRasterizer() {}
 void occRasterizer::clear()
 {
-    u32 size = occ_dim * occ_dim;
+    size_t size = occ_dim * occ_dim;
     float f = 1.f;
-    MemFill32(bufFrame, 0, size);
-    MemFill32(bufDepth, *LPDWORD(&f), size);
+    ZeroMemory(bufFrame, sizeof(bufFrame));
+    MemFill32(bufDepth, *(u32 *)(&f), size);
 }
 
 IC BOOL shared(occTri* T1, occTri* T2)
@@ -140,7 +146,7 @@ void occRasterizer::propagade()
 
 void occRasterizer::on_dbg_render()
 {
-#if DEBUG
+#ifdef DEBUG
     if (!ps_r2_ls_flags_ext.is(R_FLAGEXT_HOM_DEPTH_DRAW))
     {
         dbg_HOM_draw_initialized = false;
@@ -211,7 +217,7 @@ IC BOOL test_Level(occD* depth, int dim, float _x0, float _y0, float _x1, float 
     clamp(y1, y0, dim - 1);
 
     // MT-Sync (delayed as possible)
-    RImplementation.HOM.MT_SYNC();
+    RImplementation.HOM.MT_Sync();
 
     for (int y = y0; y <= y1; y++)
     {

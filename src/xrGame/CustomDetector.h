@@ -1,9 +1,9 @@
 #pragma once
 #include "inventory_item_object.h"
-#include "xrEngine/feel_touch.h"
-#include "hudsound.h"
-#include "customzone.h"
-#include "artefact.h"
+#include "xrEngine/Feel_Touch.h"
+#include "HudSound.h"
+#include "CustomZone.h"
+#include "Artefact.h"
 #include "ai_sounds.h"
 
 class CCustomZone;
@@ -144,7 +144,7 @@ public:
 
     virtual void OnActiveItem();
     virtual void OnHiddenItem();
-    virtual void OnStateSwitch(u32 S);
+    virtual void OnStateSwitch(u32 S, u32 oldState);
     virtual void OnAnimationEnd(u32 state);
     virtual void UpdateXForm();
 
@@ -166,7 +166,7 @@ protected:
 
     bool m_bWorking;
     float m_fAfVisRadius;
-
+    float m_fDecayRate; //Alundaio
     CAfList m_artefacts;
 };
 

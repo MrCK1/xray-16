@@ -46,9 +46,7 @@ shared_str CTeamInfo::GetTeam1_name()
     if (flags.test(flTeam1_name))
         return team1_name;
 
-    CStringTable st;
-
-    team1_name = st.translate(pSettings->r_string_wb("team1", "name"));
+    team1_name = StringTable().translate(pSettings->r_string_wb("team1", "name"));
     flags.set(flTeam1_name, true);
 
     return team1_name;
@@ -59,9 +57,7 @@ shared_str CTeamInfo::GetTeam2_name()
     if (flags.test(flTeam2_name))
         return team2_name;
 
-    CStringTable st;
-
-    team2_name = st.translate(pSettings->r_string_wb("team2", "name"));
+    team2_name = StringTable().translate(pSettings->r_string_wb("team2", "name"));
     flags.set(flTeam2_name, true);
 
     return team2_name;
@@ -70,7 +66,7 @@ shared_str CTeamInfo::GetTeam2_name()
 LPCSTR CTeamInfo::GetTeam_name(int team)
 {
     string32 tmp;
-    R_ASSERT2(team == 1 || team == 2 || team == 3, itoa(team, tmp, 10));
+    R_ASSERT2(team == 1 || team == 2 || team == 3, xr_itoa(team, tmp, 10));
     if (team == 1)
         return *GetTeam1_name();
     else
@@ -80,7 +76,7 @@ LPCSTR CTeamInfo::GetTeam_name(int team)
 LPCSTR CTeamInfo::GetTeam_color_tag(int team)
 {
     string32 tmp;
-    R_ASSERT2(team == 1 || team == 2 || team == 3, itoa(team, tmp, 10));
+    R_ASSERT2(team == 1 || team == 2 || team == 3, xr_itoa(team, tmp, 10));
     //	if (flags.test(flTeam1_col_t)) return *team1_color_tag;
     //	if (flags.test(flTeam2_col_t)) return *team2_color_tag;
     if (team == 3)

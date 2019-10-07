@@ -1,8 +1,8 @@
 #pragma once
-#include "ai/Monsters/BaseMonster/base_monster.h"
-#include "ai/Monsters/telekinesis.h"
-#include "ai/Monsters/anim_triple.h"
-#include "ai/Monsters/scanning_ability.h"
+#include "ai/monsters/basemonster/base_monster.h"
+#include "ai/monsters/telekinesis.h"
+#include "ai/monsters/anim_triple.h"
+#include "ai/monsters/scanning_ability.h"
 
 class CCharacterPhysicsSupport;
 class CBurerFastGravi;
@@ -33,7 +33,7 @@ public:
 
         const CEntityAlive* enemy;
 
-        GraviObject()
+        GraviObject() : time_last_update(0)
         {
             active = false;
             enemy = 0;
@@ -149,7 +149,7 @@ public:
 
     bool need_shotmark() const { return !m_shield_active; }
     virtual bool ability_distant_feel() { return true; }
-    virtual char* get_monster_class_name() { return "burer"; }
+    pcstr get_monster_class_name() override { return "burer"; }
 #ifdef DEBUG
     virtual CBaseMonster::SDebugInfo show_debug_info();
 #endif

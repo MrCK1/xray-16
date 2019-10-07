@@ -1,7 +1,5 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIGameCTA.h"
-
-#include <dinput.h>
 
 #include "UITeamPanels.h"
 
@@ -10,18 +8,18 @@
 #include "game_cl_mp.h"
 
 #include "Level.h"
-#include "actor.h"
-#include "artefact.h"
-#include "inventory.h"
+#include "Actor.h"
+#include "Artefact.h"
+#include "Inventory.h"
 #include "xrServer_Objects_ALife_Items.h"
-#include "weapon.h"
+#include "Weapon.h"
 #include "WeaponMagazinedWGrenade.h"
 #include "WeaponKnife.h"
 #include "xr_level_controller.h"
 
 #include "Common/object_broker.h"
 
-#include "weaponknife.h"
+#include "WeaponKnife.h"
 
 #include "ui/UISkinSelector.h"
 //.#include "ui/UIInventoryWnd.h"
@@ -33,7 +31,7 @@
 #include "ui/UIBuyWndShared.h"
 #include "ui/UIMoneyIndicator.h"
 #include "ui/UIRankIndicator.h"
-#include "ui/UIProgressShape.h"
+#include "xrUICore/ProgressBar/UIProgressShape.h"
 #include "ui/UIMessageBoxEx.h"
 #include "ui/UIVoteStatusWnd.h"
 #include "ui/UIActorMenu.h"
@@ -68,7 +66,7 @@ void CUIGameCTA::Init(int stage)
         teamPanels->Init(TEAM_PANELS_XML_NAME, "team_panels_wnd");
 
         CUIXml uiXml;
-        uiXml.Load(CONFIG_PATH, UI_PATH, CTA_GAME_WND_XML);
+        uiXml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, CTA_GAME_WND_XML);
 
         CUIXmlInit::InitWindow(uiXml, "global", 0, Window);
 
@@ -508,9 +506,9 @@ void CUIGameCTA::SetPlayerDefItemsToBuyMenu()
     u8 KnifeSlot, KnifeIndex;
     m_pCurBuyMenu->GetWeaponIndexByName("mp_wpn_knife", KnifeSlot, KnifeIndex);
     //---------------------------------------------------------
-    PRESET_ITEMS TmpPresetItems;
-    PRESET_ITEMS_it It = PlayerDefItems.begin();
-    PRESET_ITEMS_it Et = PlayerDefItems.end();
+
+    auto It = PlayerDefItems.begin();
+    auto Et = PlayerDefItems.end();
     for (; It != Et; ++It)
     {
         PresetItem PIT = *It;
@@ -536,7 +534,7 @@ void CUIGameCTA::SetPlayerItemsToBuyMenu()
         auto& inventory = actor->inventory();
         u32 max_addammo_count = actor->inventory().m_all.size();
         aditional_ammo_t add_ammo(
-            _alloca(sizeof(aditional_ammo_t::value_type) * (max_addammo_count * 2)), max_addammo_count * 2);
+            xr_alloca(sizeof(aditional_ammo_t::value_type) * (max_addammo_count * 2)), max_addammo_count * 2);
         TryToDefuseAllWeapons(add_ammo);
         for (u16 i = inventory.FirstSlot(); i <= inventory.LastSlot(); i++)
             BuyMenuItemInserter(inventory.ItemFromSlot(i));
@@ -644,7 +642,7 @@ s8 CUIGameCTA::GetSelectedSkinIndex()
 void CUIGameCTA::SetReinforcementTimes(u32 curTime, u32 maxTime)
 {
     string128 _buff;
-    m_pReinforcementInidcator->SetText(itoa(curTime / 1000, _buff, 10));
+    m_pReinforcementInidcator->SetText(xr_itoa(curTime / 1000, _buff, 10));
 }
 
 void CUIGameCTA::DisplayMoneyChange(LPCSTR deltaMoney) { m_pMoneyIndicator->SetMoneyChange(deltaMoney); }
@@ -734,11 +732,10 @@ void CUIGameCTA::ShowBuySpawn(s32 spawn_cost)
     if (m_pBuySpawnMsgBox->IsShown())
         return;
 
-    CStringTable st;
-    LPCSTR format_str = st.translate("mp_press_yes2pay").c_str();
+    LPCSTR format_str = StringTable().translate("mp_press_yes2pay").c_str();
     VERIFY(format_str);
     size_t pay_frm_size = xr_strlen(format_str) * sizeof(char) + 64;
-    PSTR pay_frm_str = static_cast<char*>(_alloca(pay_frm_size));
+    PSTR pay_frm_str = static_cast<char*>(xr_alloca(pay_frm_size));
 
     xr_sprintf(pay_frm_str, pay_frm_size, format_str, abs(Game().local_player->money_for_round), abs(spawn_cost));
 
@@ -763,7 +760,7 @@ void CUIGameCTA::SetVoteMessage(LPCSTR str)
     if (str)
     {
         CUIXml uiXml;
-        uiXml.Load(CONFIG_PATH, UI_PATH, "ui_game_dm.xml");
+        uiXml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "ui_game_dm.xml");
         m_voteStatusWnd = new UIVoteStatusWnd();
         m_voteStatusWnd->InitFromXML(uiXml);
         m_voteStatusWnd->Show(true);
@@ -784,7 +781,7 @@ bool CUIGameCTA::IR_UIOnKeyboardPress(int dik)
 
     switch (dik)
     {
-    case DIK_CAPSLOCK:
+    case SDL_SCANCODE_CAPSLOCK:
     {
         if (m_game)
         {
@@ -798,7 +795,7 @@ bool CUIGameCTA::IR_UIOnKeyboardPress(int dik)
     break;
     }
 
-    EGameActions cmd = get_binded_action(dik);
+    EGameActions cmd = GetBindedAction(dik);
     switch (cmd)
     {
     case kINVENTORY:
@@ -822,7 +819,7 @@ bool CUIGameCTA::IR_UIOnKeyboardRelease(int dik)
 
     switch (dik)
     {
-    case DIK_CAPSLOCK:
+    case SDL_SCANCODE_CAPSLOCK:
     {
         if (m_game)
         {
@@ -886,7 +883,7 @@ void CUIGameCTA::LoadDefItemsForRank()
     char tmp[5];
     for (int i = 1; i <= local_player->rank; i++)
     {
-        strconcat(sizeof(RankStr), RankStr, "rank_", itoa(i, tmp, 10));
+        strconcat(sizeof(RankStr), RankStr, "rank_", xr_itoa(i, tmp, 10));
         if (!pSettings->section_exist(RankStr))
             continue;
         for (u32 it = 0; it < PlayerDefItems.size(); it++)

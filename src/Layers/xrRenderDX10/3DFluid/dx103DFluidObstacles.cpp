@@ -169,13 +169,13 @@ void dx103DFluidObstacles::ProcessStaticObstacles(const dx103DFluidData& FluidDa
 void dx103DFluidObstacles::ProcessDynamicObstacles(
     const dx103DFluidData& FluidData, const Fmatrix& WorldToFluid, float timestep)
 {
-    m_lstRenderables.clear_not_free();
-    m_lstShells.clear_not_free();
-    m_lstElements.clear_not_free();
+    m_lstRenderables.clear();
+    m_lstShells.clear();
+    m_lstElements.clear();
 
     Fbox box;
-    box.min = Fvector3().set(-0.5f, -0.5f, -0.5f);
-    box.max = Fvector3().set(0.5f, 0.5f, 0.5f);
+    box.vMin = Fvector3().set(-0.5f, -0.5f, -0.5f);
+    box.vMax = Fvector3().set(0.5f, 0.5f, 0.5f);
     box.xform(FluidData.GetTransform());
     Fvector3 center;
     Fvector3 size;
@@ -188,9 +188,8 @@ void dx103DFluidObstacles::ProcessDynamicObstacles(
         STYPE_RENDERABLE, center, size);
 
     // Determine visibility for dynamic part of scene
-    for (u32 i = 0; i < m_lstRenderables.size(); ++i)
+    for (ISpatial* spatial : m_lstRenderables)
     {
-        ISpatial* spatial = m_lstRenderables[i];
         //  Can use to optimize invisible dynamic objects if necessary
         // CSector* sector      = (CSector*)spatial->spatial.sector;
         // if   (0==sector)                                     continue;   // disassociated from S/P structure
@@ -231,16 +230,14 @@ void dx103DFluidObstacles::ProcessDynamicObstacles(
     RCache.set_c(strWorldToLocal, WorldToFluid);
     RCache.set_c(strLocalToWorld, FluidToWorld);
 
-    int iShellsNum = m_lstShells.size();
-    for (int i = 0; i < iShellsNum; ++i)
+    for (const IPhysicsShell* shell : m_lstShells)
     {
-        RenderPhysicsShell(m_lstShells[i], WorldToFluid, timestep);
+        RenderPhysicsShell(shell, WorldToFluid, timestep);
     }
 
-    int iElementsNum = m_lstElements.size();
-    for (int i = 0; i < iElementsNum; ++i)
+    for (const IPhysicsElement* element: m_lstElements)
     {
-        RenderPhysicsElement(*m_lstElements[i], WorldToFluid, timestep);
+        RenderPhysicsElement(*element, WorldToFluid, timestep);
     }
 }
 
@@ -380,7 +377,7 @@ timestep)
 */
 
 void dx103DFluidObstacles::RenderDynamicOOBB(
-    const IPhysicsGeometry& Geometry, const Fmatrix& WorldToFluid, float timestep)
+    const IPhysicsGeometry& Geometry, const Fmatrix& WorldToFluid, float /*timestep*/)
 {
     PIX_EVENT(RenderDynamicObstacle);
 

@@ -1,12 +1,12 @@
 // exxZERO Time Stamp AddIn. Document modified at : Thursday, March 07, 2002 14:12:50 , by user : Oles , from computer :
 // OLES
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "HitMarker.h"
-#include "xrEngine/render.h"
+#include "xrEngine/Render.h"
 #include "xrEngine/LightAnimLibrary.h"
-#include "UIStaticItem.h"
+#include "xrUICore/Static/UIStaticItem.h"
 
-#include "grenade.h"
+#include "Grenade.h"
 
 #include "Include/xrRender/UIRender.h"
 #include "Include/xrRender/UIShader.h"
@@ -15,13 +15,13 @@
 CHitMarker::CHitMarker()
 {
     InitShader(pSettings->r_string("hud_hitmark", "hit_mark_texture"));
-    InitShader_Grenade(pSettings->r_string("hud_hitmark", "grenade_mark_texture"));
+    InitShader_Grenade(READ_IF_EXISTS(pSettings, r_string, "hud_hitmark", "grenade_mark_texture", nullptr));
 }
 
-void CHitMarker::InitShader(LPCSTR tex_name) { hShader2->create("hud\\default", tex_name); }
+void CHitMarker::InitShader(LPCSTR tex_name) { hShader2->create("hud" DELIMITER "default", tex_name); }
 void CHitMarker::InitShader_Grenade(LPCSTR tex_name)
 {
-    hShader_Grenade->create("hud\\default", tex_name); // "hud\\default2"
+    hShader_Grenade->create("hud" DELIMITER "default", tex_name); // "hud" DELIMITER "default2"
 }
 
 //--------------------------------------------------------------------

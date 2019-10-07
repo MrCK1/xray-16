@@ -1,10 +1,10 @@
 #pragma once
 
-#include "ai/Monsters/states/state_move_to_point.h"
-#include "ai/Monsters/states/state_look_point.h"
+#include "ai/monsters/states/state_move_to_point.h"
+#include "ai/monsters/states/state_look_point.h"
 #include "cover_point.h"
 #include "ai/monsters/monster_cover_manager.h"
-#include "ai/Monsters/monster_home.h"
+#include "ai/monsters/monster_home.h"
 
 #define TEMPLATE_SPECIALIZATION \
     template <typename _Object\
@@ -27,7 +27,8 @@ const float scare_distance2enemy = 20.f; // distance on which dog can be scared 
 //////////////////////////////////////////////////////////////////////////
 
 TEMPLATE_SPECIALIZATION
-CStateGroupAttackMoveToHomePointAbstract::CStateGroupAttackMoveToHomePoint(_Object* obj) : inherited(obj)
+CStateGroupAttackMoveToHomePointAbstract::CStateGroupAttackMoveToHomePoint(_Object* obj)
+    : inherited(obj), m_target_node(0), m_skip_camp(false), m_state_started(0)
 {
     add_state(eStateAttack_HomePoint_Hide, new CStateMonsterMoveToPointEx<_Object>(obj));
     add_state(eStateAttack_HomePoint_LookOpenPlace, new CStateMonsterLookToPoint<_Object>(obj));

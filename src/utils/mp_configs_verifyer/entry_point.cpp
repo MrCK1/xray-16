@@ -1,8 +1,6 @@
 #include "pch.h"
 #include "configs_dump_verifyer.h"
 
-#pragma comment(lib, "xrCore.lib")
-
 static char const* help_msg =
     "Format: mp_configs_verifyer.exe [--file | --unpack | --io_filter | --help] [file name]\n"
     "Keys:\n"
@@ -29,7 +27,7 @@ void safe_verify(
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
-        printf("FATAL ERROR (%s): failed to verify data\n");
+        printf("FATAL ERROR: failed to verify data\n");
     }
 }
 
@@ -47,7 +45,7 @@ void check_file(LPCSTR file_name)
             return;
         }
     }
-    u32 data_size = tmp_reader->length();
+    const size_t data_size = tmp_reader->length();
     u8* data = static_cast<u8*>(xr_malloc(data_size + 1));
 
     tmp_reader->r(data, static_cast<int>(data_size));
@@ -92,9 +90,9 @@ void unpack_file(LPCSTR file_name)
     }
     create_unpack_name(new_file_name);
 
-    u32 data_size = tmp_reader->length() - sizeof(u32); // first word is unpacket size ...
+    const size_t data_size = tmp_reader->length() - sizeof(u32); // first word is unpacket size ...
     u8* data = static_cast<u8*>(xr_malloc(data_size));
-    u32 uncomp_size = tmp_reader->r_u32();
+    const size_t uncomp_size = tmp_reader->r_u32();
     tmp_reader->r(data, data_size);
 
     if (uncomp_size > max_uncompressed_size)
@@ -148,7 +146,7 @@ void run_configs_verifyer_server()
 
 void initialize_core()
 {
-    Core._initialize("mp_configs_info", LogCallback(xrcore_log_cb, nullptr), TRUE, "fsgame4mpu.ltx");
+    Core.Initialize("mp_configs_info", nullptr, LogCallback(xrcore_log_cb, nullptr), TRUE, "fsgame4mpu.ltx");
 
     string_path fname;
     FS.update_path(fname, "$game_config$", "system.ltx");

@@ -37,7 +37,7 @@ bool action::applicable() const
 {
     luabind::functor<bool> functor;
 
-    R_ASSERT2(ai().script_engine().functor(m_precondition_functor.c_str(), functor),
+    R_ASSERT2(GEnv.ScriptEngine->functor(m_precondition_functor.c_str(), functor),
         make_string("failed to get [%s]", m_precondition_functor.c_str()));
 
     return (functor(m_precondition_params.c_str()));
@@ -45,7 +45,7 @@ bool action::applicable() const
 
 void action::load_animations(luabind::object const& table)
 {
-    for (luabind::iterator it(table), end; it != end; it++)
+    for (luabind::iterator it(table), end; it != end; ++it)
     {
         auto tmp = *it;
         Fvector const& pos = parse_fvector(tmp, "position");

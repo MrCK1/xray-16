@@ -1,30 +1,29 @@
 // xrPhysics.cpp : Defines the entry point for the DLL application.
 //
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "xrPhysics.h"
-#include "Externals/ode/include/ode/memory.h"
-
-#pragma comment(lib, "ode.lib")
-#pragma comment(lib, "xrCDB.lib")
-#pragma comment(lib, "xrSound.lib")
-#pragma comment(lib, "xrAPI.lib")
-//#pragma comment(lib,"xrEngine.lib")
+#include <ode/memory.h>
 
 #ifdef _MANAGED
 #pragma managed(push, off)
 #endif
 
-#ifdef DEBUG_MEMORY_MANAGER
-static void* ode_alloc(size_t size) { return Memory.mem_alloc(size, "ODE"); }
-static void* ode_realloc(void* ptr, size_t oldsize, size_t newsize) { return Memory.mem_realloc(ptr, newsize, "ODE"); }
-static void ode_free(void* ptr, size_t size) { return xr_free(ptr); }
-#else // DEBUG_MEMORY_MANAGER
 static void* ode_alloc(size_t size) { return xr_malloc(size); }
 static void* ode_realloc(void* ptr, size_t oldsize, size_t newsize) { return xr_realloc(ptr, newsize); }
 static void ode_free(void* ptr, size_t size) { return xr_free(ptr); }
-#endif // DEBUG_MEMORY_MANAGER
 
+#ifdef LINUX
+__attribute__((constructor))
+#endif
+static void load(int argc, char** argv, char** envp)
+{
+    dSetAllocHandler(ode_alloc);
+    dSetReallocHandler(ode_realloc);
+    dSetFreeHandler(ode_free);
+}
+
+#if defined(WINDOWS)
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     lpReserved;
@@ -32,15 +31,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     {
     case DLL_PROCESS_ATTACH:
 
-        dSetAllocHandler(ode_alloc);
-        dSetReallocHandler(ode_realloc);
-        dSetFreeHandler(ode_free);
+        load(0, nullptr, nullptr);
 
         break;
     case DLL_PROCESS_DETACH: break;
     }
     return TRUE;
 }
+#endif //WINDOWS
 
 #ifdef _MANAGED
 #pragma managed(pop)

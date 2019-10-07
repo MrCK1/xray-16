@@ -1,9 +1,7 @@
-#ifndef PCH_H_INCLUDED
-#define PCH_H_INCLUDED
+#pragma once
 
+#include "Common/Common.hpp"
 #include "xrCore/xrCore.h"
 #include "xrCore/LocatorAPI.h"
 
 #include <stdio.h>
-
-#endif // #define PCH_H_INCLUDED

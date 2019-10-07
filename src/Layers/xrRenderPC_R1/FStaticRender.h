@@ -6,11 +6,11 @@
 #include "GlowManager.h"
 #include "Layers/xrRender/WallmarksEngine.h"
 #include "FStaticRender_RenderTarget.h"
-#include "Layers/xrRender/modelpool.h"
+#include "Layers/xrRender/ModelPool.h"
 #include "LightShadows.h"
 #include "LightProjector.h"
 #include "LightPPA.h"
-#include "Layers/xrRender/light_DB.h"
+#include "Layers/xrRender/Light_DB.h"
 #include "xrCore/FMesh.hpp"
 
 class dxRender_Visual;
@@ -50,12 +50,12 @@ public:
     xr_vector<FSlideWindowItem> SWIs;
     xr_vector<ref_shader> Shaders;
     typedef svector<D3DVERTEXELEMENT9, MAXD3DDECLLENGTH + 1> VertexDeclarator;
-    xr_vector<VertexDeclarator> DCL;
-    xr_vector<IDirect3DVertexBuffer9*> VB;
-    xr_vector<IDirect3DIndexBuffer9*> IB;
+    xr_vector<VertexDeclarator> nDC, xDC;
+    xr_vector<ID3DVertexBuffer*> nVB, xVB;
+    xr_vector<ID3DIndexBuffer*> nIB, xIB;
     xr_vector<dxRender_Visual*> Visuals;
     CPSLibrary PSLibrary;
-    CLight_DB* L_DB;
+    CLight_DB Lights;
     CLightR_Manager* L_Dynamic;
     CLightShadows* L_Shadows;
     CLightProjector* L_Projector;
@@ -78,29 +78,25 @@ public:
 
 private:
     // Loading / Unloading
-    void LoadBuffers(CStreamReader* fs);
+    void LoadBuffers(CStreamReader* fs, bool alternative = false);
     void LoadVisuals(IReader* fs);
     void LoadLights(IReader* fs);
     void LoadSectors(IReader* fs);
     void LoadSWIs(CStreamReader* fs);
-    BOOL add_Dynamic(dxRender_Visual* pVisual, u32 planes); // normal processing
-    void add_Static(dxRender_Visual* pVisual, u32 planes);
-    void add_leafs_Dynamic(dxRender_Visual* pVisual); // if detected node's full visibility
-    void add_leafs_Static(dxRender_Visual* pVisual); // if detected node's full visibility
 
 public:
     ShaderElement* rimp_select_sh_static(dxRender_Visual* pVisual, float cdist_sq);
     ShaderElement* rimp_select_sh_dynamic(dxRender_Visual* pVisual, float cdist_sq);
-    D3DVERTEXELEMENT9* getVB_Format(int id);
-    IDirect3DVertexBuffer9* getVB(int id);
-    IDirect3DIndexBuffer9* getIB(int id);
+    D3DVERTEXELEMENT9* getVB_Format(int id, bool alternative = false);
+    ID3DVertexBuffer* getVB(int id, bool alternative = false);
+    ID3DIndexBuffer* getIB(int id, bool alternative = false);
     FSlideWindowItem* getSWI(int id);
     IRender_Portal* getPortal(int id);
     IRender_Sector* getSectorActive();
     IRenderVisual* model_CreatePE(LPCSTR name);
     void ApplyBlur4(FVF::TL4uv* dest, u32 w, u32 h, float k);
     void apply_object(IRenderable* O);
-    IC void apply_lmaterial(){};
+    void apply_lmaterial(){};
 
 public:
     // feature level
@@ -116,12 +112,12 @@ public:
     virtual void level_Unload() override;
 
     virtual IDirect3DBaseTexture9* texture_load(LPCSTR fname, u32& msize);
-    virtual HRESULT shader_compile(LPCSTR name, const DWORD* pSrcData, UINT SrcDataLen, LPCSTR pFunctionName,
-        LPCSTR pTarget, DWORD Flags, void*& result) override;
+    virtual HRESULT shader_compile(LPCSTR name, IReader* fs, LPCSTR pFunctionName, LPCSTR pTarget, DWORD Flags,
+        void*& result) override;
 
     // Information
     virtual void DumpStatistics(class IGameFont& font, class IPerformanceAlert* alert) override;
-    virtual LPCSTR getShaderPath() override { return "r1\\"; }
+    virtual LPCSTR getShaderPath() override { return "r1" DELIMITER ""; }
     virtual ref_shader getShader(int id);
     virtual IRender_Sector* getSector(int id) override;
     virtual IRenderVisual* getVisual(int id) override;
@@ -131,10 +127,10 @@ public:
 
     // Main
     virtual void flush() override;
-    virtual void set_Object(IRenderable* O) override;
+    void set_Object(IRenderable* O) override;
     virtual void add_Occluder(Fbox2& bb_screenspace) override; // mask screen region as oclluded
-    virtual void add_Visual(IRenderVisual* V) override; // add visual leaf (no culling performed at all)
-    virtual void add_Geometry(IRenderVisual* V) override; // add visual(s)	(all culling performed)
+    void add_Visual(IRenderable* root, IRenderVisual* V, Fmatrix& m) override; // add visual leaf (no culling performed at all)
+    void add_Geometry(IRenderVisual* V, const CFrustum& view) override; // add visual(s)	(all culling performed)
 
     // wallmarks
     virtual void add_StaticWallmark(ref_shader& S, const Fvector& P, float s, CDB::TRI* T, Fvector* V);
@@ -180,6 +176,8 @@ public:
     virtual BOOL occ_visible(sPoly& P) override;
 
     // Main
+    void BeforeFrame() override;
+
     virtual void Calculate() override;
     virtual void Render() override;
     virtual void Screenshot(ScreenshotMode mode = SM_NORMAL, LPCSTR name = nullptr) override;
@@ -188,10 +186,15 @@ public:
     virtual void ScreenshotAsyncEnd(CMemoryWriter& memory_writer) override;
     virtual void OnFrame() override;
 
+    void BeforeWorldRender() override; //--#SM+#-- +SecondVP+ Вызывается перед началом рендера мира и пост-эффектов
+    void AfterWorldRender() override;  //--#SM+#-- +SecondVP+ Вызывается после рендера мира и перед UI
+
     // Render mode
     virtual void rmNear() override;
     virtual void rmFar() override;
     virtual void rmNormal() override;
+
+    u32 active_phase() override { return phase; }
 
     // Constructor/destructor/loader
     CRender();

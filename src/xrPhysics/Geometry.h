@@ -1,9 +1,10 @@
-#ifndef GEOMETRY_H
-#define GEOMETRY_H
+#pragma once
+
 #include "PhysicsCommon.h"
 #include "ExtendedGeom.h"
-#include "mathutilsode.h"
-#include "xrEngine/iphysicsgeometry.h"
+#include "MathUtilsOde.h"
+#include "xrEngine/IPhysicsGeometry.h"
+#include "xrCore/_cylinder.h"
 
 // this is equivalent dMULTIPLYOP0_333 whith consequent transposion of A
 #define dMULTIPLYOP3_333(A, op, B, C)   \
@@ -191,4 +192,3 @@ private:
     virtual void dbg_draw(float scale, u32 color, Flags32 flags) const;
 #endif
 };
-#endif // GEOMETRY_H

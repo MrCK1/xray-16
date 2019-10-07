@@ -3,89 +3,107 @@
 // Created : 21.02.2008
 // Author : Evgeniy Sokolov
 // Description : os clipboard class implementation
+//
+// Modified : 24.07.2018
+// Modified by : Xottab_DUTY
 ////////////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
 #pragma hdrstop
+#include "SDL.h"
 #include "os_clipboard.h"
+#include "Text/StringConversion.hpp"
 
-void os_clipboard::copy_to_clipboard(LPCSTR buf)
+void os_clipboard::copy_to_clipboard(pcstr buf, bool alreadyUTF8 /*= false*/)
 {
-    if (!OpenClipboard(0))
-        return;
-    u32 handle_size = (xr_strlen(buf) + 1) * sizeof(char);
-    HGLOBAL handle = GlobalAlloc(GHND, handle_size);
-    if (!handle)
+    int result;
+    if (alreadyUTF8)
     {
-        CloseClipboard();
-        return;
+        result = SDL_SetClipboardText(buf);
     }
-
-    char* memory = (char*)GlobalLock(handle);
-    xr_strcpy(memory, handle_size, buf);
-    GlobalUnlock(handle);
-    EmptyClipboard();
-    SetClipboardData(CF_TEXT, handle);
-    CloseClipboard();
+    else
+    {
+        static std::locale locale("");
+        xr_string string = StringToUTF8(buf, locale);
+        result = SDL_SetClipboardText(string.c_str());
+    }
+    if (result < 0)
+    {
+        Msg("! Failed to copy text to the clipboard: %s", SDL_GetError());
+        Log(buf);
+    }
 }
 
-void os_clipboard::paste_from_clipboard(LPSTR buffer, u32 const& buffer_size)
+void os_clipboard::paste_from_clipboard(pstr buffer, size_t buffer_size)
 {
     VERIFY(buffer);
     VERIFY(buffer_size > 0);
 
-    if (!OpenClipboard(0))
+    if (!SDL_HasClipboardText())
         return;
 
-    HGLOBAL hmem = GetClipboardData(CF_TEXT);
-    if (!hmem)
-        return;
+    char* clipData = SDL_GetClipboardText();
 
-    LPCSTR clipdata = (LPCSTR)GlobalLock(hmem);
-    strncpy_s(buffer, buffer_size, clipdata, buffer_size - 1);
-    buffer[buffer_size - 1] = 0;
-    for (u32 i = 0; i < strlen(buffer); ++i)
+    if (!clipData)
     {
-        char c = buffer[i];
-        if (((isprint(c) == 0) && (c != char(-1))) || c == '\t' || c == '\n') // "я" = -1
+        Msg("! Failed to paste text from the clipboard: %s", SDL_GetError());
+        return;
+    }
+
+    static std::locale locale("");
+    const xr_string string = StringFromUTF8(clipData, locale);
+    SDL_free(clipData);
+
+    strncpy_s(buffer, buffer_size, string.c_str(), buffer_size - 1);
+
+    const size_t length = xr_strlen(buffer);
+    for (size_t i = 0; i < length; ++i)
+    {
+        const char c = buffer[i];
+        if (std::isprint(c, locale) == 0 && c != char(-1) || c == '\t' || c == '\n') // "я" = -1
         {
             buffer[i] = ' ';
         }
     }
-
-    GlobalUnlock(hmem);
-    CloseClipboard();
 }
 
-void os_clipboard::update_clipboard(LPCSTR string)
+void os_clipboard::update_clipboard(pcstr string)
 {
-    if (!OpenClipboard(0))
-        return;
-
-    HGLOBAL handle = GetClipboardData(CF_TEXT);
-    if (!handle)
+    if (!string)
     {
-        CloseClipboard();
+        Log("! Why are you trying to copy nullptr to the clipboard?!");
+        return;
+    }
+
+    if (!SDL_HasClipboardText())
+    {
         copy_to_clipboard(string);
         return;
     }
 
-    LPSTR memory = (LPSTR)GlobalLock(handle);
-    int memory_length = (int)strlen(memory);
-    int string_length = (int)strlen(string);
-    int buffer_size = (memory_length + string_length + 1) * sizeof(char);
-#ifndef _EDITOR
-    LPSTR buffer = (LPSTR)_alloca(buffer_size);
-#else // #ifndef _EDITOR
-    LPSTR buffer = (LPSTR)xr_alloc<char>(buffer_size);
-#endif // #ifndef _EDITOR
-    xr_strcpy(buffer, buffer_size, memory);
-    GlobalUnlock(handle);
+    char* clipData = SDL_GetClipboardText();
 
-    xr_strcat(buffer, buffer_size, string);
-    CloseClipboard();
-    copy_to_clipboard(buffer);
-#ifdef _EDITOR
-    xr_free(buffer);
-#endif // #ifdef _EDITOR
+    if (!clipData)
+    {
+        VERIFY3(clipData, "Failed to get text from the clipboard", SDL_GetError());
+        copy_to_clipboard(string);
+        return;
+    }
+
+    static std::locale locale("");
+    const xr_string stringInUTF8 = StringToUTF8(string, locale);
+
+    const size_t clipLength = xr_strlen(clipData);
+    const size_t stringLength = stringInUTF8.size();
+
+    const size_t bufferSize = (clipLength + stringLength + 1) * sizeof(char);
+
+    pstr buffer = (pstr)xr_alloca(bufferSize);
+
+    xr_strcpy(buffer, bufferSize, clipData); // copy the clipboard
+    xr_strcat(buffer, bufferSize, stringInUTF8.c_str()); // copy the new string
+
+    SDL_free(clipData);
+
+    copy_to_clipboard(buffer, true);
 }

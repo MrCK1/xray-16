@@ -1,12 +1,11 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UIGameTDM.h"
 
 #include "game_cl_base.h"
 
-#include "game_cl_TeamDeathmatch.h"
+#include "game_cl_teamdeathmatch.h"
 
 #include "ui/TeamInfo.h"
-#include <dinput.h>
 
 #include "Common/object_broker.h"
 
@@ -48,7 +47,7 @@ void CUIGameTDM::Init(int stage)
         m_pTeamPanels->Init(TEAM_PANELS_TDM_XML_NAME, "team_panels_wnd");
 
         CUIXml uiXml, xml2;
-        uiXml.Load(CONFIG_PATH, UI_PATH, "ui_game_tdm.xml");
+        uiXml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, "ui_game_tdm.xml");
 
         CUIXmlInit::InitWindow(uiXml, "global", 0, Window);
         CUIXmlInit::InitStatic(uiXml, "team1_icon", 0, m_team1_icon);
@@ -82,7 +81,7 @@ bool CUIGameTDM::IR_UIOnKeyboardPress(int dik)
 {
     switch (dik)
     {
-    case DIK_CAPSLOCK:
+    case SDL_SCANCODE_CAPSLOCK:
     {
         if (m_game)
         {
@@ -102,7 +101,7 @@ bool CUIGameTDM::IR_UIOnKeyboardRelease(int dik)
 {
     switch (dik)
     {
-    case DIK_CAPSLOCK:
+    case SDL_SCANCODE_CAPSLOCK:
     {
         if (m_game)
         {

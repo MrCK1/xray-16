@@ -2,23 +2,23 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 
-#include "explosive.h"
+#include "Explosive.h"
 
 #include "xrPhysics/PhysicsShell.h"
-#include "entity.h"
+#include "Entity.h"
 
 #include "ParticlesObject.h"
 
 //для вызова статических функций поражения осколками
 #include "Weapon.h"
 
-#include "actor.h"
-#include "actoreffector.h"
+#include "Actor.h"
+#include "ActorEffector.h"
 #include "Level.h"
-#include "level_bullet_manager.h"
-#include "xrmessages.h"
+#include "Level_Bullet_Manager.h"
+#include "xrMessages.h"
 #include "xrEngine/GameMtlLib.h"
 
 #ifdef DEBUG
@@ -28,8 +28,8 @@
 
 #include "xrPhysics/MathUtils.h"
 
-#include "xrPhysics/iActivationShape.h"
-#include "xrPhysics/iphworld.h"
+#include "xrPhysics/IActivationShape.h"
+#include "xrPhysics/IPHWorld.h"
 #include "game_base_space.h"
 #include "xrEngine/profiler.h"
 
@@ -71,13 +71,22 @@ CExplosive::CExplosive(void)
 
 void CExplosive::LightCreate()
 {
-    m_pLight = GlobalEnv.Render->light_create();
+    m_pLight = GEnv.Render->light_create();
     m_pLight->set_shadow(true);
 }
 
-void CExplosive::LightDestroy() { m_pLight.destroy(); }
-CExplosive::~CExplosive(void) { sndExplode.destroy(); }
-void CExplosive::Load(LPCSTR section) { Load(pSettings, section); }
+void CExplosive::LightDestroy()
+{
+    m_pLight.destroy();
+}
+
+CExplosive::~CExplosive(void) {}
+
+void CExplosive::Load(LPCSTR section)
+{
+    Load(pSettings, section);
+}
+
 void CExplosive::Load(CInifile const* ini, LPCSTR section)
 {
     m_fBlastHit = ini->r_float(section, "blast");
@@ -106,8 +115,8 @@ void CExplosive::Load(CInifile const* ini, LPCSTR section)
     //трассы для разлета осколков
     m_fFragmentSpeed = ini->r_float(section, "fragment_speed");
 
-    LPCSTR snd_name = ini->r_string(section, "snd_explode");
-    sndExplode.create(snd_name, st_Effect, m_eSoundExplode);
+	//Alundaio: LAYERED_SND_SHOOT
+	m_layered_sounds.LoadSound(ini, section, "snd_explode", "sndExplode", false, m_eSoundExplode);
 
     m_fExplodeDurationMax = ini->r_float(section, "explode_duration");
 
@@ -211,7 +220,7 @@ float CExplosive::ExplosionEffect(collide::rq_results& storage, CExplosive* exp_
     Fvector l_c, l_d;
     l_b1.get_CD(l_c, l_d);
     float effective_volume = l_d.x * l_d.y * l_d.z;
-    float max_s = effective_volume / (_min(_min(l_d.x, l_d.y), l_d.z));
+    float max_s = effective_volume / (std::min(std::min(l_d.x, l_d.y), l_d.z));
     if (blasted_obj->PPhysicsShell() && blasted_obj->PPhysicsShell()->isActive())
     {
         float ph_volume = blasted_obj->PPhysicsShell()->getVolume();
@@ -332,11 +341,11 @@ void CExplosive::Explode()
 #endif
     //	Msg("---------CExplosive Explode [%d] frame[%d]",cast_game_object()->ID(), Device.dwFrame);
     OnBeforeExplosion();
+
     //играем звук взрыва
-    Sound->play_at_pos(sndExplode, 0, pos, false);
+    m_layered_sounds.PlaySound("sndExplode", pos, smart_cast<IGameObject*>(this), false, false, (u8)-1);
 
     //показываем эффекты
-
     m_wallmark_manager.PlaceWallmarks(pos);
 
     Fvector vel;
@@ -716,7 +725,7 @@ struct SRemovePred
 };
 void CExplosive::ExplodeWaveProcess()
 {
-    BLASTED_OBJECTS_I I = std::remove_if(m_blasted_objects.begin(), m_blasted_objects.end(), SRemovePred());
+    auto I = std::remove_if(m_blasted_objects.begin(), m_blasted_objects.end(), SRemovePred());
     m_blasted_objects.erase(I, m_blasted_objects.end());
     rq_storage.r_clear();
     u16 i = BLASTED_OBJ_PROCESSED_PER_FRAME;
@@ -748,7 +757,7 @@ void CExplosive::net_Relcase(IGameObject* O)
             m_iCurrentParentID = u16(-1);
     }
 
-    BLASTED_OBJECTS_I I =
+    auto I =
         std::find(m_blasted_objects.begin(), m_blasted_objects.end(), smart_cast<CPhysicsShellHolder*>(O));
     if (m_blasted_objects.end() != I)
     {
@@ -780,3 +789,13 @@ void CExplosive::UpdateExplosionParticles()
 }
 
 bool CExplosive::Useful() const { return m_explosion_flags.flags == 0; }
+
+void random_point_in_object_box(Fvector& out_pos, IGameObject* obj)
+{
+    const Fbox& l_b1 = obj->BoundingBox();
+    Fvector l_c, l_d;
+    l_b1.get_CD(l_c, l_d);
+    out_pos.random_point(l_d);
+    obj->XFORM().transform_tiny(out_pos);
+    out_pos.add(l_c);
+}

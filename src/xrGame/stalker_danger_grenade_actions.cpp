@@ -6,9 +6,10 @@
 //	Description : Stalker danger grenade actions classes
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "stalker_danger_grenade_actions.h"
 #include "ai/stalker/ai_stalker.h"
+#include "ai/stalker/ai_stalker_impl.h"
 #include "script_game_object.h"
 #include "script_game_object_impl.h"
 #include "stalker_movement_manager_smart_cover.h"
@@ -22,8 +23,8 @@
 #include "cover_point.h"
 #include "agent_manager.h"
 #include "agent_member_manager.h"
-#include "inventory.h"
-#include "weapon.h"
+#include "Inventory.h"
+#include "Weapon.h"
 
 using namespace StalkerDecisionSpace;
 

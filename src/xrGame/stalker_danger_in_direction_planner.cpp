@@ -6,9 +6,10 @@
 //	Description : Stalker danger in direction planner class
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "stalker_danger_in_direction_planner.h"
 #include "ai/stalker/ai_stalker.h"
+#include "ai/stalker/ai_stalker_impl.h"
 #include "script_game_object.h"
 #include "script_game_object_impl.h"
 #include "stalker_danger_in_direction_actions.h"

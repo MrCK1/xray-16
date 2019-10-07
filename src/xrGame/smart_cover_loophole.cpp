@@ -24,18 +24,6 @@ shared_str transform_vertex(shared_str const& vertex_id, bool const& in);
 shared_str parse_vertex(luabind::object const& table, LPCSTR identifier, bool const& in);
 } // namespace smart_cover
 
-class id_predicate
-{
-    shared_str m_id;
-
-public:
-    IC id_predicate(shared_str const& id) : m_id(id) {}
-    IC bool operator()(std::pair<shared_str, action*> const& other) const
-    {
-        return (m_id._get() == other.first._get());
-    }
-};
-
 loophole::loophole(luabind::object const& description) : m_fov(0.f), m_range(0.f)
 {
     VERIFY2(luabind::type(description) == LUA_TTABLE, "invalid loophole description passed");
@@ -55,14 +43,24 @@ loophole::loophole(luabind::object const& description) : m_fov(0.f), m_range(0.f
     else
         m_fov_direction.normalize();
 
-    m_danger_fov_direction = parse_fvector(description, "danger_fov_direction");
-    if (m_danger_fov_direction.square_magnitude() < EPS_L)
+    // XXX: check for m_wVersion from CSE_SmartCover
+    Fvector dangerFovDirection;
+    if (parse_fvector(description, "danger_fov_direction", dangerFovDirection))
     {
-        Msg("! danger fov direction for loophole %s is setup incorrectly", m_id.c_str());
-        m_danger_fov_direction.set(0.f, 0.f, 1.f);
+        m_danger_fov_direction = dangerFovDirection;
+        if (m_danger_fov_direction.square_magnitude() < EPS_L)
+        {
+            Msg("! danger fov direction for loophole %s is setup incorrectly", m_id.c_str());
+            m_danger_fov_direction.set(0.f, 0.f, 1.f);
+        }
+        else
+            m_danger_fov_direction.normalize();
     }
     else
-        m_danger_fov_direction.normalize();
+    {
+        Msg("~ missing danger fov direction for loophole %s", m_id.c_str());
+        m_danger_fov_direction.set(0.f, 0.f, 1.f);
+    }
 
     m_enter_direction = parse_fvector(description, "enter_direction");
 
@@ -100,7 +98,12 @@ loophole::loophole(luabind::object const& description) : m_fov(0.f), m_range(0.f
     fill_transitions(transitions);
 
     m_fov = deg2rad(parse_float(description, "fov", 0.f, 360.f));
-    m_danger_fov = deg2rad(parse_float(description, "danger_fov", 0.f, 360.f));
+
+    // XXX: check for m_wVersion from CSE_SmartCover
+    float dangerFov = 0.f;
+    if (parse_float(dangerFov, description, "danger_fov", 0.f, 360.f))
+        m_danger_fov = deg2rad(dangerFov);
+
     m_range = parse_float(description, "range", 0.f);
 }
 
@@ -108,7 +111,12 @@ void loophole::add_action(LPCSTR type, luabind::object const& table)
 {
     VERIFY(luabind::type(table) == LUA_TTABLE);
     smart_cover::action* action = new smart_cover::action(table);
-    VERIFY(std::find_if(m_actions.begin(), m_actions.end(), id_predicate(type)) == m_actions.end());
+
+    shared_str id = shared_str(type);
+    VERIFY(m_actions.end() == std::find_if(m_actions.begin(), m_actions.end(),
+       [=](std::pair<shared_str, smart_cover::action*> const& other) {
+           return id._get() == other.first._get();
+       }));
     m_actions.insert(std::make_pair(type, action));
 }
 

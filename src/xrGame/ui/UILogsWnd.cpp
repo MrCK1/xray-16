@@ -5,16 +5,16 @@
 //	Description : UI Logs (PDA) window class implementation
 ////////////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "UILogsWnd.h"
 #include "UIXmlInit.h"
-#include "UIProgressBar.h"
-#include "UIFrameLineWnd.h"
-#include "UIFrameWindow.h"
-#include "UIScrollBar.h"
-#include "UIFixedScrollBar.h"
-#include "UIScrollView.h"
-#include "UICheckButton.h"
+#include "xrUICore/ProgressBar/UIProgressBar.h"
+#include "xrUICore/Windows/UIFrameLineWnd.h"
+#include "xrUICore/Windows/UIFrameWindow.h"
+#include "xrUICore/ScrollBar/UIScrollBar.h"
+#include "xrUICore/ScrollBar/UIFixedScrollBar.h"
+#include "xrUICore/ScrollView/UIScrollView.h"
+#include "xrUICore/Buttons/UICheckButton.h"
 #include "UIHelper.h"
 #include "UICharacterInfo.h"
 #include "UIInventoryUtilities.h"
@@ -36,14 +36,16 @@ u64 const day2ms = u64(24 * 60 * 60 * 1000);
 
 CUILogsWnd::CUILogsWnd()
 {
-    //	m_actor_ch_info			= NULL;
+    m_list = nullptr;
+    m_actor_ch_info = nullptr;
     m_previous_time = Device.dwTimeGlobal;
     m_selected_period = 0;
 }
 
 CUILogsWnd::~CUILogsWnd()
 {
-    m_list->Clear();
+    if (m_list)
+        m_list->Clear();
     delete_data(m_items_cache);
 }
 
@@ -52,10 +54,11 @@ void CUILogsWnd::Show(bool status)
     m_ctrl_press = false;
     if (status)
     {
-        // ALife::_TIME_ID	current_period = m_selected_period;
-        //		m_actor_ch_info->InitCharacter( Actor()->object_id() );
+        // ALife::_TIME_ID current_period = m_selected_period;
+        if (m_actor_ch_info)
+            m_actor_ch_info->InitCharacter(Actor()->object_id());
         m_selected_period = GetShiftPeriod(Level().GetGameTime(), 0);
-        //		if(current_period != m_selected_period)
+        // if(current_period != m_selected_period)
         m_need_reload = true;
         Update();
     }
@@ -68,7 +71,19 @@ void CUILogsWnd::Update()
     inherited::Update();
     if (m_need_reload)
         ReLoadNews();
+    if (IsShown() && m_date && m_date_caption)
+    {
+        if (Device.dwTimeGlobal - m_previous_time > 1000)
+        {
+            m_previous_time = Device.dwTimeGlobal;
+            m_date->SetText(InventoryUtilities::Get_GameTimeAndDate_AsString().c_str());
 
+            m_date_caption->AdjustWidthToText();
+            Fvector2 pos = m_date_caption->GetWndPos();
+            pos.x = m_date->GetWndPos().x - m_date_caption->GetWidth() - 5.0f;
+            m_date_caption->SetWndPos(pos);
+        }
+    }
     if (!m_items_ready.empty())
     {
         WINDOW_LIST::reverse_iterator it = m_items_ready.rbegin();
@@ -86,27 +101,33 @@ void CUILogsWnd::SendMessage(CUIWindow* pWnd, s16 msg, void* pData)
     CUIWndCallback::OnEvent(pWnd, msg, pData);
 }
 
-void CUILogsWnd::Init()
+bool CUILogsWnd::Init()
 {
-    m_uiXml.Load(CONFIG_PATH, UI_PATH, PDA_LOGS_XML);
+    if (!m_uiXml.Load(CONFIG_PATH, UI_PATH, UI_PATH_DEFAULT, PDA_LOGS_XML, false))
+        return false;
 
     CUIXmlInit::InitWindow(m_uiXml, "main_wnd", 0, this);
 
-    //	m_background		= UIHelper::CreateFrameLine( m_uiXml, "background", this );
-    m_background = UIHelper::CreateFrameWindow(m_uiXml, "background", this);
-    m_center_background = UIHelper::CreateFrameWindow(m_uiXml, "center_background", this);
+    m_background = UIHelper::CreateFrameWindow(m_uiXml, "background", this, false);
+    if (m_background)
+        m_background2 = UIHelper::CreateFrameLine(m_uiXml, "background", this, false);
+    m_center_background = UIHelper::CreateFrameWindow(m_uiXml, "center_background", this, false);
 
-    // m_actor_ch_info = new CUICharacterInfo();
-    // m_actor_ch_info->SetAutoDelete( true );
-    // AttachChild( m_actor_ch_info );
-    // m_actor_ch_info->InitCharacterInfo( &m_uiXml, "actor_ch_info" );
+    if (m_uiXml.NavigateToNode("actor_ch_info"))
+    {
+        m_actor_ch_info = new CUICharacterInfo();
+        m_actor_ch_info->SetAutoDelete(true);
+        AttachChild(m_actor_ch_info);
+        m_actor_ch_info->InitCharacterInfo(&m_uiXml, "actor_ch_info");
+    }
 
-    //	m_center_background	= UIHelper::CreateStatic( m_uiXml, "center_background", this );
+    if (!m_center_background)
+        m_center_background2 = UIHelper::CreateStatic(m_uiXml, "center_background", this, false);
     m_center_caption = UIHelper::CreateTextWnd(m_uiXml, "center_caption", this);
 
     string256 buf;
     xr_strcpy(buf, sizeof(buf), m_center_caption->GetText());
-    xr_strcat(buf, sizeof(buf), CStringTable().translate("ui_logs_center_caption").c_str());
+    xr_strcat(buf, sizeof(buf), StringTable().translate("ui_logs_center_caption").c_str());
     m_center_caption->SetText(buf);
 
     CUIFixedScrollBar* tmp_scroll = new CUIFixedScrollBar();
@@ -122,11 +143,17 @@ void CUILogsWnd::Init()
     m_filter_news->SetCheck(true);
     m_filter_talk->SetCheck(true);
 
-    //	m_date_caption = UIHelper::CreateTextWnd( m_uiXml, "date_caption", this );
-    //	m_date         = UIHelper::CreateTextWnd( m_uiXml, "date", this );
+    m_date_caption = UIHelper::CreateTextWnd(m_uiXml, "date_caption", this, false);
+    m_date = UIHelper::CreateTextWnd(m_uiXml, "date", this, false);
+
+    if (m_date || m_date_caption)
+    {
+        R_ASSERT3(m_date && m_date_caption,
+            "Please, provide both [date] and [date_caption] tags in xml file", m_uiXml.m_xml_file_name);
+    }
 
     m_period_caption = UIHelper::CreateTextWnd(m_uiXml, "period_caption", this);
-    m_period = UIHelper::CreateTextWnd(m_uiXml, "period", this);
+    m_period = UIHelper::CreateStatic(m_uiXml, "period", this);
 
     m_prev_period = UIHelper::Create3tButton(m_uiXml, "btn_prev_period", this);
     m_next_period = UIHelper::Create3tButton(m_uiXml, "btn_next_period", this);
@@ -143,7 +170,9 @@ void CUILogsWnd::Init()
 
     m_start_game_time = Level().GetStartGameTime();
     m_start_game_time = GetShiftPeriod(m_start_game_time, 0);
+    return true;
 }
+
 void itemToCache(CUIWindow* w)
 {
     w->SetAutoDelete(false);
@@ -309,17 +338,17 @@ bool CUILogsWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
     {
         switch (dik)
         {
-        case DIK_UP:
-        case DIK_DOWN:
-        case DIK_PRIOR:
-        case DIK_NEXT:
+        case SDL_SCANCODE_UP:
+        case SDL_SCANCODE_DOWN:
+        case SDL_SCANCODE_PAGEUP:
+        case SDL_SCANCODE_PAGEDOWN:
         {
             on_scroll_keys(dik);
             return true;
         }
         break;
-        case DIK_RCONTROL:
-        case DIK_LCONTROL:
+        case SDL_SCANCODE_RCTRL:
+        case SDL_SCANCODE_LCTRL:
         {
             m_ctrl_press = true;
             return true;
@@ -335,10 +364,10 @@ bool CUILogsWnd::OnKeyboardHold(int dik)
 {
     switch (dik)
     {
-    case DIK_UP:
-    case DIK_DOWN:
-    case DIK_PRIOR:
-    case DIK_NEXT:
+    case SDL_SCANCODE_UP:
+    case SDL_SCANCODE_DOWN:
+    case SDL_SCANCODE_PAGEUP:
+    case SDL_SCANCODE_PAGEDOWN:
     {
         on_scroll_keys(dik);
         return true;
@@ -354,7 +383,7 @@ void CUILogsWnd::on_scroll_keys(int dik)
 
     switch (dik)
     {
-    case DIK_UP:
+    case SDL_SCANCODE_UP:
     {
         int orig = m_list->ScrollBar()->GetStepSize();
         m_list->ScrollBar()->SetStepSize(1);
@@ -362,7 +391,7 @@ void CUILogsWnd::on_scroll_keys(int dik)
         m_list->ScrollBar()->SetStepSize(orig);
         break;
     }
-    case DIK_DOWN:
+    case SDL_SCANCODE_DOWN:
     {
         int orig = m_list->ScrollBar()->GetStepSize();
         m_list->ScrollBar()->SetStepSize(1);
@@ -370,7 +399,7 @@ void CUILogsWnd::on_scroll_keys(int dik)
         m_list->ScrollBar()->SetStepSize(orig);
         break;
     }
-    case DIK_PRIOR:
+    case SDL_SCANCODE_PAGEUP:
     {
         if (m_ctrl_press)
         {
@@ -380,7 +409,7 @@ void CUILogsWnd::on_scroll_keys(int dik)
         m_list->ScrollBar()->TryScrollDec();
         break;
     }
-    case DIK_NEXT:
+    case SDL_SCANCODE_PAGEDOWN:
     {
         if (m_ctrl_press)
         {

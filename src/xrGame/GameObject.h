@@ -2,14 +2,15 @@
 //
 //////////////////////////////////////////////////////////////////////
 
+#pragma once
 #if !defined(AFX_GAMEOBJECT_H__3DA72D03_C759_4688_AEBB_89FA812AA873__INCLUDED_)
 #define AFX_GAMEOBJECT_H__3DA72D03_C759_4688_AEBB_89FA812AA873__INCLUDED_
-#pragma once
 
 #include "xrEngine/xr_object.h"
 #include "xrServer_Space.h"
 #include "alife_space.h"
 #include "xrScriptEngine/script_space_forward.hpp"
+#include "xrScriptEngine/DebugMacros.hpp" // XXX: move debug macros to xrCore
 #include "script_binder.h"
 #include "Hit.h"
 #include "game_object_space.h"
@@ -56,7 +57,6 @@ class CGameObject : public IGameObject,
                     public RenderableBase,
                     public CollidableBase
 {
-private:
     BENCH_SEC_SCRAMBLEMEMBER1
     BENCH_SEC_SCRAMBLEVTBL2
     // Some property variables
@@ -89,8 +89,7 @@ private:
     mutable CScriptGameObject* m_lua_game_object;
     int m_script_clsid;
     u32 m_spawn_time;
-    typedef xr_map<GameObject::ECallbackType, CScriptCallbackExVoid> CALLBACK_MAP;
-    typedef CALLBACK_MAP::iterator CALLBACK_MAP_IT;
+    using CALLBACK_MAP = xr_map<GameObject::ECallbackType, CScriptCallbackExVoid>;
     CALLBACK_MAP* m_callbacks;
     ai_obstacle* m_ai_obstacle;
     Fmatrix m_previous_matrix;
@@ -100,6 +99,10 @@ protected:
     CScriptBinder scriptBinder;
     bool m_bObjectRemoved;
     CInifile* m_ini_file;
+    bool m_client_updated{};
+#ifdef DEBUG
+    bool m_should_process_onrender{};
+#endif
 
 public:
     CGameObject();
@@ -211,14 +214,18 @@ public:
     virtual CAttachableItem* cast_attachable_item() override { return NULL; }
     virtual CHolderCustom* cast_holder_custom() override { return NULL; }
     virtual CBaseMonster* cast_base_monster() override { return NULL; }
+    CShellLauncher* cast_shell_launcher() override { return nullptr; }
     virtual bool feel_touch_on_contact(IGameObject*) override { return TRUE; }
     // Utilities
     // XXX: move out
     static void u_EventGen(NET_Packet& P, u32 type, u32 dest);
-    static void u_EventSend(NET_Packet& P, u32 dwFlags = DPNSEND_GUARANTEED);
+    static void u_EventSend(NET_Packet& P, u32 dwFlags = 0x0008 /*DPNSEND_GUARANTEED*/);
     // Methods
     virtual void Load(LPCSTR section) override;
+    void PostLoad(LPCSTR section) override; //--#SM+#--
+    void PreUpdateCL() override;
     virtual void UpdateCL() override; // Called each frame, so no need for dt
+    void PostUpdateCL(bool bUpdateCL_disabled) override; //--#SM+#--
     virtual void OnChangeVisual() override;
     // object serialization
     virtual void net_Save(NET_Packet& packet) override;
@@ -239,9 +246,11 @@ public:
     virtual u32 ps_Size() const override { return PositionStack.size(); }
     virtual GameObjectSavedPosition ps_Element(u32 ID) const override;
     virtual void ForceTransform(const Fmatrix& m) override {}
-    virtual void OnHUDDraw(CCustomHUD* hud) override {}
+    void OnHUDDraw(CCustomHUD* /*hud*/, IRenderable* /*root*/) override {}
+    void OnRenderHUD(IGameObject* pCurViewEntity) override {} //--#SM+#--
+    void OnOwnedCameraMove(CCameraBase* pCam, float fOldYaw, float fOldPitch) override  {} //--#SM+#--
     virtual BOOL Ready() override { return getReady(); } // update only if active and fully initialized by/for network
-    virtual void renderable_Render() override;
+    void renderable_Render(IRenderable* root) override;
     virtual void OnEvent(NET_Packet& P, u16 type) override;
     virtual void Hit(SHit* pHDS) override {}
     virtual void SetHitInfo(IGameObject* who, IGameObject* weapon, s16 element, Fvector Pos, Fvector Dir) override {}
@@ -273,6 +282,8 @@ public:
     virtual BOOL TestServerFlag(u32 Flag) const override;
     virtual bool can_validate_position_on_spawn() override { return true; }
 #ifdef DEBUG
+    bool ShouldProcessOnRender() const override { return m_should_process_onrender; }
+    void ShouldProcessOnRender(bool should_process) override { m_should_process_onrender = should_process; }
     virtual void OnRender() override;
 #endif
     virtual void reinit() override;
@@ -345,17 +356,21 @@ public:
         return *m_ai_obstacle;
     }
     virtual void on_matrix_change(const Fmatrix& previous) override;
+
     // UsableScriptObject functions
     virtual bool use(IGameObject* obj) override;
+
     //строчка появляющаяся при наведении на объект (если NULL, то нет)
     virtual LPCSTR tip_text() override;
     virtual void set_tip_text(LPCSTR new_text) override;
     virtual void set_tip_text_default() override;
+
     //можно ли использовать объект стандартным (не скриптовым) образом
     virtual bool nonscript_usable() override;
     virtual void set_nonscript_usable(bool usable) override;
     virtual CScriptBinderObject* GetScriptBinderObject() override { return scriptBinder.object(); }
     virtual void SetScriptBinderObject(CScriptBinderObject* object) override { scriptBinder.set_object(object); }
+
 protected:
     virtual void spawn_supplies();
 

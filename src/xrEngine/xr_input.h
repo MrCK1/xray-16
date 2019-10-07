@@ -1,45 +1,85 @@
-#ifndef __XR_INPUT__
-#define __XR_INPUT__
+#pragma once
 
-#define DIRECTINPUT_VERSION 0x0800
-#include <dinput.h>
+#include "SDL.h"
+#include <bitset>
+
+// Mouse2 is a middle button in SDL,
+// but in X-Ray this is a right button
+enum EMouseButton
+{
+    MOUSE_1 = SDL_NUM_SCANCODES + SDL_BUTTON_LEFT,
+    MOUSE_2 = SDL_NUM_SCANCODES + SDL_BUTTON_RIGHT,
+    MOUSE_3 = SDL_NUM_SCANCODES + SDL_BUTTON_MIDDLE,
+    MOUSE_4 = SDL_NUM_SCANCODES + SDL_BUTTON_X1,
+    MOUSE_5 = SDL_NUM_SCANCODES + SDL_BUTTON_X2,
+    MOUSE_MAX,
+    MOUSE_COUNT = MOUSE_5 - SDL_NUM_SCANCODES
+};
+
+enum EControllerButton
+{
+    XR_CONTROLLER_BUTTON_INVALID = -1,
+    XR_CONTROLLER_BUTTON_A = SDL_CONTROLLER_BUTTON_A + MOUSE_MAX,
+    XR_CONTROLLER_BUTTON_B,
+    XR_CONTROLLER_BUTTON_X,
+    XR_CONTROLLER_BUTTON_Y,
+    XR_CONTROLLER_BUTTON_BACK,
+    XR_CONTROLLER_BUTTON_GUIDE,
+    XR_CONTROLLER_BUTTON_START,
+    XR_CONTROLLER_BUTTON_LEFTSTICK,
+    XR_CONTROLLER_BUTTON_RIGHTSTICK,
+    XR_CONTROLLER_BUTTON_LEFTSHOULDER,
+    XR_CONTROLLER_BUTTON_RIGHTSHOULDER,
+    XR_CONTROLLER_BUTTON_DPAD_UP,
+    XR_CONTROLLER_BUTTON_DPAD_DOWN,
+    XR_CONTROLLER_BUTTON_DPAD_LEFT,
+    XR_CONTROLLER_BUTTON_DPAD_RIGHT,
+    XR_CONTROLLER_BUTTON_MAX,
+    XR_CONTROLLER_BUTTON_COUNT = XR_CONTROLLER_BUTTON_MAX - XR_CONTROLLER_BUTTON_A
+};
+
+constexpr int MouseButtonToKey[] = { MOUSE_1, MOUSE_3, MOUSE_2, MOUSE_4, MOUSE_5 };
+
+constexpr int ControllerButtonToKey[] =
+{
+    XR_CONTROLLER_BUTTON_A,
+    XR_CONTROLLER_BUTTON_B,
+    XR_CONTROLLER_BUTTON_X,
+    XR_CONTROLLER_BUTTON_Y,
+    XR_CONTROLLER_BUTTON_BACK,
+    XR_CONTROLLER_BUTTON_GUIDE,
+    XR_CONTROLLER_BUTTON_START,
+    XR_CONTROLLER_BUTTON_LEFTSTICK,
+    XR_CONTROLLER_BUTTON_RIGHTSTICK,
+    XR_CONTROLLER_BUTTON_LEFTSHOULDER,
+    XR_CONTROLLER_BUTTON_RIGHTSHOULDER,
+    XR_CONTROLLER_BUTTON_DPAD_UP,
+    XR_CONTROLLER_BUTTON_DPAD_DOWN,
+    XR_CONTROLLER_BUTTON_DPAD_LEFT,
+    XR_CONTROLLER_BUTTON_DPAD_RIGHT
+};
 
 class ENGINE_API IInputReceiver;
 
-//\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-//описание класса
-const int mouse_device_key = 1;
-const int keyboard_device_key = 2;
-const int all_device_key = mouse_device_key | keyboard_device_key;
-const int default_key = mouse_device_key | keyboard_device_key;
-
 class ENGINE_API CInput
-#ifndef M_BORLAND
     : public pureFrame,
       public pureAppActivate,
       public pureAppDeactivate
-#endif
 {
 public:
     enum
     {
-        COUNT_MOUSE_BUTTONS = 8,
-        COUNT_MOUSE_AXIS = 3,
-        COUNT_KB_BUTTONS = 256
+        COUNT_MOUSE_AXIS = 4,
+        COUNT_CONTROLLER_AXIS = 4
     };
-    struct sxr_mouse
+
+    enum
     {
-        DIDEVCAPS capabilities;
-        DIDEVICEINSTANCE deviceInfo;
-        DIDEVICEOBJECTINSTANCE objectInfo;
-        u32 mouse_dt;
+        COUNT_MOUSE_BUTTONS = MOUSE_COUNT,
+        COUNT_KB_BUTTONS = SDL_NUM_SCANCODES,
+        COUNT_CONTROLLER_BUTTONS = XR_CONTROLLER_BUTTON_COUNT
     };
-    struct sxr_key
-    {
-        DIDEVCAPS capabilities;
-        DIDEVICEINSTANCE deviceInfo;
-        DIDEVICEOBJECTINSTANCE objectInfo;
-    };
+
     struct InputStatistics
     {
         CStatTimer FrameTime;
@@ -50,66 +90,65 @@ public:
 
 private:
     BENCH_SEC_SCRAMBLEMEMBER1
-    LPDIRECTINPUT8 pDI; // The DInput object
-    LPDIRECTINPUTDEVICE8 pMouse; // The DIDevice7 interface
-    LPDIRECTINPUTDEVICE8 pKeyboard; // The DIDevice7 interface
-    //----------------------
-    u32 timeStamp[COUNT_MOUSE_AXIS];
-    u32 timeSave[COUNT_MOUSE_AXIS];
+
+    u32 mouseTimeStamp[COUNT_MOUSE_AXIS];
+
     int offs[COUNT_MOUSE_AXIS];
-    BOOL mouseState[COUNT_MOUSE_BUTTONS];
 
-    //----------------------
-    BOOL KBState[COUNT_KB_BUTTONS];
+    std::bitset<COUNT_MOUSE_BUTTONS> mouseState;
+    std::bitset<COUNT_KB_BUTTONS> keyboardState;
+    std::bitset<COUNT_CONTROLLER_BUTTONS> controllerState;
 
-    HRESULT CreateInputDevice(
-        LPDIRECTINPUTDEVICE8* device, GUID guidDevice, const DIDATAFORMAT* pdidDataFormat, u32 dwFlags, u32 buf_size);
-
-    // xr_stack<IInputReceiver*> cbStack;
     xr_vector<IInputReceiver*> cbStack;
+
+    xr_vector<SDL_Joystick*> joysticks;
+    xr_vector<SDL_GameController*> controllers;
 
     void MouseUpdate();
     void KeyUpdate();
+    void GameControllerUpdate();
+
+    bool InitJoystick();
+    void InitGameController();
+    void DisplayDevicesList();
 
     InputStatistics stats;
+    bool exclusiveInput;
+    bool inputGrabbed;
+    bool availableJoystick;
+    bool availableController;
 
 public:
-    sxr_mouse mouse_property;
-    sxr_key key_property;
-    u32 dwCurTime;
+    u32 m_curTime;
+    u32 m_mouseDelta;
 
     const InputStatistics& GetStats() const { return stats; }
     void DumpStatistics(class IGameFont& font, class IPerformanceAlert* alert);
-    void SetAllAcquire(BOOL bAcquire = TRUE);
-    void SetMouseAcquire(BOOL bAcquire);
-    void SetKBDAcquire(BOOL bAcquire);
 
     void iCapture(IInputReceiver* pc);
     void iRelease(IInputReceiver* pc);
-    BOOL iGetAsyncKeyState(int dik);
-    BOOL iGetAsyncBtnState(int btn);
+    bool iGetAsyncKeyState(const int dik);
+    bool iGetAsyncBtnState(const int btn);
+    bool iGetAsyncGpadBtnState(const int btn);
     void iGetLastMouseDelta(Ivector2& p) { p.set(offs[0], offs[1]); }
-    void ClipCursor(bool clip);
+    void GrabInput(const bool grab);
+    bool InputIsGrabbed() const;
 
-    CInput(BOOL bExclusive = true, int deviceForInit = default_key);
+    CInput(const bool exclusive = true);
     ~CInput();
 
-    virtual void OnFrame(void);
-    virtual void OnAppActivate(void);
-    virtual void OnAppDeactivate(void);
+    virtual void OnFrame();
+    virtual void OnAppActivate();
+    virtual void OnAppDeactivate();
 
     IInputReceiver* CurrentIR();
 
 public:
-    void exclusive_mode(const bool& exclusive);
-    IC bool get_exclusive_mode();
-    void unacquire();
-    void acquire(const bool& exclusive);
-    bool get_dik_name(int dik, LPSTR dest, int dest_sz);
+    void ExclusiveMode(const bool exclusive);
+    bool IsExclusiveMode() const;
+    bool GetKeyName(const int dik, pstr dest, int dest_sz);
 
-    void feedback(u16 s1, u16 s2, float time);
+    void Feedback(u16 s1, u16 s2, float time);
 };
 
 extern ENGINE_API CInput* pInput;
-
-#endif //__XR_INPUT__

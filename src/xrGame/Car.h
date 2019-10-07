@@ -2,19 +2,19 @@
 
 //#if 0
 
-#include "entity.h"
+#include "Entity.h"
 
 #include "xrPhysics/PhysicsShell.h"
-#include "xrPhysics/phupdateobject.h"
+#include "xrPhysics/PHUpdateObject.h"
 #include "script_entity.h"
 #include "CarLights.h"
 
 #include "holder_custom.h"
 #include "PHSkeleton.h"
 #include "DamagableItem.h"
-#include "phcollisiondamagereceiver.h"
+#include "PHCollisionDamageReceiver.h"
 #include "CarDamageParticles.h"
-#include "xrserver_objects_alife.h"
+#include "xrServer_Objects_ALife.h"
 #include "CarDamageParticles.h"
 #include "hit_immunity.h"
 #include "Explosive.h"
@@ -183,7 +183,7 @@ public:
         void SetSteerLimits(float hi, float lo);
 
         virtual void ApplyDamage(u16 level);
-        SWheel(CCar* acar)
+        SWheel(CCar* acar) : radius(0)
         {
             bone_id = BI_NONE;
             car = acar;
@@ -321,6 +321,9 @@ public:
         };
         eState state;
         SDoor(CCar* acar)
+            : update(false), pos_open(0),
+              opened_angle(0), closed_angle(0),
+              open_time(0)
         {
             bone_id = BI_NONE;
             pcar = acar;
@@ -434,6 +437,8 @@ private:
     CCarLights m_lights;
     ////////////////////////////////////////////////////
     /////////////////////////////////////////////////
+
+ public:
     void InitParabola();
     float _stdcall Parabola(float rpm);
     // float GetSteerAngle();
@@ -452,8 +457,8 @@ private:
     void ResetKeys();
 
     ////////////////////////////////////////////////////////////////////////////
-    float RefWheelMaxSpeed();
-    float EngineCurTorque();
+    float RefWheelMaxSpeed() const;
+    float EngineCurTorque() const;
     float RefWheelCurTorque();
     float EnginePower();
     float EngineDriveSpeed();
@@ -503,6 +508,34 @@ private:
     float AddFuel(float ammount); // ammount - fuel to load, ret - fuel loaded
 public:
     void CarExplode();
+    /***** added by Ray Twitty (aka Shadows) START *****/
+    float GetfFuel();
+    void SetfFuel(float fuel);
+
+    float GetfFuelTank();
+    void SetfFuelTank(float fuel_tank);
+
+    float GetfFuelConsumption();
+    void SetfFuelConsumption	(float fuel_consumption);
+
+    void ChangefFuel	(float fuel);
+    void ChangefHealth(float health);
+
+    void PlayDamageParticles()
+    {
+        m_damage_particles.Play1(this);
+        m_damage_particles.Play2(this);
+    }
+
+    void StopDamageParticles	()
+    {
+        m_damage_particles.Stop1(this);
+        m_damage_particles.Stop2(this);
+    }
+
+    bool isActiveEngine	();
+    /***** added by Ray Twitty (aka Shadows) END *****/
+  
 
 private:
     void OnCameraChange(int type);
@@ -543,7 +576,7 @@ public:
     virtual void UpdateEx(float fov); // called by owner
 
     virtual void shedule_Update(u32 dt);
-    virtual void renderable_Render();
+    void renderable_Render(IRenderable* root) override;
     virtual bool bfAssignMovement(CScriptEntityAction* tpEntityAction);
     virtual bool bfAssignObject(CScriptEntityAction* tpEntityAction);
 
@@ -583,7 +616,7 @@ public:
     virtual void g_fireParams(const CHudItem* /**pHudItem/**/, Fvector& /**P/**/, Fvector& /**D/**/){};
     virtual u16 Initiator();
     // HUD
-    virtual void OnHUDDraw(CCustomHUD* hud);
+    void OnHUDDraw(CCustomHUD* hud, IRenderable* root) override;
 
     CCameraBase* Camera() { return active_camera; }
     void SetExplodeTime(u32 et);

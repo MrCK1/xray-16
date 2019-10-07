@@ -1,5 +1,4 @@
-#include "stdafx.h"
-#include <dinput.h>
+#include "StdAfx.h"
 #include "Actor.h"
 #include "Torch.h"
 #include "trade.h"
@@ -9,20 +8,20 @@
 #include "PHDebug.h"
 #endif
 
-#include "hit.h"
+#include "Hit.h"
 #include "PHDestroyable.h"
 #include "Car.h"
 #include "UIGameSP.h"
-#include "inventory.h"
+#include "Inventory.h"
 #include "Level.h"
 #include "game_cl_base.h"
 #include "xr_level_controller.h"
-#include "actorcondition.h"
+#include "ActorCondition.h"
 #include "actor_input_handler.h"
 #include "string_table.h"
-#include "UI/UIStatic.h"
-#include "UI/UIActorMenu.h"
-#include "UI/UIDragDropReferenceList.h"
+#include "xrUICore/Static/UIStatic.h"
+#include "ui/UIActorMenu.h"
+#include "ui/UIDragDropReferenceList.h"
 #include "CharacterPhysicsSupport.h"
 #include "InventoryBox.h"
 #include "player_hud.h"
@@ -30,14 +29,16 @@
 #include "flare.h"
 #include "CustomDetector.h"
 #include "clsid_game.h"
-#include "hudmanager.h"
+#include "HUDManager.h"
 #include "Weapon.h"
 
 extern u32 hud_adj_mode;
 
+bool g_bAutoClearCrouch = true;
+
 void CActor::IR_OnKeyboardPress(int cmd)
 {
-    if (hud_adj_mode && pInput->iGetAsyncKeyState(DIK_LSHIFT))
+    if (hud_adj_mode && pInput->iGetAsyncKeyState(SDL_SCANCODE_LSHIFT))
         return;
 
     if (Remote())
@@ -48,6 +49,10 @@ void CActor::IR_OnKeyboardPress(int cmd)
     if (m_input_external_handler && !m_input_external_handler->authorized(cmd))
         return;
 
+    if (load_screen_renderer.IsActive())
+        return;
+
+    bool quickSlot = false;
     switch (cmd)
     {
     case kWPN_FIRE:
@@ -101,12 +106,16 @@ void CActor::IR_OnKeyboardPress(int cmd)
     case kSPRINT_TOGGLE: { mstate_wishful ^= mcSprint;
     }
     break;
+    case kCROUCH_TOGGLE:
     case kCROUCH:
     {
-        if (psActorFlags.test(AF_CROUCH_TOGGLE))
+        if (psActorFlags.test(AF_CROUCH_TOGGLE) || cmd == kCROUCH_TOGGLE)
+            g_bAutoClearCrouch = !g_bAutoClearCrouch;
+        if (!g_bAutoClearCrouch)
             mstate_wishful ^= mcCrouch;
     }
     break;
+
     case kCAM_1: cam_Set(eacFirstEye); break;
     case kCAM_2: cam_Set(eacLookAt); break;
     case kCAM_3: cam_Set(eacFreeLook); break;
@@ -167,48 +176,56 @@ void CActor::IR_OnKeyboardPress(int cmd)
     case kQUICK_USE_2:
     case kQUICK_USE_3:
     case kQUICK_USE_4:
+        quickSlot = true;
+        [[fallthrough]];
+    case kUSE_BANDAGE:
+    case kUSE_MEDKIT:
     {
-        const shared_str& item_name = g_quick_use_slots[cmd - kQUICK_USE_1];
-        if (item_name.size())
+        PIItem itm = nullptr;
+        if (quickSlot)
         {
-            PIItem itm = inventory().GetAny(item_name.c_str());
+            if (!CurrentGameUI()->GetActorMenu().m_pQuickSlot)
+                break;
+            const shared_str& item_name = g_quick_use_slots[cmd - kQUICK_USE_1];
+            if (item_name.size())
+                itm = inventory().GetAny(item_name.c_str());
+        }
+        else
+            itm = inventory().item((cmd == kUSE_BANDAGE) ? CLSID_IITEM_BANDAGE : CLSID_IITEM_MEDKIT);
 
-            if (itm)
-            {
-                if (IsGameTypeSingle())
-                {
-                    inventory().Eat(itm);
-                }
-                else
-                {
-                    inventory().ClientEat(itm);
-                }
+        if (itm)
+        {
+            if (IsGameTypeSingle())
+                inventory().Eat(itm);
+            else
+                inventory().ClientEat(itm);
 
-                StaticDrawableWrapper* _s = CurrentGameUI()->AddCustomStatic("item_used", true);
-                string1024 str;
-                strconcat(sizeof(str), str, *CStringTable().translate("st_item_used"), ": ", itm->NameItem());
-                _s->wnd()->TextItemControl()->SetText(str);
+            const bool compat = ClearSkyMode || ShadowOfChernobylMode;
+            StaticDrawableWrapper* _s = CurrentGameUI()->AddCustomStatic("item_used", true, compat ? 3.0f : -1.0f);
 
+            string1024 str;
+            strconcat(sizeof(str), str, *StringTable().translate("st_item_used"), ": ", itm->NameItem());
+            _s->wnd()->SetText(str);
+            if (quickSlot)
                 CurrentGameUI()->GetActorMenu().m_pQuickSlot->ReloadReferences(this);
-            }
         }
     }
     break;
     }
 }
 
-void CActor::IR_OnMouseWheel(int direction)
+void CActor::IR_OnMouseWheel(int x, int y)
 {
     if (hud_adj_mode)
     {
-        g_player_hud->tune(Ivector().set(0, 0, direction));
+        g_player_hud->tune(Ivector().set(0, 0, x));
         return;
     }
 
-    if (inventory().Action((direction > 0) ? (u16)kWPN_ZOOM_DEC : (u16)kWPN_ZOOM_INC, CMD_START))
+    if (inventory().Action((x > 0) ? (u16)kWPN_ZOOM_DEC : (u16)kWPN_ZOOM_INC, CMD_START))
         return;
 
-    if (direction > 0)
+    if (x > 0)
         OnNextWeaponSlot();
     else
         OnPrevWeaponSlot();
@@ -216,7 +233,7 @@ void CActor::IR_OnMouseWheel(int direction)
 
 void CActor::IR_OnKeyboardRelease(int cmd)
 {
-    if (hud_adj_mode && pInput->iGetAsyncKeyState(DIK_LSHIFT))
+    if (hud_adj_mode && pInput->iGetAsyncKeyState(SDL_SCANCODE_LSHIFT))
         return;
 
     if (Remote())
@@ -227,6 +244,9 @@ void CActor::IR_OnKeyboardRelease(int cmd)
 
     if (g_Alive())
     {
+        if (cmd == kUSE && !psActorFlags.test(AF_MULTI_ITEM_PICKUP))
+            m_bPickupMode = false;
+
         if (m_holder)
         {
             m_holder->OnKeyboardRelease(cmd);
@@ -245,13 +265,17 @@ void CActor::IR_OnKeyboardRelease(int cmd)
             if (GAME_PHASE_INPROGRESS == Game().Phase())
                 g_PerformDrop();
             break;
+        case kCROUCH:
+            if (!psActorFlags.test(AF_CROUCH_TOGGLE))
+                g_bAutoClearCrouch = true;
+            break;
         }
     }
 }
 
 void CActor::IR_OnKeyboardHold(int cmd)
 {
-    if (hud_adj_mode && pInput->iGetAsyncKeyState(DIK_LSHIFT))
+    if (hud_adj_mode && pInput->iGetAsyncKeyState(SDL_SCANCODE_LSHIFT))
         return;
 
     if (Remote() || !g_Alive())
@@ -407,6 +431,9 @@ void CActor::ActorUse()
         return;
     }
 
+    if (!psActorFlags.test(AF_MULTI_ITEM_PICKUP))
+        m_bPickupMode = true;
+
     if (character_physics_support()->movement()->PHCapture())
         character_physics_support()->movement()->PHReleaseObject();
 
@@ -466,7 +493,7 @@ void CActor::ActorUse()
         if (object)
             element = (u16)RQ.element;
 
-        if (object && Level().IR_GetKeyState(DIK_LSHIFT))
+        if (object && Level().IR_GetKeyState(SDL_SCANCODE_LSHIFT))
         {
             bool b_allow = !!pSettings->line_exist("ph_capture_visuals", object->cNameVisual());
             if (b_allow && !character_physics_support()->movement()->PHCapture())
@@ -657,9 +684,9 @@ void CActor::NoClipFly(int cmd)
     Fvector cur_pos; // = Position();
     cur_pos.set(0, 0, 0);
     float scale = 1.0f;
-    if (pInput->iGetAsyncKeyState(DIK_LSHIFT))
+    if (pInput->iGetAsyncKeyState(SDL_SCANCODE_LSHIFT))
         scale = 0.25f;
-    else if (pInput->iGetAsyncKeyState(DIK_LMENU))
+    else if (pInput->iGetAsyncKeyState(SDL_SCANCODE_LALT))
         scale = 4.0f;
 
     switch (cmd)
